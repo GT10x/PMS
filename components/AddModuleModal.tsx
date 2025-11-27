@@ -85,51 +85,38 @@ export default function AddModuleModal({ onClose, onSuccess }: AddModuleModalPro
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-8 py-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-white/10"></div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Add New Module</h2>
-                  <p className="text-indigo-100 text-sm mt-0.5">Define a module for your School ERP</p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+        <div className="bg-white px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Add New Module</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Define a module for your School ERP</p>
             </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div className="p-8 space-y-6">
+          <div className="p-6 space-y-4">
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg flex items-start gap-3">
-                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-                <span>{error}</span>
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+                {error}
               </div>
             )}
 
             {/* Module Name */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Module Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -138,13 +125,13 @@ export default function AddModuleModal({ onClose, onSuccess }: AddModuleModalPro
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., Student Management, Attendance System"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900 placeholder-gray-400"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 transition text-sm text-gray-900"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Description
               </label>
               <textarea
@@ -152,36 +139,36 @@ export default function AddModuleModal({ onClose, onSuccess }: AddModuleModalPro
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Brief description of this module..."
                 rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900 placeholder-gray-400 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 transition text-sm text-gray-900 resize-none"
               />
             </div>
 
             {/* Status and Priority */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Status
                 </label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900 cursor-pointer"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 transition text-sm text-gray-900"
                 >
-                  <option value="planning">💭 Planning</option>
-                  <option value="in_progress">🚀 In Progress</option>
-                  <option value="review">👀 Review</option>
-                  <option value="completed">✅ Completed</option>
+                  <option value="planning">Planning</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="review">Review</option>
+                  <option value="completed">Completed</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Priority
                 </label>
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-gray-900 cursor-pointer"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 transition text-sm text-gray-900"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -192,34 +179,31 @@ export default function AddModuleModal({ onClose, onSuccess }: AddModuleModalPro
             </div>
 
             {/* Sub-functions Section */}
-            <div className="border-t border-gray-200 pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <h3 className="text-lg font-bold text-gray-900">Sub-functions</h3>
-                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-semibold">
-                  {subFunctions.length} added
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-medium text-gray-900">Sub-functions</h3>
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                  {subFunctions.length}
                 </span>
               </div>
 
               {/* Added Sub-functions List */}
               {subFunctions.length > 0 && (
-                <div className="mb-4 space-y-2">
+                <div className="mb-3 space-y-2">
                   {subFunctions.map((sf, index) => (
-                    <div key={index} className="flex items-start gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-100 group hover:border-indigo-300 transition-all">
+                    <div key={index} className="flex items-start gap-2 bg-gray-50 p-3 rounded border border-gray-200">
                       <div className="flex-1">
-                        <div className="font-semibold text-gray-900">{sf.name}</div>
+                        <div className="text-sm font-medium text-gray-900">{sf.name}</div>
                         {sf.description && (
-                          <div className="text-sm text-gray-600 mt-1">{sf.description}</div>
+                          <div className="text-xs text-gray-600 mt-0.5">{sf.description}</div>
                         )}
                       </div>
                       <button
                         type="button"
                         onClick={() => handleRemoveSubFunction(index)}
-                        className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                        className="text-gray-400 hover:text-red-500 transition"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
@@ -229,26 +213,26 @@ export default function AddModuleModal({ onClose, onSuccess }: AddModuleModalPro
               )}
 
               {/* Add Sub-function Form */}
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-5 rounded-xl border-2 border-indigo-200">
-                <div className="space-y-3">
+              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                <div className="space-y-2">
                   <input
                     type="text"
                     value={currentSubFunction.name}
                     onChange={(e) => setCurrentSubFunction({ ...currentSubFunction, name: e.target.value })}
                     placeholder="Sub-function name (e.g., Add Student, View Attendance)"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
                     type="text"
                     value={currentSubFunction.description}
                     onChange={(e) => setCurrentSubFunction({ ...currentSubFunction, description: e.target.value })}
                     placeholder="Description (optional)"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <button
                     type="button"
                     onClick={handleAddSubFunction}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border-2 border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-100 hover:border-indigo-400 transition-all duration-200 font-semibold text-sm"
+                    className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition text-sm font-medium"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -261,29 +245,29 @@ export default function AddModuleModal({ onClose, onSuccess }: AddModuleModalPro
           </div>
 
           {/* Action Buttons */}
-          <div className="border-t border-gray-200 px-8 py-6 bg-gray-50 flex gap-3">
+          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all font-semibold"
+              className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   Creating...
                 </span>
               ) : (
-                '✨ Create Module'
+                'Create Module'
               )}
             </button>
           </div>

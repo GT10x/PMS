@@ -80,30 +80,10 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
   }
 
   const priorityConfig = {
-    low: {
-      bg: 'bg-gray-100',
-      text: 'text-gray-700',
-      border: 'border-gray-200',
-      dot: 'bg-gray-400'
-    },
-    medium: {
-      bg: 'bg-blue-100',
-      text: 'text-blue-700',
-      border: 'border-blue-200',
-      dot: 'bg-blue-500'
-    },
-    high: {
-      bg: 'bg-orange-100',
-      text: 'text-orange-700',
-      border: 'border-orange-200',
-      dot: 'bg-orange-500'
-    },
-    critical: {
-      bg: 'bg-red-100',
-      text: 'text-red-700',
-      border: 'border-red-200',
-      dot: 'bg-red-500'
-    }
+    low: { bg: 'bg-gray-100', text: 'text-gray-700' },
+    medium: { bg: 'bg-blue-100', text: 'text-blue-700' },
+    high: { bg: 'bg-orange-100', text: 'text-orange-700' },
+    critical: { bg: 'bg-red-100', text: 'text-red-700' }
   }
 
   const priority = priorityConfig[module.priority as keyof typeof priorityConfig] || priorityConfig.medium
@@ -111,35 +91,31 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
   const totalCount = subFunctions.length
 
   return (
-    <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-indigo-200 overflow-hidden transform hover:-translate-y-1">
+    <div className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
       {/* Module Header */}
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="font-bold text-gray-900 text-lg leading-tight pr-2 group-hover:text-indigo-600 transition-colors">
+      <div className="p-3">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-semibold text-gray-900 text-sm leading-tight pr-2">
             {module.name}
           </h3>
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${priority.border} ${priority.bg}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${priority.dot}`}></div>
-            <span className={`text-xs font-semibold ${priority.text} uppercase tracking-wide`}>
-              {module.priority}
-            </span>
-          </div>
+          <span className={`text-xs px-2 py-0.5 rounded ${priority.bg} ${priority.text}`}>
+            {module.priority}
+          </span>
         </div>
 
         {module.description && (
-          <p className="text-sm text-gray-600 mb-4 line-clamp-2">{module.description}</p>
+          <p className="text-xs text-gray-600 mb-2 line-clamp-2">{module.description}</p>
         )}
 
-        {/* Progress Bar (if sub-functions exist) */}
+        {/* Progress Bar */}
         {totalCount > 0 && (
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-              <span className="font-medium">Progress</span>
-              <span className="font-semibold">{completedCount}/{totalCount}</span>
+          <div className="mb-2">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>{completedCount}/{totalCount} completed</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
               <div
-                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500 ease-out"
+                className="h-full bg-blue-500 rounded-full transition-all"
                 style={{ width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%` }}
               ></div>
             </div>
@@ -149,10 +125,10 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
         {/* Sub-functions Toggle */}
         <button
           onClick={() => setShowSubFunctions(!showSubFunctions)}
-          className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-semibold group/btn transition-colors"
+          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
         >
           <svg
-            className={`w-4 h-4 transition-transform duration-200 ${showSubFunctions ? 'rotate-90' : ''}`}
+            className={`w-3 h-3 transition-transform ${showSubFunctions ? 'rotate-90' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -165,32 +141,29 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
 
       {/* Sub-functions List */}
       {showSubFunctions && (
-        <div className="border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white p-5 pt-4">
-          <div className="space-y-2.5 mb-4">
+        <div className="border-t border-gray-200 bg-gray-50 p-3 pt-2">
+          <div className="space-y-2 mb-2">
             {subFunctions.map(sf => (
               <div
                 key={sf.id}
-                className="group/item flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200"
+                className="flex items-start gap-2 p-2 bg-white rounded border border-gray-200"
               >
                 <input
                   type="checkbox"
                   checked={sf.status === 'completed'}
                   onChange={() => toggleSubFunctionStatus(sf.id, sf.status)}
-                  className="mt-0.5 h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 focus:ring-2 cursor-pointer transition-all"
+                  className="mt-0.5 h-4 w-4 text-blue-600 rounded border-gray-300 cursor-pointer"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className={`font-medium text-sm ${sf.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                  <div className={`text-xs ${sf.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                     {sf.name}
                   </div>
                   {sf.description && (
-                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">{sf.description}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{sf.description}</div>
                   )}
                 </div>
                 {sf.status === 'in_progress' && (
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-50 border border-amber-200">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                    <span className="text-xs text-amber-700 font-semibold">In Progress</span>
-                  </div>
+                  <span className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">In Progress</span>
                 )}
               </div>
             ))}
@@ -200,9 +173,9 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
           {!showAddSubFunction && (
             <button
               onClick={() => setShowAddSubFunction(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border-2 border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 font-medium text-sm group/add"
+              className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-white border border-dashed border-gray-300 text-gray-600 rounded hover:border-gray-400 hover:text-gray-700 transition text-xs font-medium"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               <span>Add Sub-function</span>
@@ -211,13 +184,13 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
 
           {/* Add Sub-function Form */}
           {showAddSubFunction && (
-            <div className="space-y-3 bg-indigo-50 p-4 rounded-xl border-2 border-indigo-200 animate-in fade-in duration-200">
+            <div className="space-y-2 bg-white p-2 rounded border border-gray-200">
               <input
                 type="text"
                 placeholder="Sub-function name"
                 value={newSubFunction.name}
                 onChange={(e) => setNewSubFunction({ ...newSubFunction, name: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                 autoFocus
               />
               <input
@@ -225,12 +198,12 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
                 placeholder="Description (optional)"
                 value={newSubFunction.description}
                 onChange={(e) => setNewSubFunction({ ...newSubFunction, description: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 <button
                   onClick={handleAddSubFunction}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all duration-200"
+                  className="flex-1 px-2 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition"
                 >
                   Add
                 </button>
@@ -239,7 +212,7 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
                     setShowAddSubFunction(false)
                     setNewSubFunction({ name: '', description: '' })
                   }}
-                  className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
+                  className="flex-1 px-2 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs font-medium hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
