@@ -62,10 +62,34 @@ export default function ModulesPage() {
   }
 
   const statusColumns = [
-    { key: 'planning', title: 'Planning', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
-    { key: 'in_progress', title: 'In Progress', bgColor: 'bg-yellow-50', borderColor: 'border-yellow-200' },
-    { key: 'review', title: 'Review', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
-    { key: 'completed', title: 'Completed', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
+    {
+      key: 'planning',
+      title: '💭 Planning',
+      gradient: 'from-slate-500 to-slate-600',
+      lightBg: 'bg-slate-50/80',
+      count: getModulesByStatus('planning').length
+    },
+    {
+      key: 'in_progress',
+      title: '🚀 In Progress',
+      gradient: 'from-blue-500 to-cyan-500',
+      lightBg: 'bg-blue-50/80',
+      count: getModulesByStatus('in_progress').length
+    },
+    {
+      key: 'review',
+      title: '👀 Review',
+      gradient: 'from-purple-500 to-pink-500',
+      lightBg: 'bg-purple-50/80',
+      count: getModulesByStatus('review').length
+    },
+    {
+      key: 'completed',
+      title: '✅ Completed',
+      gradient: 'from-green-500 to-emerald-500',
+      lightBg: 'bg-green-50/80',
+      count: getModulesByStatus('completed').length
+    },
   ]
 
   if (loading) {
@@ -77,27 +101,36 @@ export default function ModulesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       {/* Header */}
-      <header className="bg-white shadow-md sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <header className="backdrop-blur-md bg-white/80 border-b border-gray-200/50 sticky top-0 z-10 shadow-sm">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-primary-600">ERP Modules</h1>
-              <p className="text-sm text-gray-600 mt-1">Plan and manage your School ERP modules</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
+                  M
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    ERP Modules
+                  </h1>
+                  <p className="text-sm text-gray-500 mt-0.5">Plan and manage your School ERP modules</p>
+                </div>
+              </div>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 font-medium shadow-sm"
               >
                 ← Dashboard
               </button>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
               >
-                + Add Module
+                ✨ Add Module
               </button>
             </div>
           </div>
@@ -106,21 +139,21 @@ export default function ModulesPage() {
 
       {/* Kanban Board */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {statusColumns.map(column => (
             <div key={column.key} className="flex flex-col">
               {/* Column Header */}
-              <div className={`${column.bgColor} ${column.borderColor} border-2 rounded-t-lg px-4 py-3`}>
+              <div className={`bg-gradient-to-r ${column.gradient} rounded-2xl shadow-lg p-4 mb-4`}>
                 <div className="flex justify-between items-center">
-                  <h2 className="font-semibold text-gray-800">{column.title}</h2>
-                  <span className="bg-white px-2 py-1 rounded-full text-xs font-medium text-gray-600">
-                    {getModulesByStatus(column.key).length}
-                  </span>
+                  <h2 className="font-bold text-white text-lg">{column.title}</h2>
+                  <div className="bg-white/30 backdrop-blur-sm px-3 py-1 rounded-full">
+                    <span className="text-white font-bold text-sm">{column.count}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Column Content */}
-              <div className={`${column.bgColor} ${column.borderColor} border-2 border-t-0 rounded-b-lg p-4 min-h-[500px] space-y-3`}>
+              <div className={`${column.lightBg} backdrop-blur-sm rounded-2xl p-3 min-h-[600px] space-y-3 border border-gray-200/50`}>
                 {getModulesByStatus(column.key).map(module => (
                   <ModuleCard
                     key={module.id}
@@ -129,8 +162,12 @@ export default function ModulesPage() {
                   />
                 ))}
                 {getModulesByStatus(column.key).length === 0 && (
-                  <div className="text-center text-gray-400 py-8 text-sm">
-                    No modules yet
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                    <svg className="w-16 h-16 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                    </svg>
+                    <p className="text-sm font-medium">No modules yet</p>
+                    <p className="text-xs mt-1">Drag or add new modules here</p>
                   </div>
                 )}
               </div>

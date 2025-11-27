@@ -79,64 +79,118 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
     loadSubFunctions()
   }
 
-  const priorityColors = {
-    low: 'bg-gray-100 text-gray-700',
-    medium: 'bg-blue-100 text-blue-700',
-    high: 'bg-orange-100 text-orange-700',
-    critical: 'bg-red-100 text-red-700'
+  const priorityConfig = {
+    low: {
+      bg: 'bg-gray-100',
+      text: 'text-gray-700',
+      border: 'border-gray-200',
+      dot: 'bg-gray-400'
+    },
+    medium: {
+      bg: 'bg-blue-100',
+      text: 'text-blue-700',
+      border: 'border-blue-200',
+      dot: 'bg-blue-500'
+    },
+    high: {
+      bg: 'bg-orange-100',
+      text: 'text-orange-700',
+      border: 'border-orange-200',
+      dot: 'bg-orange-500'
+    },
+    critical: {
+      bg: 'bg-red-100',
+      text: 'text-red-700',
+      border: 'border-red-200',
+      dot: 'bg-red-500'
+    }
   }
 
+  const priority = priorityConfig[module.priority as keyof typeof priorityConfig] || priorityConfig.medium
+  const completedCount = subFunctions.filter(sf => sf.status === 'completed').length
+  const totalCount = subFunctions.length
+
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200">
+    <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-indigo-200 overflow-hidden transform hover:-translate-y-1">
       {/* Module Header */}
-      <div className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-semibold text-gray-800 text-lg">{module.name}</h3>
-          <span className={`text-xs px-2 py-1 rounded-full ${priorityColors[module.priority as keyof typeof priorityColors]}`}>
-            {module.priority}
-          </span>
+      <div className="p-5">
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="font-bold text-gray-900 text-lg leading-tight pr-2 group-hover:text-indigo-600 transition-colors">
+            {module.name}
+          </h3>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${priority.border} ${priority.bg}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${priority.dot}`}></div>
+            <span className={`text-xs font-semibold ${priority.text} uppercase tracking-wide`}>
+              {module.priority}
+            </span>
+          </div>
         </div>
 
         {module.description && (
-          <p className="text-sm text-gray-600 mb-3">{module.description}</p>
+          <p className="text-sm text-gray-600 mb-4 line-clamp-2">{module.description}</p>
+        )}
+
+        {/* Progress Bar (if sub-functions exist) */}
+        {totalCount > 0 && (
+          <div className="mb-4">
+            <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+              <span className="font-medium">Progress</span>
+              <span className="font-semibold">{completedCount}/{totalCount}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%` }}
+              ></div>
+            </div>
+          </div>
         )}
 
         {/* Sub-functions Toggle */}
         <button
           onClick={() => setShowSubFunctions(!showSubFunctions)}
-          className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+          className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-semibold group/btn transition-colors"
         >
-          {showSubFunctions ? '▼' : '▶'} Sub-functions ({subFunctions.length})
+          <svg
+            className={`w-4 h-4 transition-transform duration-200 ${showSubFunctions ? 'rotate-90' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span>Sub-functions ({subFunctions.length})</span>
         </button>
       </div>
 
       {/* Sub-functions List */}
       {showSubFunctions && (
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
-          <div className="space-y-2 mb-3">
+        <div className="border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white p-5 pt-4">
+          <div className="space-y-2.5 mb-4">
             {subFunctions.map(sf => (
               <div
                 key={sf.id}
-                className="flex items-start gap-2 text-sm p-2 bg-white rounded border border-gray-200"
+                className="group/item flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200"
               >
                 <input
                   type="checkbox"
                   checked={sf.status === 'completed'}
                   onChange={() => toggleSubFunctionStatus(sf.id, sf.status)}
-                  className="mt-1 h-4 w-4 text-primary-600 rounded cursor-pointer"
+                  className="mt-0.5 h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 focus:ring-2 cursor-pointer transition-all"
                 />
-                <div className="flex-1">
-                  <div className={`font-medium ${sf.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                <div className="flex-1 min-w-0">
+                  <div className={`font-medium text-sm ${sf.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                     {sf.name}
                   </div>
                   {sf.description && (
-                    <div className="text-xs text-gray-500 mt-1">{sf.description}</div>
+                    <div className="text-xs text-gray-500 mt-1 leading-relaxed">{sf.description}</div>
                   )}
                 </div>
                 {sf.status === 'in_progress' && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
-                    In Progress
-                  </span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-50 border border-amber-200">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                    <span className="text-xs text-amber-700 font-semibold">In Progress</span>
+                  </div>
                 )}
               </div>
             ))}
@@ -146,33 +200,37 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
           {!showAddSubFunction && (
             <button
               onClick={() => setShowAddSubFunction(true)}
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium w-full text-left"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border-2 border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 font-medium text-sm group/add"
             >
-              + Add Sub-function
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Sub-function</span>
             </button>
           )}
 
           {/* Add Sub-function Form */}
           {showAddSubFunction && (
-            <div className="space-y-2 bg-white p-3 rounded border border-primary-200">
+            <div className="space-y-3 bg-indigo-50 p-4 rounded-xl border-2 border-indigo-200 animate-in fade-in duration-200">
               <input
                 type="text"
                 placeholder="Sub-function name"
                 value={newSubFunction.name}
                 onChange={(e) => setNewSubFunction({ ...newSubFunction, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                autoFocus
               />
               <input
                 type="text"
                 placeholder="Description (optional)"
                 value={newSubFunction.description}
                 onChange={(e) => setNewSubFunction({ ...newSubFunction, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleAddSubFunction}
-                  className="flex-1 px-3 py-1.5 bg-primary-600 text-white rounded text-sm hover:bg-primary-700"
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all duration-200"
                 >
                   Add
                 </button>
@@ -181,7 +239,7 @@ export default function ModuleCard({ module, onUpdate }: { module: Module, onUpd
                     setShowAddSubFunction(false)
                     setNewSubFunction({ name: '', description: '' })
                   }}
-                  className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+                  className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
                   Cancel
                 </button>
