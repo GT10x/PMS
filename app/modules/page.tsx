@@ -8,7 +8,6 @@ import ModuleCard from '@/components/ModuleCard'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 const supabase = createClient(
   'https://loihxoyrutbzmqscdknk.supabase.co',
