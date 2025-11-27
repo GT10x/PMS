@@ -1,8 +1,23 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, UserProfile } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+
+// Direct Supabase client initialization
+const supabase = createClient(
+  'https://loihxoyrutbzmqscdknk.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvaWh4b3lydXRiem1xc2Nka25rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMzg5NDMsImV4cCI6MjA3OTgxNDk0M30.OFJs18sZSBO5WNj_Ghl56W0z0QE4etNbcBgVHgIAqZw'
+)
+
+type UserProfile = {
+  id: string
+  email: string
+  role: string
+  full_name: string
+  created_at: string
+  updated_at: string
+}
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
