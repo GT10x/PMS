@@ -77,10 +77,22 @@ export default function ProjectsPage() {
       const response = await fetch('/api/projects');
       if (response.ok) {
         const data = await response.json();
-        setProjects(data.projects);
+        console.log('Projects API response:', data);
+        if (data.projects) {
+          setProjects(data.projects);
+        } else if (Array.isArray(data)) {
+          setProjects(data);
+        } else {
+          console.error('Unexpected API response format:', data);
+          setProjects([]);
+        }
+      } else {
+        console.error('Failed to fetch projects:', response.status);
+        setProjects([]);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
