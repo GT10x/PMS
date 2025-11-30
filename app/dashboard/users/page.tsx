@@ -73,16 +73,21 @@ export default function UserManagementPage() {
     setSuccess('');
 
     try {
+      console.log('Submitting user data:', formData);
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
-        setError(data.error || 'Failed to add user');
+        const errorMsg = data.error || 'Failed to add user';
+        setError(errorMsg);
+        console.error('Error adding user:', errorMsg);
         return;
       }
 
@@ -97,7 +102,8 @@ export default function UserManagementPage() {
       });
       fetchUsers();
     } catch (error) {
-      setError('Failed to add user');
+      console.error('Exception adding user:', error);
+      setError('Failed to add user: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
