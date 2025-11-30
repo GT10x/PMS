@@ -25,6 +25,7 @@ export default function UserManagementPage() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -71,6 +72,7 @@ export default function UserManagementPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setSubmitting(true);
 
     try {
       console.log('Submitting user data:', formData);
@@ -88,10 +90,13 @@ export default function UserManagementPage() {
         const errorMsg = data.error || 'Failed to add user';
         setError(errorMsg);
         console.error('Error adding user:', errorMsg);
+        alert('Error: ' + errorMsg);
+        setSubmitting(false);
         return;
       }
 
       setSuccess('User added successfully');
+      alert('User added successfully!');
       setShowAddModal(false);
       setFormData({
         full_name: '',
@@ -101,9 +106,13 @@ export default function UserManagementPage() {
         role: 'developer',
       });
       fetchUsers();
+      setSubmitting(false);
     } catch (error) {
       console.error('Exception adding user:', error);
-      setError('Failed to add user: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      const errorMsg = 'Failed to add user: ' + (error instanceof Error ? error.message : 'Unknown error');
+      setError(errorMsg);
+      alert('Exception: ' + errorMsg);
+      setSubmitting(false);
     }
   };
 
@@ -414,9 +423,10 @@ export default function UserManagementPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Add Employee
+                  {submitting ? 'Adding...' : 'Add Employee'}
                 </button>
               </div>
             </form>
