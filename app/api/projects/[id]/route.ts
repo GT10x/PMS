@@ -36,21 +36,23 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { name, description, status, priority, start_date, end_date, team_members } = body;
+    const { name, description, status, priority, start_date, team_members } = body;
 
-    // Update project
+    // Update project (only include dates if provided)
+    const updateData: any = {
+      name,
+      description,
+      status,
+      priority,
+      updated_at: new Date().toISOString()
+    };
+
+    if (start_date) updateData.start_date = start_date;
+
     // @ts-ignore - Supabase types are too strict
     const { data: project, error: projectError } = await supabaseAdmin
       .from('projects')
-      .update({
-        name,
-        description,
-        status,
-        priority,
-        start_date,
-        end_date,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

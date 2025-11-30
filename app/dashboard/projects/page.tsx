@@ -10,7 +10,6 @@ interface Project {
   status: string;
   priority: string;
   start_date: string | null;
-  end_date: string | null;
   created_at: string;
   created_by: string;
   member_count?: number;
@@ -43,7 +42,6 @@ export default function ProjectsPage() {
     status: 'planning',
     priority: 'medium',
     start_date: '',
-    end_date: '',
     member_ids: [] as string[],
   });
   const [error, setError] = useState('');
@@ -210,7 +208,6 @@ export default function ProjectsPage() {
       status: project.status,
       priority: project.priority,
       start_date: project.start_date || '',
-      end_date: project.end_date || '',
       member_ids: project.members?.map(m => m.user_id) || [],
     });
     setShowEditModal(true);
@@ -223,7 +220,6 @@ export default function ProjectsPage() {
       status: 'planning',
       priority: 'medium',
       start_date: '',
-      end_date: '',
       member_ids: [],
     });
   };
@@ -460,15 +456,6 @@ export default function ProjectsPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                  <input
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  />
-                </div>
               </div>
 
               <div className="pt-4 border-t">
@@ -595,15 +582,6 @@ export default function ProjectsPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                  <input
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  />
-                </div>
               </div>
 
               <div className="pt-4 border-t">

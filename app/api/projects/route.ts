@@ -94,18 +94,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and status are required' }, { status: 400 });
     }
 
-    // Create project
+    // Create project (only include dates if provided)
+    const projectData: any = {
+      name,
+      description,
+      status,
+      priority: priority || 'medium',
+      created_by: currentUser.id
+    };
+
+    if (start_date) projectData.start_date = start_date;
+
     const { data: project, error: projectError } = await supabaseAdmin
       .from('projects')
-      .insert({
-        name,
-        description,
-        status,
-        priority: priority || 'medium',
-        start_date,
-        end_date,
-        created_by: currentUser.id
-      })
+      .insert(projectData)
       .select()
       .single();
 
