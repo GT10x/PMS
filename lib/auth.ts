@@ -1,6 +1,6 @@
 // @ts-nocheck
 import bcrypt from 'bcryptjs';
-import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase';
 import { User } from './types';
 
 /**
@@ -15,7 +15,7 @@ export async function authenticateUser(
     // Check if identifier is email (contains @)
     const isEmail = identifier.includes('@');
 
-    let query = supabase.from('user_profiles').select('*');
+    let query = supabaseAdmin.from('user_profiles').select('*');
 
     if (isEmail) {
       query = query.eq('email', identifier);
@@ -61,7 +61,7 @@ export async function authenticateUser(
  */
 export async function getUserById(userId: string): Promise<User | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
@@ -92,7 +92,7 @@ export async function getUserModulePermissions(userId: string): Promise<string[]
       return ['all'];
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_module_permissions')
       .select('module_name')
       .eq('user_id', userId)
@@ -132,7 +132,7 @@ export async function createUser(userData: {
     const passwordHash = await hashPassword(userData.password);
 
     // @ts-ignore - Supabase types are too strict
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_profiles')
       .insert([
         {
@@ -187,7 +187,7 @@ export async function updateUser(
     }
 
     // @ts-ignore - Supabase types are too strict
-    const { data, error} = await supabase
+    const { data, error} = await supabaseAdmin
       .from('user_profiles')
       .update(updateData)
       .eq('id', userId)
@@ -212,7 +212,7 @@ export async function updateUser(
  */
 export async function deleteUser(userId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase.from('user_profiles').delete().eq('id', userId);
+    const { error } = await supabaseAdmin.from('user_profiles').delete().eq('id', userId);
 
     if (error) {
       return { success: false, error: error.message };
@@ -234,7 +234,7 @@ export async function updateUserModulePermissions(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Delete existing permissions
-    await supabase.from('user_module_permissions').delete().eq('user_id', userId);
+    await supabaseAdmin.from('user_module_permissions').delete().eq('user_id', userId);
 
     // Insert new permissions
     if (moduleNames.length > 0) {
@@ -244,7 +244,7 @@ export async function updateUserModulePermissions(
         has_access: true,
       }));
 
-      const { error } = await supabase.from('user_module_permissions').insert(permissions);
+      const { error } = await supabaseAdmin.from('user_module_permissions').insert(permissions);
 
       if (error) {
         return { success: false, error: error.message };
