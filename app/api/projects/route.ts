@@ -62,16 +62,16 @@ export async function GET(req: NextRequest) {
     // Combine projects with their team members
     const projectsWithMembers = projects.map(project => ({
       ...project,
-      team_members: projectMembers
+      members: projectMembers
         .filter(pm => pm.project_id === project.id)
         .map(pm => ({
-          id: pm.user_id,
-          name: pm.user_profiles?.name || 'Unknown',
+          user_id: pm.user_id,
+          full_name: pm.user_profiles?.full_name || 'Unknown',
           role: pm.user_profiles?.role || 'Unknown'
         }))
     }));
 
-    return NextResponse.json(projectsWithMembers);
+    return NextResponse.json({ projects: projectsWithMembers });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
