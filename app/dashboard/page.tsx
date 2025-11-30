@@ -165,7 +165,7 @@ export default function DashboardPage() {
         {!isAdminOrPM && assignedProjects.length === 1 && selectedProjectId && (
           <div className="bg-white rounded-lg shadow p-6 mb-8">
             <p className="text-gray-600">Redirecting to your project dashboard...</p>
-            {typeof window !== 'undefined' && router.push(`/dashboard/project/${selectedProjectId}`)}
+            <script dangerouslySetInnerHTML={{ __html: `window.location.href='/dashboard/project/${selectedProjectId}'` }} />
           </div>
         )}
 
