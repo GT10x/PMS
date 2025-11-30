@@ -24,7 +24,7 @@ async function getCurrentUser(request: NextRequest): Promise<User | null> {
 // PUT /api/projects/[id] - Update a project
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser(req);
@@ -33,6 +33,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await req.json();
     const { name, description, status, priority, start_date, end_date, team_members } = body;
 
@@ -48,7 +49,7 @@ export async function PUT(
         end_date,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -60,7 +61,7 @@ export async function PUT(
     const { error: deleteError } = await supabaseAdmin
       .from('project_members')
       .delete()
-      .eq('project_id', params.id);
+      .eq('project_id', id);
 
     if (deleteError) {
       return NextResponse.json({ error: deleteError.message }, { status: 500 });
@@ -68,7 +69,7 @@ export async function PUT(
 
     if (team_members && team_members.length > 0) {
       const memberInserts = team_members.map((userId: string) => ({
-        project_id: params.id,
+        project_id: id,
         user_id: userId,
         role: null
       }));
@@ -91,7 +92,7 @@ export async function PUT(
 // DELETE /api/projects/[id] - Delete a project
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const currentUser = await getCurrentUser(req);
@@ -100,11 +101,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
+
     // Delete project (cascade will delete project_members automatically)
     const { error } = await supabaseAdmin
       .from('projects')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
