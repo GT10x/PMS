@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyToken } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { User } from '@/lib/types';
+
+// Get current user from cookie
+async function getCurrentUser(request: NextRequest): Promise<User | null> {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get('user_id')?.value;
+
+  if (!userId) {
+    return null;
+  }
+
+  const { data } = await supabaseAdmin
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  return data as User | null;
+}
 
 // PUT /api/projects/[id] - Update a project
 export async function PUT(
@@ -8,14 +27,10 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const currentUser = await getCurrentUser(req);
 
-    const user = await verifyToken(token);
-    if (!user || !user.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!currentUser || !currentUser.is_admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
@@ -79,14 +94,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const currentUser = await getCurrentUser(req);
 
-    const user = await verifyToken(token);
-    if (!user || !user.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!currentUser || !currentUser.is_admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Delete project (cascade will delete project_members automatically)

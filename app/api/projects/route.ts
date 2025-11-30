@@ -1,18 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { verifyToken } from '@/lib/auth';
+import { cookies } from 'next/headers';
+import { User } from '@/lib/types';
+
+// Get current user from cookie
+async function getCurrentUser(request: NextRequest): Promise<User | null> {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get('user_id')?.value;
+
+  if (!userId) {
+    return null;
+  }
+
+  const { data } = await supabaseAdmin
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  return data as User | null;
+}
 
 // GET /api/projects - Get all projects with team members
 export async function GET(req: NextRequest) {
   try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const currentUser = await getCurrentUser(req);
 
-    const user = await verifyToken(token);
-    if (!user || !user.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!currentUser || !currentUser.is_admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get all projects
@@ -64,14 +79,10 @@ export async function GET(req: NextRequest) {
 // POST /api/projects - Create a new project
 export async function POST(req: NextRequest) {
   try {
-    const token = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const currentUser = await getCurrentUser(req);
 
-    const user = await verifyToken(token);
-    if (!user || !user.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!currentUser || !currentUser.is_admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
@@ -92,7 +103,7 @@ export async function POST(req: NextRequest) {
         priority: priority || 'medium',
         start_date,
         end_date,
-        created_by: user.id
+        created_by: currentUser.id
       })
       .select()
       .single();
