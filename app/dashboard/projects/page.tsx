@@ -60,7 +60,8 @@ export default function ProjectsPage() {
         return;
       }
       const data = await response.json();
-      if (!data.user.is_admin) {
+      // Only admin and project_manager can access Projects management
+      if (!data.user.is_admin && data.user.role !== 'project_manager') {
         router.push('/dashboard');
         return;
       }

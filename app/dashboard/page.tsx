@@ -4,10 +4,20 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/lib/types';
 
+interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  priority: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [modulePermissions, setModulePermissions] = useState<string[]>([]);
+  const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,10 +36,33 @@ export default function DashboardPage() {
       const data = await response.json();
       setUser(data.user);
       setModulePermissions(data.modulePermissions);
+
+      // Fetch assigned projects for non-admin/non-PM users
+      if (!data.user.is_admin && data.user.role !== 'project_manager') {
+        await fetchAssignedProjects(data.user.id);
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Error fetching user:', error);
       router.push('/login');
+    }
+  };
+
+  const fetchAssignedProjects = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/users/${userId}/projects`);
+      if (response.ok) {
+        const data = await response.json();
+        setAssignedProjects(data.projects || []);
+
+        // Auto-select if only one project
+        if (data.projects?.length === 1) {
+          setSelectedProjectId(data.projects[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
     }
   };
 
@@ -53,6 +86,8 @@ export default function DashboardPage() {
   if (!user) {
     return null;
   }
+
+  const isAdminOrPM = user.is_admin || user.role === 'project_manager';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -86,21 +121,21 @@ export default function DashboardPage() {
             >
               Dashboard
             </a>
-            {(user.is_admin || user.role === 'project_manager') && (
-              <a
-                href="/dashboard/users"
-                className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
-              >
-                User Management
-              </a>
-            )}
-            {(user.is_admin || modulePermissions.includes('all') || modulePermissions.includes('Projects')) && (
-              <a
-                href="/dashboard/projects"
-                className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
-              >
-                Projects
-              </a>
+            {isAdminOrPM && (
+              <>
+                <a
+                  href="/dashboard/users"
+                  className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
+                >
+                  User Management
+                </a>
+                <a
+                  href="/dashboard/projects"
+                  className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
+                >
+                  Manage Projects
+                </a>
+              </>
             )}
           </div>
         </div>
@@ -108,6 +143,32 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Project Tabs for Regular Users */}
+        {!isAdminOrPM && assignedProjects.length > 1 && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Projects</h2>
+            <div className="flex flex-wrap gap-3">
+              {assignedProjects.map((project) => (
+                <button
+                  key={project.id}
+                  onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+                >
+                  {project.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Single Project - Auto Redirect */}
+        {!isAdminOrPM && assignedProjects.length === 1 && selectedProjectId && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <p className="text-gray-600">Redirecting to your project dashboard...</p>
+            {typeof window !== 'undefined' && router.push(`/dashboard/project/${selectedProjectId}`)}
+          </div>
+        )}
+
         {/* User Info Card */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Profile</h2>
@@ -137,42 +198,19 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm text-gray-500">Access Level</p>
               <p className="text-base font-medium text-gray-900">
-                {user.is_admin ? 'Admin (Full Access)' : 'Limited Access'}
+                {user.is_admin ? 'Admin (Full Access)' : user.role === 'project_manager' ? 'Project Manager' : 'Team Member'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Module Access */}
-        {!user.is_admin && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Your Module Access
-            </h2>
-            {modulePermissions.length === 0 ? (
-              <p className="text-gray-500">No modules assigned yet.</p>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {modulePermissions.map((module) => (
-                  <div
-                    key={module}
-                    className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-800"
-                  >
-                    {module}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Admin Quick Actions */}
-        {user.is_admin && (
+        {/* Admin/PM Quick Actions */}
+        {isAdminOrPM && (
           <div className="bg-white rounded-lg shadow p-6 mt-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Admin Quick Actions
+              Quick Actions
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <a
                 href="/dashboard/users"
                 className="block p-4 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition"
@@ -189,15 +227,6 @@ export default function DashboardPage() {
                 <h3 className="font-medium text-green-900">Manage Projects</h3>
                 <p className="text-sm text-green-700 mt-1">
                   Create and manage projects
-                </p>
-              </a>
-              <a
-                href="/dashboard/modules"
-                className="block p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
-              >
-                <h3 className="font-medium text-purple-900">Manage Modules</h3>
-                <p className="text-sm text-purple-700 mt-1">
-                  School ERP modules
                 </p>
               </a>
             </div>

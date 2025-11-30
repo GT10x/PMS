@@ -30,7 +30,7 @@ export async function PUT(
   try {
     const currentUser = await getCurrentUser(req);
 
-    if (!currentUser || !currentUser.is_admin) {
+    if (!currentUser || (!currentUser.is_admin && currentUser.role !== 'project_manager')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -101,7 +101,7 @@ export async function DELETE(
   try {
     const currentUser = await getCurrentUser(req);
 
-    if (!currentUser || !currentUser.is_admin) {
+    if (!currentUser || (!currentUser.is_admin && currentUser.role !== 'project_manager')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
