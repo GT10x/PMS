@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateUser, deleteUser } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import { User } from '@/lib/types';
 
 // Get current user from cookie
-async function getCurrentUser(request: NextRequest) {
+async function getCurrentUser(request: NextRequest): Promise<User | null> {
   const cookieStore = await cookies();
   const userId = cookieStore.get('user_id')?.value;
 
@@ -18,7 +19,7 @@ async function getCurrentUser(request: NextRequest) {
     .eq('id', userId)
     .single();
 
-  return data;
+  return data as User | null;
 }
 
 // PUT /api/users/[id] - Update user
