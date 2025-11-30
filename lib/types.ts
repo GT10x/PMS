@@ -8,7 +8,7 @@ export type Database = {
           email: string | null;
           password_hash: string | null;
           full_name: string;
-          role: 'admin' | 'project_manager' | 'cto' | 'consultant' | 'tester' | 'developer';
+          role: 'admin' | 'project_manager' | 'cto' | 'consultant' | 'tester' | 'developer' | 'react_native_developer';
           is_admin: boolean;
           created_at: string;
           updated_at: string;
@@ -19,7 +19,7 @@ export type Database = {
           email?: string | null;
           password_hash?: string | null;
           full_name: string;
-          role: 'admin' | 'project_manager' | 'cto' | 'consultant' | 'tester' | 'developer';
+          role: 'admin' | 'project_manager' | 'cto' | 'consultant' | 'tester' | 'developer' | 'react_native_developer';
           is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -295,7 +295,7 @@ export type Database = {
 };
 
 // User role type
-export type UserRole = 'admin' | 'project_manager' | 'cto' | 'consultant' | 'tester' | 'developer';
+export type UserRole = 'admin' | 'project_manager' | 'cto' | 'consultant' | 'tester' | 'developer' | 'react_native_developer';
 
 // User type
 export type User = Database['public']['Tables']['users']['Row'];
