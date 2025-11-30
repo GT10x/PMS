@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         role,
         user_profiles (
           id,
-          name,
+          full_name,
           role
         )
       `);
