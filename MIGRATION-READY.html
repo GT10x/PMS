@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PMS - Database Migration Ready</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .step { background: #f0f0f0; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        button { background: #4CAF50; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #45a049; }
+        .sql { background: #000; color: #0f0; padding: 15px; font-family: monospace; overflow-x: auto; }
+        .success { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🚀 PMS Database Migration</h1>
+
+    <div class="step">
+        <h2>Step 1: Open Supabase SQL Editor</h2>
+        <button onclick="window.open('https://supabase.com/dashboard/project/loihxoyrutbzmqscdknk/sql/new', '_blank')">
+            📝 Open SQL Editor
+        </button>
+    </div>
+
+    <div class="step">
+        <h2>Step 2: Copy SQL Below</h2>
+        <button onclick="copySQLToClipboard()">📋 Copy Migration SQL</button>
+        <p id="copyStatus"></p>
+    </div>
+
+    <div class="step">
+        <h2>Step 3: Paste & Run in Supabase</h2>
+        <p>Paste the SQL in the editor and click "Run"</p>
+    </div>
+
+    <div class="step">
+        <h2>Step 4: Create Admin User</h2>
+        <p>After migration succeeds, run this command:</p>
+        <div class="sql">cd pms && node run-migration-service.js</div>
+    </div>
+
+    <div class="step success">
+        <h2>✅ Login Credentials</h2>
+        <p>Email: piush008@gmail.com</p>
+        <p>Password: Admin@123</p>
+    </div>
+
+    <textarea id="sqlContent" style="display:none;"><?php echo file_get_contents('../supabase-migration.sql'); ?></textarea>
+
+    <script>
+        async function copySQLToClipboard() {
+            try {
+                const response = await fetch('supabase-migration.sql');
+                const sql = await response.text();
+                await navigator.clipboard.writeText(sql);
+                document.getElementById('copyStatus').innerHTML = '<span style="color:green">✅ SQL copied to clipboard!</span>';
+            } catch (err) {
+                document.getElementById('copyStatus').innerHTML = '<span style="color:red">❌ Please copy from supabase-migration.sql file</span>';
+            }
+        }
+    </script>
+</body>
+</html>
