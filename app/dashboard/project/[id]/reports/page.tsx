@@ -13,10 +13,17 @@ interface Report {
   browser?: string;
   device?: string;
   attachments: string[];
+  dev_notes?: string;
   created_at: string;
   reported_by_user: { full_name: string };
   assigned_to_user?: { full_name: string };
   version?: { version_number: string };
+}
+
+interface User {
+  id: string;
+  full_name: string;
+  role: string;
 }
 
 export default function ProjectReportsPage() {
@@ -45,8 +52,19 @@ export default function ProjectReportsPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  // View/Edit modal state
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [editData, setEditData] = useState({
+    status: '',
+    assigned_to: '',
+    dev_notes: ''
+  });
+
   useEffect(() => {
     fetchReports();
+    fetchUsers();
+    fetchCurrentUser();
   }, [statusFilter, typeFilter]);
 
   useEffect(() => {
@@ -98,6 +116,30 @@ export default function ProjectReportsPage() {
 
   const removeFile = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentUser(data);
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+    }
   };
 
   const handleCreateReport = async () => {
@@ -158,6 +200,51 @@ export default function ProjectReportsPage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleViewReport = (report: Report) => {
+    setSelectedReport(report);
+    setEditData({
+      status: report.status,
+      assigned_to: report.assigned_to_user?.full_name || '',
+      dev_notes: report.dev_notes || ''
+    });
+  };
+
+  const handleUpdateReport = async () => {
+    if (!selectedReport) return;
+
+    setUploading(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/reports/${selectedReport.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: editData.status,
+          assigned_to: editData.assigned_to || null,
+          dev_notes: editData.dev_notes
+        })
+      });
+
+      if (response.ok) {
+        alert('Report updated successfully!');
+        setSelectedReport(null);
+        fetchReports();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error updating report:', error);
+      alert('Failed to update report');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const canManageReport = () => {
+    if (!currentUser) return false;
+    return currentUser.role === 'admin' || currentUser.role === 'project_manager';
   };
 
   const getTypeEmoji = (type: string) => {
@@ -295,7 +382,7 @@ export default function ProjectReportsPage() {
             reports.map((report) => (
               <div
                 key={report.id}
-                onClick={() => setSelectedReport(report)}
+                onClick={() => handleViewReport(report)}
                 className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -545,15 +632,22 @@ export default function ProjectReportsPage() {
         </div>
       )}
 
-      {/* View Report Modal - TODO: Implement */}
+      {/* View/Manage Report Modal */}
       {selectedReport && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <span className="text-2xl">{getTypeEmoji(selectedReport.type)}</span>
-                {selectedReport.title}
-              </h3>
+          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">{getTypeEmoji(selectedReport.type)}</span>
+                  <h3 className="text-2xl font-bold text-gray-900">{selectedReport.title}</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {getStatusBadge(selectedReport.status)}
+                  {getPriorityBadge(selectedReport.priority)}
+                </div>
+              </div>
               <button
                 onClick={() => setSelectedReport(null)}
                 className="text-gray-400 hover:text-gray-600"
@@ -561,13 +655,182 @@ export default function ProjectReportsPage() {
                 <i className="fas fa-times text-xl"></i>
               </button>
             </div>
-            <p className="text-gray-700 mb-4">{selectedReport.description}</p>
-            <button
-              onClick={() => setSelectedReport(null)}
-              className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-            >
-              Close
-            </button>
+
+            {/* Report Details */}
+            <div className="space-y-6">
+              {/* Description */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Description</h4>
+                <p className="text-gray-900 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
+                  {selectedReport.description}
+                </p>
+              </div>
+
+              {/* Metadata Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Type</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{selectedReport.type}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Reported By</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedReport.reported_by_user.full_name}</p>
+                </div>
+                {selectedReport.assigned_to_user && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Assigned To</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedReport.assigned_to_user.full_name}</p>
+                  </div>
+                )}
+                {selectedReport.version && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Version</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedReport.version.version_number}</p>
+                  </div>
+                )}
+                {selectedReport.browser && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Browser</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedReport.browser}</p>
+                  </div>
+                )}
+                {selectedReport.device && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Device</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedReport.device}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Created</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {new Date(selectedReport.created_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Attachments */}
+              {selectedReport.attachments.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Attachments ({selectedReport.attachments.length})</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {selectedReport.attachments.map((url, index) => (
+                      <a
+                        key={index}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="border border-gray-300 rounded-lg p-3 hover:border-blue-500 hover:bg-blue-50 transition flex items-center gap-2"
+                      >
+                        <i className="fas fa-paperclip text-blue-600"></i>
+                        <span className="text-sm text-gray-700 truncate">Attachment {index + 1}</span>
+                        <i className="fas fa-external-link-alt text-xs text-gray-400 ml-auto"></i>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Developer Notes */}
+              {selectedReport.dev_notes && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Developer Notes</h4>
+                  <p className="text-gray-900 bg-yellow-50 border border-yellow-200 p-4 rounded-lg whitespace-pre-wrap">
+                    {selectedReport.dev_notes}
+                  </p>
+                </div>
+              )}
+
+              {/* Management Section - Only for Admin/PM */}
+              {canManageReport() && (
+                <div className="border-t pt-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                    <i className="fas fa-cog mr-2"></i>
+                    Manage Report
+                  </h4>
+                  <div className="space-y-4">
+                    {/* Status */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Status
+                      </label>
+                      <select
+                        value={editData.status}
+                        onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="wont_fix">Won't Fix</option>
+                      </select>
+                    </div>
+
+                    {/* Assign To */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Assign To
+                      </label>
+                      <select
+                        value={editData.assigned_to}
+                        onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Unassigned</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.full_name} ({user.role})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Developer Notes */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Developer Notes
+                      </label>
+                      <textarea
+                        value={editData.dev_notes}
+                        onChange={(e) => setEditData({ ...editData, dev_notes: e.target.value })}
+                        rows={4}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Add notes about the fix, workarounds, or technical details..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  onClick={() => setSelectedReport(null)}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                  disabled={uploading}
+                >
+                  Close
+                </button>
+                {canManageReport() && (
+                  <button
+                    onClick={handleUpdateReport}
+                    disabled={uploading}
+                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {uploading ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-save"></i>
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
