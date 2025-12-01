@@ -33,9 +33,43 @@ export default function ProjectReportsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
+  // Create form state
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    type: 'bug',
+    priority: 'medium',
+    browser: '',
+    device: ''
+  });
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+
   useEffect(() => {
     fetchReports();
   }, [statusFilter, typeFilter]);
+
+  useEffect(() => {
+    // Detect browser and device info
+    const userAgent = navigator.userAgent;
+    let browser = 'Unknown';
+    let device = 'Desktop';
+
+    // Detect browser
+    if (userAgent.includes('Chrome')) browser = 'Chrome';
+    else if (userAgent.includes('Safari')) browser = 'Safari';
+    else if (userAgent.includes('Firefox')) browser = 'Firefox';
+    else if (userAgent.includes('Edge')) browser = 'Edge';
+
+    // Detect device
+    if (/Mobile|Android|iPhone|iPad|iPod/i.test(userAgent)) {
+      device = 'Mobile';
+    } else if (/Tablet|iPad/i.test(userAgent)) {
+      device = 'Tablet';
+    }
+
+    setFormData(prev => ({ ...prev, browser, device }));
+  }, []);
 
   const fetchReports = async () => {
     try {
@@ -52,6 +86,77 @@ export default function ProjectReportsPage() {
       console.error('Error fetching reports:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCreateReport = async () => {
+    if (!formData.title.trim() || !formData.description.trim()) {
+      alert('Please fill in title and description');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Upload attachments
+      const uploadedUrls: string[] = [];
+      for (const file of attachments) {
+        const formDataToSend = new FormData();
+        formDataToSend.append('file', file);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataToSend
+        });
+
+        if (uploadResponse.ok) {
+          const { url } = await uploadResponse.json();
+          uploadedUrls.push(url);
+        }
+      }
+
+      // Create report
+      const response = await fetch(`/api/projects/${projectId}/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          attachments: uploadedUrls
+        })
+      });
+
+      if (response.ok) {
+        alert('Report created successfully!');
+        setShowCreateModal(false);
+        setFormData({
+          title: '',
+          description: '',
+          type: 'bug',
+          priority: 'medium',
+          browser: formData.browser,
+          device: formData.device
+        });
+        setAttachments([]);
+        fetchReports();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error creating report:', error);
+      alert('Failed to create report');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -245,18 +350,197 @@ export default function ProjectReportsPage() {
         <i className="fas fa-plus text-xl"></i>
       </button>
 
-      {/* Create Report Modal - TODO: Implement */}
+      {/* Create Report Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full p-6">
-            <h3 className="text-xl font-bold mb-4">Create New Report</h3>
-            <p className="text-gray-600">Form coming next...</p>
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-            >
-              Close
-            </button>
+          <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">
+                <i className="fas fa-plus-circle mr-2 text-orange-500"></i>
+                Create New Report
+              </h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="fas fa-times text-xl"></i>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Brief summary of the issue or feature"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={5}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Detailed description, steps to reproduce, expected vs actual behavior..."
+                />
+              </div>
+
+              {/* Type and Priority */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Type
+                  </label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="bug">🐛 Bug</option>
+                    <option value="feature">💡 Feature Request</option>
+                    <option value="improvement">⬆️ Improvement</option>
+                    <option value="task">📋 Task</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Priority
+                  </label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Browser and Device (auto-detected) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Browser (auto-detected)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.browser}
+                    onChange={(e) => setFormData({ ...formData, browser: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Device (auto-detected)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.device}
+                    onChange={(e) => setFormData({ ...formData, device: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              {/* File Attachments */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Attachments (Screenshots, Videos, Audio)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*,audio/*,.pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="cursor-pointer flex flex-col items-center"
+                  >
+                    <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
+                    <span className="text-sm text-gray-600">
+                      Click to upload files or drag and drop
+                    </span>
+                    <span className="text-xs text-gray-500 mt-1">
+                      Images, Videos, Audio, PDF (max 50MB each)
+                    </span>
+                  </label>
+
+                  {/* Attached Files List */}
+                  {attachments.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {attachments.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-gray-50 p-2 rounded border"
+                        >
+                          <div className="flex items-center gap-2">
+                            <i className="fas fa-file text-gray-600"></i>
+                            <span className="text-sm text-gray-700">{file.name}</span>
+                            <span className="text-xs text-gray-500">
+                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <i className="fas fa-times"></i>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                  disabled={uploading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateReport}
+                  disabled={uploading}
+                  className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {uploading ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin"></i>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-paper-plane"></i>
+                      Create Report
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
