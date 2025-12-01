@@ -26,12 +26,20 @@ export default function DashboardPage() {
 
   // Auto-redirect to project if user has only one project
   useEffect(() => {
+    console.log('useEffect triggered - loading:', loading, 'user:', !!user, 'selectedProjectId:', selectedProjectId, 'assignedProjects.length:', assignedProjects.length);
+
     if (!loading && user && selectedProjectId && assignedProjects.length === 1) {
       const isAdminOrPM = user.is_admin || user.role === 'project_manager';
+      console.log('Redirect check - isAdminOrPM:', isAdminOrPM);
+
       if (!isAdminOrPM) {
         console.log('Auto-redirecting to single project:', selectedProjectId);
         router.push(`/dashboard/project/${selectedProjectId}`);
+      } else {
+        console.log('User is admin/PM, skipping redirect');
       }
+    } else {
+      console.log('Redirect conditions not met');
     }
   }, [selectedProjectId, assignedProjects, loading, user, router]);
 
