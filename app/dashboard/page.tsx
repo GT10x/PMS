@@ -54,12 +54,15 @@ export default function DashboardPage() {
       const response = await fetch(`/api/users/${userId}/projects`);
       if (response.ok) {
         const data = await response.json();
+        console.log('Assigned projects response:', data);
         setAssignedProjects(data.projects || []);
 
         // Auto-select if only one project
         if (data.projects?.length === 1) {
           setSelectedProjectId(data.projects[0].id);
         }
+      } else {
+        console.error('Failed to fetch projects:', response.status);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
