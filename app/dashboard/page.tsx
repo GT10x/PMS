@@ -137,6 +137,12 @@ export default function DashboardPage() {
                 >
                   Manage Projects
                 </a>
+                <a
+                  href="/dashboard/admin-reports"
+                  className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
+                >
+                  Admin Reports
+                </a>
               </>
             )}
           </div>
@@ -206,7 +212,7 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Quick Actions
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <a
                 href="/dashboard/users"
                 className="block p-4 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition"
@@ -223,6 +229,15 @@ export default function DashboardPage() {
                 <h3 className="font-medium text-green-900">Manage Projects</h3>
                 <p className="text-sm text-green-700 mt-1">
                   Create and manage projects
+                </p>
+              </a>
+              <a
+                href="/dashboard/admin-reports"
+                className="block p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
+              >
+                <h3 className="font-medium text-purple-900">Admin Reports</h3>
+                <p className="text-sm text-purple-700 mt-1">
+                  View and manage all reports
                 </p>
               </a>
             </div>
