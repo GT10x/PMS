@@ -55,6 +55,8 @@ export default function DashboardPage() {
       if (response.ok) {
         const data = await response.json();
         console.log('Assigned projects response:', data);
+        console.log('Number of projects:', data.projects?.length);
+        console.log('Projects array:', data.projects);
         setAssignedProjects(data.projects || []);
 
         // Auto-select if only one project
@@ -91,6 +93,10 @@ export default function DashboardPage() {
   }
 
   const isAdminOrPM = user.is_admin || user.role === 'project_manager';
+
+  console.log('Dashboard render - isAdminOrPM:', isAdminOrPM);
+  console.log('Dashboard render - assignedProjects:', assignedProjects);
+  console.log('Dashboard render - assignedProjects.length:', assignedProjects.length);
 
   return (
     <div className="min-h-screen bg-gray-50">
