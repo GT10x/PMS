@@ -88,6 +88,35 @@ export default function ProjectDashboardPage() {
         </div>
       </header>
 
+      {/* Navigation Tabs */}
+      <nav className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8 py-3">
+            <a
+              href={`/dashboard/project/${projectId}`}
+              className="text-indigo-600 border-b-2 border-indigo-600 px-1 pb-3 text-sm font-medium"
+            >
+              <i className="fas fa-home mr-2"></i>
+              Overview
+            </a>
+            <a
+              href={`/dashboard/project/${projectId}/reports`}
+              className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
+            >
+              <i className="fas fa-bug mr-2"></i>
+              Reports
+            </a>
+            <a
+              href={`/dashboard/project/${projectId}/versions`}
+              className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
+            >
+              <i className="fas fa-code-branch mr-2"></i>
+              Versions
+            </a>
+          </div>
+        </div>
+      </nav>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Project Info */}
