@@ -17,31 +17,12 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [modulePermissions, setModulePermissions] = useState<string[]>([]);
   const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchCurrentUser();
   }, []);
 
-  // Auto-redirect to project if user has only one project
-  useEffect(() => {
-    console.log('useEffect triggered - loading:', loading, 'user:', !!user, 'selectedProjectId:', selectedProjectId, 'assignedProjects.length:', assignedProjects.length);
-
-    if (!loading && user && selectedProjectId && assignedProjects.length === 1) {
-      const isAdminOrPM = user.is_admin || user.role === 'project_manager';
-      console.log('Redirect check - isAdminOrPM:', isAdminOrPM);
-
-      if (!isAdminOrPM) {
-        console.log('Auto-redirecting to single project:', selectedProjectId);
-        router.push(`/dashboard/project/${selectedProjectId}`);
-      } else {
-        console.log('User is admin/PM, skipping redirect');
-      }
-    } else {
-      console.log('Redirect conditions not met');
-    }
-  }, [selectedProjectId, assignedProjects, loading, user, router]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -73,16 +54,8 @@ export default function DashboardPage() {
       const response = await fetch(`/api/users/${userId}/projects`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Assigned projects response:', data);
-        console.log('Number of projects:', data.projects?.length);
-        console.log('Projects array:', JSON.stringify(data.projects, null, 2));
+        console.log('Assigned projects:', data.projects?.length || 0, 'project(s)');
         setAssignedProjects(data.projects || []);
-
-        // Auto-select if only one project
-        if (data.projects?.length === 1) {
-          console.log('Auto-selecting project:', data.projects[0]);
-          setSelectedProjectId(data.projects[0].id);
-        }
       } else {
         console.error('Failed to fetch projects:', response.status);
       }
@@ -172,10 +145,12 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Project Tabs for Regular Users */}
-        {!isAdminOrPM && assignedProjects.length > 1 && (
+        {/* Project Tabs/Buttons for Regular Users */}
+        {!isAdminOrPM && assignedProjects.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Projects</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              {assignedProjects.length === 1 ? 'Your Project' : 'Your Projects'}
+            </h2>
             <div className="flex flex-wrap gap-3">
               {assignedProjects.map((project) => (
                 <button
@@ -187,13 +162,6 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Single Project - Shows loading message while redirecting */}
-        {!isAdminOrPM && assignedProjects.length === 1 && selectedProjectId && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <p className="text-gray-600">Redirecting to your project dashboard...</p>
           </div>
         )}
 
