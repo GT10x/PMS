@@ -212,12 +212,15 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Quick Actions
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <a
                 href="/dashboard/users"
                 className="block p-4 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition"
               >
-                <h3 className="font-medium text-indigo-900">Manage Users</h3>
+                <h3 className="font-medium text-indigo-900">
+                  <i className="fas fa-users mr-2"></i>
+                  Manage Users
+                </h3>
                 <p className="text-sm text-indigo-700 mt-1">
                   Add, edit, or remove users
                 </p>
@@ -226,7 +229,10 @@ export default function DashboardPage() {
                 href="/dashboard/projects"
                 className="block p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition"
               >
-                <h3 className="font-medium text-green-900">Manage Projects</h3>
+                <h3 className="font-medium text-green-900">
+                  <i className="fas fa-folder mr-2"></i>
+                  Manage Projects
+                </h3>
                 <p className="text-sm text-green-700 mt-1">
                   Create and manage projects
                 </p>
@@ -235,11 +241,26 @@ export default function DashboardPage() {
                 href="/dashboard/admin-reports"
                 className="block p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition"
               >
-                <h3 className="font-medium text-purple-900">Admin Reports</h3>
+                <h3 className="font-medium text-purple-900">
+                  <i className="fas fa-chart-line mr-2"></i>
+                  Admin Reports
+                </h3>
                 <p className="text-sm text-purple-700 mt-1">
                   View and manage all reports
                 </p>
               </a>
+            </div>
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="font-medium text-blue-900 mb-2">
+                <i className="fas fa-info-circle mr-2"></i>
+                Manage Versions for Projects
+              </h3>
+              <p className="text-sm text-blue-700 mb-2">
+                To create and manage versions with test cases, go to any project and click the "Versions" tab.
+              </p>
+              <p className="text-xs text-blue-600">
+                Navigate to: Dashboard → Manage Projects → Select Project → Versions Tab
+              </p>
             </div>
           </div>
         )}

@@ -354,10 +354,27 @@ export default function ProjectsPage() {
                       {new Date(project.created_at).toLocaleDateString('en-US')}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                          className="px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition"
+                          title="View Project"
+                        >
+                          <i className="fas fa-eye mr-1"></i>
+                          View
+                        </button>
+                        <button
+                          onClick={() => router.push(`/dashboard/project/${project.id}/versions`)}
+                          className="px-3 py-1 text-xs bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 transition"
+                          title="Manage Versions"
+                        >
+                          <i className="fas fa-code-branch mr-1"></i>
+                          Versions
+                        </button>
                         <button
                           onClick={() => openEditModal(project)}
                           className="text-gray-600 hover:text-indigo-600 transition"
+                          title="Edit Project"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -366,6 +383,7 @@ export default function ProjectsPage() {
                         <button
                           onClick={() => handleDeleteProject(project.id)}
                           className="text-gray-600 hover:text-red-600 transition"
+                          title="Delete Project"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
