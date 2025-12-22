@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 
@@ -53,6 +53,17 @@ export default function ProjectReportsPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [voiceNote, setVoiceNote] = useState<Blob | null>(null);
+  const [voiceNoteUrl, setVoiceNoteUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   // View/Edit modal state
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -89,6 +100,15 @@ export default function ProjectReportsPage() {
 
     setFormData(prev => ({ ...prev, browser, device }));
   }, []);
+
+  // Cleanup voice note URL when component unmounts or modal closes
+  useEffect(() => {
+    return () => {
+      if (voiceNoteUrl) {
+        URL.revokeObjectURL(voiceNoteUrl);
+      }
+    };
+  }, [voiceNoteUrl]);
 
   const fetchReports = async () => {
     try {
@@ -143,6 +163,92 @@ export default function ProjectReportsPage() {
     }
   };
 
+  // Voice Recording Functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setVoiceNote(audioBlob);
+        const url = URL.createObjectURL(audioBlob);
+        setVoiceNoteUrl(url);
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      // Start timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Could not access microphone. Please ensure microphone permissions are granted.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  };
+
+  const deleteVoiceNote = () => {
+    if (voiceNoteUrl) {
+      URL.revokeObjectURL(voiceNoteUrl);
+    }
+    setVoiceNote(null);
+    setVoiceNoteUrl(null);
+    setRecordingTime(0);
+    setIsPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+  };
+
+  const togglePlayback = () => {
+    if (!voiceNoteUrl) return;
+
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(voiceNoteUrl);
+        audioRef.current.onended = () => setIsPlaying(false);
+      }
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleCreateReport = async () => {
     if (!formData.title.trim() || !formData.description.trim()) {
       alert('Please fill in title and description');
@@ -153,6 +259,8 @@ export default function ProjectReportsPage() {
     try {
       // Upload attachments
       const uploadedUrls: string[] = [];
+
+      // Upload regular files
       for (const file of attachments) {
         const formDataToSend = new FormData();
         formDataToSend.append('file', file);
@@ -160,6 +268,23 @@ export default function ProjectReportsPage() {
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
           body: formDataToSend
+        });
+
+        if (uploadResponse.ok) {
+          const { url } = await uploadResponse.json();
+          uploadedUrls.push(url);
+        }
+      }
+
+      // Upload voice note if exists
+      if (voiceNote) {
+        const voiceFormData = new FormData();
+        const voiceFile = new File([voiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
+        voiceFormData.append('file', voiceFile);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: voiceFormData
         });
 
         if (uploadResponse.ok) {
@@ -190,6 +315,7 @@ export default function ProjectReportsPage() {
           device: formData.device
         });
         setAttachments([]);
+        deleteVoiceNote();
         fetchReports();
       } else {
         const error = await response.json();
@@ -290,6 +416,12 @@ export default function ProjectReportsPage() {
         {priority}
       </span>
     );
+  };
+
+  // Reset form when modal closes
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false);
+    deleteVoiceNote();
   };
 
   if (loading) {
@@ -460,7 +592,7 @@ export default function ProjectReportsPage() {
 
       {/* Create Report Modal */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseCreateModal}>
           <div className="modal-content max-w-3xl animate-fadeIn" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -471,7 +603,7 @@ export default function ProjectReportsPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Report a bug or request a feature</p>
               </div>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={handleCloseCreateModal}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <i className="fas fa-times text-gray-500"></i>
@@ -505,6 +637,77 @@ export default function ProjectReportsPage() {
                   className="input-field"
                   placeholder="Detailed description, steps to reproduce, expected vs actual behavior..."
                 />
+              </div>
+
+              {/* Voice Note Recording */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <i className="fas fa-microphone mr-1"></i>
+                  Voice Note (Optional)
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  Record a voice message instead of typing a long description
+                </p>
+
+                {!voiceNote ? (
+                  // Recording Controls
+                  <div className="flex items-center gap-4">
+                    {!isRecording ? (
+                      <button
+                        type="button"
+                        onClick={startRecording}
+                        className="flex items-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
+                      >
+                        <i className="fas fa-microphone"></i>
+                        Start Recording
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
+                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                          <span className="text-red-600 dark:text-red-400 font-medium">
+                            Recording... {formatTime(recordingTime)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={stopRecording}
+                          className="flex items-center gap-2 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors"
+                        >
+                          <i className="fas fa-stop"></i>
+                          Stop
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Playback Controls
+                  <div className="flex items-center gap-3 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
+                    <button
+                      type="button"
+                      onClick={togglePlayback}
+                      className="w-12 h-12 flex items-center justify-center bg-indigo-500 hover:bg-indigo-600 text-white rounded-full transition-colors"
+                    >
+                      <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                    </button>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-800 dark:text-white">
+                        Voice Note Recorded
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Duration: {formatTime(recordingTime)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={deleteVoiceNote}
+                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="Delete voice note"
+                    >
+                      <i className="fas fa-trash"></i>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Type and Priority */}
@@ -622,7 +825,7 @@ export default function ProjectReportsPage() {
               {/* Action Buttons */}
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={handleCloseCreateModal}
                   className="btn-secondary flex-1"
                   disabled={uploading}
                 >
@@ -732,19 +935,24 @@ export default function ProjectReportsPage() {
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Attachments ({selectedReport.attachments.length})</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {selectedReport.attachments.map((url, index) => (
-                      <a
-                        key={index}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="border border-gray-300 dark:border-gray-600 rounded-xl p-3 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition flex items-center gap-2"
-                      >
-                        <i className="fas fa-paperclip text-indigo-600"></i>
-                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate">Attachment {index + 1}</span>
-                        <i className="fas fa-external-link-alt text-xs text-gray-400 ml-auto"></i>
-                      </a>
-                    ))}
+                    {selectedReport.attachments.map((url, index) => {
+                      const isAudio = url.includes('.webm') || url.includes('audio') || url.includes('voice');
+                      return (
+                        <a
+                          key={index}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="border border-gray-300 dark:border-gray-600 rounded-xl p-3 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition flex items-center gap-2"
+                        >
+                          <i className={`fas ${isAudio ? 'fa-microphone' : 'fa-paperclip'} text-indigo-600`}></i>
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                            {isAudio ? 'Voice Note' : `Attachment ${index + 1}`}
+                          </span>
+                          <i className="fas fa-external-link-alt text-xs text-gray-400 ml-auto"></i>
+                        </a>
+                      );
+                    })}
                   </div>
                 </div>
               )}
