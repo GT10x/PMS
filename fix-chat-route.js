@@ -1,4 +1,7 @@
-// @ts-nocheck
+const fs = require('fs');
+const path = require('path');
+
+const content = `// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
@@ -259,3 +262,8 @@ export async function POST(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+`;
+
+const targetPath = path.join(__dirname, 'app/api/projects/[id]/chat/route.ts');
+fs.writeFileSync(targetPath, content, 'utf8');
+console.log('File updated successfully!');
