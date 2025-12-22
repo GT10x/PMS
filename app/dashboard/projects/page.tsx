@@ -121,7 +121,10 @@ export default function ProjectsPage() {
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          team_members: formData.member_ids, // Map member_ids to team_members for API
+        }),
       });
 
       const data = await response.json();
@@ -159,7 +162,10 @@ export default function ProjectsPage() {
       const response = await fetch(`/api/projects/${selectedProject.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          team_members: formData.member_ids, // Map member_ids to team_members for API
+        }),
       });
 
       const data = await response.json();
