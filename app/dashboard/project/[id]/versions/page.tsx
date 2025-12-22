@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface TestCase {
   id: string;
@@ -141,242 +142,266 @@ export default function ProjectVersionsPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      testing: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      stable: 'bg-green-100 text-green-800 border-green-300',
-      deprecated: 'bg-gray-100 text-gray-800 border-gray-300'
+    const badges: Record<string, string> = {
+      testing: 'badge-warning',
+      stable: 'badge-success',
+      deprecated: 'badge-purple',
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status as keyof typeof styles]} uppercase`}>
+      <span className={`badge ${badges[status] || 'badge-info'} uppercase`}>
         {status}
       </span>
     );
   };
 
   const getTestResultBadge = (status: string) => {
-    const styles = {
-      pass: 'bg-green-100 text-green-800 border-green-300',
-      fail: 'bg-red-100 text-red-800 border-red-300',
-      pending: 'bg-gray-100 text-gray-800 border-gray-300'
+    const badges: Record<string, string> = {
+      pass: 'badge-success',
+      fail: 'badge-danger',
+      pending: 'badge-info',
     };
-    const icons = {
-      pass: '✅',
-      fail: '❌',
-      pending: '⏳'
+    const icons: Record<string, string> = {
+      pass: 'fa-check-circle',
+      fail: 'fa-times-circle',
+      pending: 'fa-clock',
     };
     return (
-      <span className={`px-2 py-1 rounded text-xs font-semibold border ${styles[status as keyof typeof styles]}`}>
-        {icons[status as keyof typeof icons]} {status.toUpperCase()}
+      <span className={`badge ${badges[status] || 'badge-info'}`}>
+        <i className={`fas ${icons[status]} mr-1`}></i>
+        {status.toUpperCase()}
       </span>
     );
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg text-gray-600">Loading versions...</div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                <i className="fas fa-code-branch mr-2 text-indigo-600"></i>
-                Version Testing Tracker
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Track testing progress for each version release
-              </p>
-            </div>
+    <DashboardLayout>
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
             <button
               onClick={() => router.push(`/dashboard/project/${projectId}`)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              Back to Project
+              <i className="fas fa-arrow-left text-gray-500"></i>
             </button>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+              <i className="fas fa-code-branch mr-2 text-indigo-500"></i>
+              Version Testing Tracker
+            </h1>
           </div>
+          <p className="text-gray-500 dark:text-gray-400 ml-11">Track testing progress for each version release</p>
         </div>
-      </header>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <i className="fas fa-plus"></i>
+          New Version
+        </button>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Versions List */}
-        <div className="space-y-4">
-          {versions.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <i className="fas fa-code-branch text-6xl text-gray-300 mb-4"></i>
-              <p className="text-gray-600 text-lg">No versions found</p>
-              <p className="text-gray-500 text-sm mt-2">Click the + button to create your first version</p>
-            </div>
-          ) : (
-            versions.map((version) => (
+      {/* Navigation Tabs */}
+      <div className="card mb-6 p-1">
+        <div className="flex gap-1">
+          <a
+            href={`/dashboard/project/${projectId}`}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
+          >
+            <i className="fas fa-home"></i>
+            Overview
+          </a>
+          <a
+            href={`/dashboard/project/${projectId}/reports`}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
+          >
+            <i className="fas fa-bug"></i>
+            Reports
+          </a>
+          <a
+            href={`/dashboard/project/${projectId}/versions`}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm"
+          >
+            <i className="fas fa-code-branch"></i>
+            Versions
+          </a>
+        </div>
+      </div>
+
+      {/* Versions List */}
+      <div className="space-y-4">
+        {versions.length === 0 ? (
+          <div className="card p-12 text-center">
+            <i className="fas fa-code-branch text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+            <p className="text-gray-600 dark:text-gray-400 text-lg">No versions found</p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">Click "New Version" to create your first version</p>
+          </div>
+        ) : (
+          versions.map((version) => (
+            <div
+              key={version.id}
+              className="card overflow-hidden"
+            >
+              {/* Version Header */}
               <div
-                key={version.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+                onClick={() => setExpandedVersion(expandedVersion === version.id ? null : version.id)}
+                className="p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
               >
-                {/* Version Header */}
-                <div
-                  onClick={() => setExpandedVersion(expandedVersion === version.id ? null : version.id)}
-                  className="p-6 cursor-pointer hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <i className={`fas fa-chevron-${expandedVersion === version.id ? 'down' : 'right'} text-gray-400`}></i>
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900">
-                          Version {version.version_number}
-                        </h3>
-                        {version.description && (
-                          <p className="text-sm text-gray-600 mt-1">{version.description}</p>
-                        )}
-                        <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
-                          <span>
-                            <i className="fas fa-calendar mr-1"></i>
-                            {new Date(version.release_date).toLocaleDateString()}
-                          </span>
-                          <span>
-                            <i className="fas fa-tasks mr-1"></i>
-                            {version.test_cases?.length || 0} test cases
-                          </span>
-                        </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <i className={`fas fa-chevron-${expandedVersion === version.id ? 'down' : 'right'} text-gray-400`}></i>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                        Version {version.version_number}
+                      </h3>
+                      {version.description && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{version.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        <span>
+                          <i className="fas fa-calendar mr-1"></i>
+                          {new Date(version.release_date).toLocaleDateString()}
+                        </span>
+                        <span>
+                          <i className="fas fa-tasks mr-1"></i>
+                          {version.test_cases?.length || 0} test cases
+                        </span>
                       </div>
                     </div>
-                    {getStatusBadge(version.status)}
                   </div>
+                  {getStatusBadge(version.status)}
                 </div>
+              </div>
 
-                {/* Test Cases - Expandable */}
-                {expandedVersion === version.id && version.test_cases && version.test_cases.length > 0 && (
-                  <div className="border-t bg-gray-50">
-                    <div className="p-6 space-y-3">
-                      {version.test_cases.map((testCase) => (
+              {/* Test Cases - Expandable */}
+              {expandedVersion === version.id && version.test_cases && version.test_cases.length > 0 && (
+                <div className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                  <div className="p-6 space-y-3">
+                    {version.test_cases.map((testCase) => (
+                      <div
+                        key={testCase.id}
+                        className="card overflow-hidden"
+                      >
+                        {/* Test Case Header */}
                         <div
-                          key={testCase.id}
-                          className="bg-white rounded-lg border border-gray-200 overflow-hidden"
+                          onClick={() => setExpandedTestCase(expandedTestCase === testCase.id ? null : testCase.id)}
+                          className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
                         >
-                          {/* Test Case Header */}
-                          <div
-                            onClick={() => setExpandedTestCase(expandedTestCase === testCase.id ? null : testCase.id)}
-                            className="p-4 cursor-pointer hover:bg-gray-50 transition"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 flex-1">
-                                <i className={`fas fa-chevron-${expandedTestCase === testCase.id ? 'down' : 'right'} text-gray-400 text-sm`}></i>
-                                <span className="font-semibold text-gray-700">Test #{testCase.test_number}</span>
-                                <span className="text-gray-900">{testCase.title}</span>
-                              </div>
-                              {testCase.results && testCase.results.length > 0 ? (
-                                getTestResultBadge(testCase.results[0].status)
-                              ) : (
-                                getTestResultBadge('pending')
-                              )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <i className={`fas fa-chevron-${expandedTestCase === testCase.id ? 'down' : 'right'} text-gray-400 text-sm`}></i>
+                              <span className="font-semibold text-gray-700 dark:text-gray-300">Test #{testCase.test_number}</span>
+                              <span className="text-gray-900 dark:text-white">{testCase.title}</span>
                             </div>
+                            {testCase.results && testCase.results.length > 0 ? (
+                              getTestResultBadge(testCase.results[0].status)
+                            ) : (
+                              getTestResultBadge('pending')
+                            )}
                           </div>
+                        </div>
 
-                          {/* Test Case Details */}
-                          {expandedTestCase === testCase.id && (
-                            <div className="border-t bg-gray-50 p-4 space-y-4">
-                              {/* Instructions */}
+                        {/* Test Case Details */}
+                        {expandedTestCase === testCase.id && (
+                          <div className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 space-y-4">
+                            {/* Instructions */}
+                            <div>
+                              <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Instructions</h5>
+                              <p className="text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 p-3 rounded-xl border dark:border-gray-600">
+                                {testCase.instructions}
+                              </p>
+                            </div>
+
+                            {/* Steps */}
+                            {testCase.steps && testCase.steps.length > 0 && (
                               <div>
-                                <h5 className="text-sm font-semibold text-gray-700 mb-2">Instructions</h5>
-                                <p className="text-sm text-gray-900 bg-white p-3 rounded border">
-                                  {testCase.instructions}
-                                </p>
+                                <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Steps</h5>
+                                <ol className="list-decimal list-inside space-y-1 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 p-3 rounded-xl border dark:border-gray-600">
+                                  {testCase.steps.map((step, index) => (
+                                    <li key={index}>{step}</li>
+                                  ))}
+                                </ol>
                               </div>
+                            )}
 
-                              {/* Steps */}
-                              {testCase.steps && testCase.steps.length > 0 && (
-                                <div>
-                                  <h5 className="text-sm font-semibold text-gray-700 mb-2">Steps</h5>
-                                  <ol className="list-decimal list-inside space-y-1 text-sm text-gray-900 bg-white p-3 rounded border">
-                                    {testCase.steps.map((step, index) => (
-                                      <li key={index}>{step}</li>
-                                    ))}
-                                  </ol>
-                                </div>
-                              )}
-
-                              {/* Test Results */}
-                              {testCase.results && testCase.results.length > 0 && (
-                                <div>
-                                  <h5 className="text-sm font-semibold text-gray-700 mb-2">Test Results</h5>
-                                  {testCase.results.map((result, index) => (
-                                    <div key={index} className="bg-white p-3 rounded border mb-2">
-                                      <div className="flex items-center justify-between mb-2">
-                                        {getTestResultBadge(result.status)}
-                                        {result.tested_by_user && (
-                                          <span className="text-xs text-gray-500">
-                                            by {result.tested_by_user.full_name}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {result.notes && (
-                                        <p className="text-sm text-gray-700">{result.notes}</p>
-                                      )}
-                                      {result.tested_at && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                          {new Date(result.tested_at).toLocaleString()}
-                                        </p>
+                            {/* Test Results */}
+                            {testCase.results && testCase.results.length > 0 && (
+                              <div>
+                                <h5 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Test Results</h5>
+                                {testCase.results.map((result, index) => (
+                                  <div key={index} className="bg-white dark:bg-gray-700 p-3 rounded-xl border dark:border-gray-600 mb-2">
+                                    <div className="flex items-center justify-between mb-2">
+                                      {getTestResultBadge(result.status)}
+                                      {result.tested_by_user && (
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                          by {result.tested_by_user.full_name}
+                                        </span>
                                       )}
                                     </div>
-                                  ))}
-                                </div>
-                              )}
+                                    {result.notes && (
+                                      <p className="text-sm text-gray-700 dark:text-gray-300">{result.notes}</p>
+                                    )}
+                                    {result.tested_at && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {new Date(result.tested_at).toLocaleString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
 
-                              {/* Mark Test Button - TODO: Implement */}
-                              <button className="w-full px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition">
-                                <i className="fas fa-check-circle mr-2"></i>
-                                Mark Test Result
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                            {/* Mark Test Button */}
+                            <button className="btn-primary w-full">
+                              <i className="fas fa-check-circle mr-2"></i>
+                              Mark Test Result
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* No Test Cases Message */}
-                {expandedVersion === version.id && (!version.test_cases || version.test_cases.length === 0) && (
-                  <div className="border-t bg-gray-50 p-6 text-center">
-                    <p className="text-gray-500">No test cases defined for this version</p>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </main>
-
-      {/* Floating Action Button */}
-      <button
-        onClick={() => setShowCreateModal(true)}
-        className="fixed bottom-8 right-8 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 z-50"
-        title="Create New Version"
-      >
-        <i className="fas fa-plus text-xl"></i>
-      </button>
+              {/* No Test Cases Message */}
+              {expandedVersion === version.id && (!version.test_cases || version.test_cases.length === 0) && (
+                <div className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-6 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">No test cases defined for this version</p>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
 
       {/* Create Version Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-content max-w-4xl animate-fadeIn" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">
-                <i className="fas fa-code-branch mr-2 text-indigo-500"></i>
-                Create New Version
-              </h3>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                  <i className="fas fa-code-branch mr-2 text-indigo-500"></i>
+                  Create New Version
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Add a new version with test cases</p>
+              </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <i className="fas fa-times text-xl"></i>
+                <i className="fas fa-times text-gray-500"></i>
               </button>
             </div>
 
@@ -384,7 +409,7 @@ export default function ProjectVersionsPage() {
               {/* Version Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Version Number <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -392,24 +417,24 @@ export default function ProjectVersionsPage() {
                     value={versionForm.version_number}
                     onChange={(e) => setVersionForm({ ...versionForm, version_number: e.target.value })}
                     placeholder="e.g., 1.0.0, 2.1.3"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="input-field"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Release Date
                   </label>
                   <input
                     type="date"
                     value={versionForm.release_date}
                     onChange={(e) => setVersionForm({ ...versionForm, release_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="input-field"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description
                 </label>
                 <textarea
@@ -417,17 +442,17 @@ export default function ProjectVersionsPage() {
                   onChange={(e) => setVersionForm({ ...versionForm, description: e.target.value })}
                   rows={3}
                   placeholder="What's new in this version..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="input-field"
                 />
               </div>
 
               {/* Test Cases */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-lg font-semibold text-gray-900">Test Cases</h4>
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Test Cases</h4>
                   <button
                     onClick={addTestCase}
-                    className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition text-sm"
+                    className="btn-secondary text-sm"
                   >
                     <i className="fas fa-plus mr-1"></i>
                     Add Test Case
@@ -435,13 +460,13 @@ export default function ProjectVersionsPage() {
                 </div>
 
                 {versionForm.test_cases.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">No test cases added yet</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No test cases added yet</p>
                 ) : (
                   <div className="space-y-4">
                     {versionForm.test_cases.map((tc, tcIndex) => (
-                      <div key={tcIndex} className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                      <div key={tcIndex} className="card p-4 bg-gray-50 dark:bg-gray-700/50">
                         <div className="flex items-center justify-between mb-3">
-                          <span className="font-semibold text-gray-700">Test Case #{tcIndex + 1}</span>
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">Test Case #{tcIndex + 1}</span>
                           <button
                             onClick={() => removeTestCase(tcIndex)}
                             className="text-red-500 hover:text-red-700"
@@ -456,7 +481,7 @@ export default function ProjectVersionsPage() {
                             value={tc.title}
                             onChange={(e) => updateTestCase(tcIndex, 'title', e.target.value)}
                             placeholder="Test case title"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                            className="input-field text-sm"
                           />
 
                           <textarea
@@ -464,15 +489,15 @@ export default function ProjectVersionsPage() {
                             onChange={(e) => updateTestCase(tcIndex, 'instructions', e.target.value)}
                             placeholder="Instructions for this test case"
                             rows={2}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                            className="input-field text-sm"
                           />
 
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <label className="text-xs font-semibold text-gray-700">Steps</label>
+                              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Steps</label>
                               <button
                                 onClick={() => addStep(tcIndex)}
-                                className="text-xs text-indigo-600 hover:text-indigo-800"
+                                className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400"
                               >
                                 <i className="fas fa-plus mr-1"></i>Add Step
                               </button>
@@ -486,7 +511,7 @@ export default function ProjectVersionsPage() {
                                     value={step}
                                     onChange={(e) => updateStep(tcIndex, stepIndex, e.target.value)}
                                     placeholder="Step description"
-                                    className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm"
+                                    className="input-field flex-1 text-sm py-1"
                                   />
                                   <button
                                     onClick={() => removeStep(tcIndex, stepIndex)}
@@ -506,18 +531,18 @@ export default function ProjectVersionsPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex gap-3 pt-4 border-t dark:border-gray-700">
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                  className="btn-secondary flex-1"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreateVersion}
-                  className="px-6 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition flex items-center gap-2"
+                  className="btn-primary flex-1"
                 >
-                  <i className="fas fa-save"></i>
+                  <i className="fas fa-save mr-2"></i>
                   Create Version
                 </button>
               </div>
@@ -525,6 +550,6 @@ export default function ProjectVersionsPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }

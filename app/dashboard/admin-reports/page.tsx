@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface Report {
   id: string;
@@ -64,29 +65,11 @@ export default function AdminReportsPage() {
     assigned_to: '',
     dev_notes: ''
   });
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    checkAccess();
+    fetchData();
   }, []);
-
-  const checkAccess = async () => {
-    try {
-      const response = await fetch('/api/auth/me');
-      if (!response.ok) {
-        router.push('/login');
-        return;
-      }
-      const user = await response.json();
-      if (!user.is_admin && user.role !== 'project_manager') {
-        router.push('/dashboard');
-        return;
-      }
-      fetchData();
-    } catch (error) {
-      console.error('Auth error:', error);
-      router.push('/login');
-    }
-  };
 
   const fetchData = async () => {
     try {
@@ -191,6 +174,7 @@ export default function AdminReportsPage() {
   const handleUpdateReport = async () => {
     if (!selectedReport) return;
 
+    setUpdating(true);
     try {
       const response = await fetch(`/api/projects/${selectedReport.project.id}/reports/${selectedReport.id}`, {
         method: 'PATCH',
@@ -213,6 +197,8 @@ export default function AdminReportsPage() {
     } catch (error) {
       console.error('Error updating report:', error);
       alert('Failed to update report');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -227,34 +213,34 @@ export default function AdminReportsPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      open: 'bg-blue-100 text-blue-800 border-blue-300',
-      in_progress: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      resolved: 'bg-green-100 text-green-800 border-green-300',
-      wont_fix: 'bg-gray-100 text-gray-800 border-gray-300'
+    const badges: Record<string, string> = {
+      open: 'badge-info',
+      in_progress: 'badge-warning',
+      resolved: 'badge-success',
+      wont_fix: 'badge-purple',
     };
-    const labels = {
-      open: 'OPEN',
-      in_progress: 'IN PROGRESS',
-      resolved: 'RESOLVED',
-      wont_fix: 'WON\'T FIX'
+    const labels: Record<string, string> = {
+      open: 'Open',
+      in_progress: 'In Progress',
+      resolved: 'Resolved',
+      wont_fix: "Won't Fix"
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${styles[status as keyof typeof styles]}`}>
-        {labels[status as keyof typeof labels]}
+      <span className={`badge ${badges[status] || 'badge-info'}`}>
+        {labels[status] || status}
       </span>
     );
   };
 
   const getPriorityBadge = (priority: string) => {
-    const styles = {
-      low: 'bg-gray-100 text-gray-800 border-gray-300',
-      medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      high: 'bg-orange-100 text-orange-800 border-orange-300',
-      critical: 'bg-red-100 text-red-800 border-red-300'
+    const badges: Record<string, string> = {
+      low: 'badge-info',
+      medium: 'badge-warning',
+      high: 'badge-danger',
+      critical: 'badge-danger',
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${styles[priority as keyof typeof styles]} uppercase`}>
+      <span className={`badge ${badges[priority] || 'badge-info'} uppercase`}>
         {priority}
       </span>
     );
@@ -264,243 +250,268 @@ export default function AdminReportsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg text-gray-600">Loading reports...</div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                <i className="fas fa-chart-line mr-2 text-purple-600"></i>
-                Admin Reports Dashboard
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Manage all reports across all projects
-              </p>
-            </div>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-            >
-              Back to Dashboard
-            </button>
-          </div>
+    <DashboardLayout>
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            <i className="fas fa-chart-line mr-2 text-purple-500"></i>
+            Admin Reports Dashboard
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage all reports across all projects</p>
         </div>
-      </header>
+      </div>
 
       {/* Stats Cards */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-            <div className="text-xs text-gray-600 mt-1">Total Reports</div>
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+        <div className="stats-card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-800 dark:text-white">{stats.total}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Reports</p>
+            </div>
+            <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+              <i className="fas fa-clipboard-list text-gray-600 dark:text-gray-400"></i>
+            </div>
           </div>
-          <div className="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-4">
-            <div className="text-2xl font-bold text-blue-700">{stats.open}</div>
-            <div className="text-xs text-blue-600 mt-1">Open</div>
+        </div>
+        <div className="stats-card border-l-4 border-blue-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-blue-600">{stats.open}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Open</p>
+            </div>
+            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+              <i className="fas fa-folder-open text-blue-600"></i>
+            </div>
           </div>
-          <div className="bg-yellow-50 rounded-lg shadow-sm border border-yellow-200 p-4">
-            <div className="text-2xl font-bold text-yellow-700">{stats.in_progress}</div>
-            <div className="text-xs text-yellow-600 mt-1">In Progress</div>
+        </div>
+        <div className="stats-card border-l-4 border-yellow-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-yellow-600">{stats.in_progress}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">In Progress</p>
+            </div>
+            <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+              <i className="fas fa-spinner text-yellow-600"></i>
+            </div>
           </div>
-          <div className="bg-green-50 rounded-lg shadow-sm border border-green-200 p-4">
-            <div className="text-2xl font-bold text-green-700">{stats.resolved}</div>
-            <div className="text-xs text-green-600 mt-1">Resolved</div>
+        </div>
+        <div className="stats-card border-l-4 border-green-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-green-600">{stats.resolved}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Resolved</p>
+            </div>
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+              <i className="fas fa-check-circle text-green-600"></i>
+            </div>
           </div>
-          <div className="bg-red-50 rounded-lg shadow-sm border border-red-200 p-4">
-            <div className="text-2xl font-bold text-red-700">{stats.critical}</div>
-            <div className="text-xs text-red-600 mt-1">Critical</div>
+        </div>
+        <div className="stats-card border-l-4 border-red-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Critical</p>
+            </div>
+            <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+              <i className="fas fa-exclamation-triangle text-red-600"></i>
+            </div>
           </div>
-          <div className="bg-orange-50 rounded-lg shadow-sm border border-orange-200 p-4">
-            <div className="text-2xl font-bold text-orange-700">{stats.high}</div>
-            <div className="text-xs text-orange-600 mt-1">High Priority</div>
+        </div>
+        <div className="stats-card border-l-4 border-orange-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-orange-600">{stats.high}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">High Priority</p>
+            </div>
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+              <i className="fas fa-arrow-up text-orange-600"></i>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filters and Search */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
-            <select
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="all">All Projects</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+      <div className="card p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
+          <select
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+            className="input-field"
+          >
+            <option value="all">All Projects</option>
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-              <option value="wont_fix">Won't Fix</option>
-            </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="input-field"
+          >
+            <option value="all">All Status</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="wont_fix">Won't Fix</option>
+          </select>
 
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="all">All Types</option>
-              <option value="bug">Bugs</option>
-              <option value="feature">Features</option>
-              <option value="improvement">Improvements</option>
-              <option value="task">Tasks</option>
-            </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="input-field"
+          >
+            <option value="all">All Types</option>
+            <option value="bug">Bugs</option>
+            <option value="feature">Features</option>
+            <option value="improvement">Improvements</option>
+            <option value="task">Tasks</option>
+          </select>
 
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="all">All Priority</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="input-field"
+          >
+            <option value="all">All Priority</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
 
-            <button
-              onClick={() => {
-                setProjectFilter('all');
-                setStatusFilter('all');
-                setTypeFilter('all');
-                setPriorityFilter('all');
-                setSearchQuery('');
-              }}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg text-sm"
-            >
-              <i className="fas fa-redo mr-1"></i> Reset
-            </button>
-          </div>
-
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search reports by title or description..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          />
+          <button
+            onClick={() => {
+              setProjectFilter('all');
+              setStatusFilter('all');
+              setTypeFilter('all');
+              setPriorityFilter('all');
+              setSearchQuery('');
+            }}
+            className="btn-secondary"
+          >
+            <i className="fas fa-redo mr-1"></i> Reset
+          </button>
         </div>
+
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search reports by title or description..."
+          className="input-field"
+        />
       </div>
 
       {/* Reports Table */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="table-modern">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Title</th>
+                <th>Project</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Reported By</th>
+                <th>Assigned To</th>
+                <th>Created</th>
+                <th className="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredReports.length === 0 ? (
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Title</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Project</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Priority</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Reported By</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Assigned To</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Created</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                  <td colSpan={9} className="text-center py-12">
+                    <i className="fas fa-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                    <p className="text-gray-500 dark:text-gray-400">No reports found</p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredReports.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                      No reports found
+              ) : (
+                filteredReports.map((report) => (
+                  <tr key={report.id}>
+                    <td>
+                      <span className="text-xl">{getTypeEmoji(report.type)}</span>
                     </td>
-                  </tr>
-                ) : (
-                  filteredReports.map((report) => (
-                    <tr key={report.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-xl">{getTypeEmoji(report.type)}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900 max-w-xs truncate">
-                          {report.title}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-xs text-gray-600">{report.project.name}</div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {getPriorityBadge(report.priority)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {getStatusBadge(report.status)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-xs text-gray-600">{report.reported_by_user.full_name}</div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-xs text-gray-600">
-                          {report.assigned_to_user?.full_name || 'Unassigned'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-xs text-gray-600">
-                          {new Date(report.created_at).toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                    <td>
+                      <div className="text-sm font-medium text-gray-800 dark:text-white max-w-xs truncate">
+                        {report.title}
+                      </div>
+                    </td>
+                    <td className="text-gray-600 dark:text-gray-400">
+                      {report.project.name}
+                    </td>
+                    <td>
+                      {getPriorityBadge(report.priority)}
+                    </td>
+                    <td>
+                      {getStatusBadge(report.status)}
+                    </td>
+                    <td className="text-gray-600 dark:text-gray-400">
+                      {report.reported_by_user.full_name}
+                    </td>
+                    <td className="text-gray-600 dark:text-gray-400">
+                      {report.assigned_to_user?.full_name || 'Unassigned'}
+                    </td>
+                    <td className="text-gray-600 dark:text-gray-400">
+                      {new Date(report.created_at).toLocaleDateString()}
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-end">
                         <button
                           onClick={() => handleViewReport(report)}
-                          className="text-purple-600 hover:text-purple-800 text-sm"
+                          className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                          title="View"
                         >
-                          <i className="fas fa-eye mr-1"></i>
-                          View
+                          <i className="fas fa-eye"></i>
                         </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* View/Manage Report Modal */}
       {selectedReport && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="modal-overlay" onClick={() => setSelectedReport(null)}>
+          <div className="modal-content max-w-4xl animate-fadeIn" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-3xl">{getTypeEmoji(selectedReport.type)}</span>
-                  <h3 className="text-2xl font-bold text-gray-900">{selectedReport.title}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedReport.title}</h3>
                 </div>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {getStatusBadge(selectedReport.status)}
                   {getPriorityBadge(selectedReport.priority)}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
                   <i className="fas fa-folder mr-1"></i>
                   Project: {selectedReport.project.name}
                 </div>
               </div>
               <button
                 onClick={() => setSelectedReport(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <i className="fas fa-times text-xl"></i>
+                <i className="fas fa-times text-gray-500"></i>
               </button>
             </div>
 
@@ -508,45 +519,45 @@ export default function AdminReportsPage() {
             <div className="space-y-6">
               {/* Description */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Description</h4>
-                <p className="text-gray-900 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</h4>
+                <p className="text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-4 rounded-xl whitespace-pre-wrap">
                   {selectedReport.description}
                 </p>
               </div>
 
               {/* Metadata Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-700 p-4 rounded-xl">
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Reported By</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedReport.reported_by_user.full_name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reported By</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.reported_by_user.full_name}</p>
                 </div>
                 {selectedReport.assigned_to_user && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Assigned To</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedReport.assigned_to_user.full_name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assigned To</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.assigned_to_user.full_name}</p>
                   </div>
                 )}
                 {selectedReport.version && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Version</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedReport.version.version_number}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Version</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.version.version_number}</p>
                   </div>
                 )}
                 {selectedReport.browser && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Browser</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedReport.browser}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Browser</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.browser}</p>
                   </div>
                 )}
                 {selectedReport.device && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Device</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedReport.device}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Device</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.device}</p>
                   </div>
                 )}
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Created</p>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Created</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {new Date(selectedReport.created_at).toLocaleString()}
                   </p>
                 </div>
@@ -555,7 +566,7 @@ export default function AdminReportsPage() {
               {/* Attachments */}
               {selectedReport.attachments.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Attachments ({selectedReport.attachments.length})</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Attachments ({selectedReport.attachments.length})</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {selectedReport.attachments.map((url, index) => (
                       <a
@@ -563,10 +574,10 @@ export default function AdminReportsPage() {
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="border border-gray-300 rounded-lg p-3 hover:border-purple-500 hover:bg-purple-50 transition flex items-center gap-2"
+                        className="border border-gray-300 dark:border-gray-600 rounded-xl p-3 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition flex items-center gap-2"
                       >
                         <i className="fas fa-paperclip text-purple-600"></i>
-                        <span className="text-sm text-gray-700 truncate">Attachment {index + 1}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate">Attachment {index + 1}</span>
                         <i className="fas fa-external-link-alt text-xs text-gray-400 ml-auto"></i>
                       </a>
                     ))}
@@ -577,27 +588,27 @@ export default function AdminReportsPage() {
               {/* Developer Notes */}
               {selectedReport.dev_notes && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Developer Notes</h4>
-                  <p className="text-gray-900 bg-yellow-50 border border-yellow-200 p-4 rounded-lg whitespace-pre-wrap">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Developer Notes</h4>
+                  <p className="text-gray-900 dark:text-gray-100 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-xl whitespace-pre-wrap">
                     {selectedReport.dev_notes}
                   </p>
                 </div>
               )}
 
               {/* Management Section */}
-              <div className="border-t pt-6">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="border-t dark:border-gray-700 pt-6">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   <i className="fas fa-cog mr-2"></i>
                   Manage Report
                 </h4>
                 <div className="space-y-4">
                   {/* Status */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
                     <select
                       value={editData.status}
                       onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="input-field"
                     >
                       <option value="open">Open</option>
                       <option value="in_progress">In Progress</option>
@@ -608,11 +619,11 @@ export default function AdminReportsPage() {
 
                   {/* Assign To */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Assign To</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assign To</label>
                     <select
                       value={editData.assigned_to}
                       onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="input-field"
                     >
                       <option value="">Unassigned</option>
                       {users.map((user) => (
@@ -625,12 +636,12 @@ export default function AdminReportsPage() {
 
                   {/* Developer Notes */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Developer Notes</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Developer Notes</label>
                     <textarea
                       value={editData.dev_notes}
                       onChange={(e) => setEditData({ ...editData, dev_notes: e.target.value })}
                       rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="input-field"
                       placeholder="Add notes about the fix, workarounds, or technical details..."
                     />
                   </div>
@@ -638,25 +649,36 @@ export default function AdminReportsPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex gap-3 pt-4 border-t dark:border-gray-700">
                 <button
                   onClick={() => setSelectedReport(null)}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                  className="btn-secondary flex-1"
+                  disabled={updating}
                 >
                   Close
                 </button>
                 <button
                   onClick={handleUpdateReport}
-                  className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition flex items-center gap-2"
+                  disabled={updating}
+                  className="btn-primary flex-1 disabled:opacity-50"
                 >
-                  <i className="fas fa-save"></i>
-                  Save Changes
+                  {updating ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <i className="fas fa-spinner animate-spin"></i>
+                      Saving...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <i className="fas fa-save"></i>
+                      Save Changes
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }

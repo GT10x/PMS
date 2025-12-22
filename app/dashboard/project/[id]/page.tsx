@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface Project {
   id: string;
@@ -21,22 +22,8 @@ export default function ProjectDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
+    fetchProject();
   }, []);
-
-  const checkAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/me');
-      if (!response.ok) {
-        router.push('/login');
-        return;
-      }
-      fetchProject();
-    } catch (error) {
-      console.error('Auth error:', error);
-      router.push('/login');
-    }
-  };
 
   const fetchProject = async () => {
     try {
@@ -45,7 +32,6 @@ export default function ProjectDashboardPage() {
         const data = await response.json();
         setProject(data);
       } else {
-        alert('You do not have access to this project');
         router.push('/dashboard');
       }
     } catch (error) {
@@ -56,11 +42,34 @@ export default function ProjectDashboardPage() {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    const badges: Record<string, string> = {
+      not_started: 'badge-info',
+      in_progress: 'badge-warning',
+      on_hold: 'badge-purple',
+      completed: 'badge-success',
+      cancelled: 'badge-danger',
+    };
+    return badges[status] || 'badge-info';
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    const badges: Record<string, string> = {
+      low: 'badge-info',
+      medium: 'badge-warning',
+      high: 'badge-danger',
+      critical: 'badge-danger',
+    };
+    return badges[priority] || 'badge-info';
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -69,93 +78,117 @@ export default function ProjectDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-              <p className="text-sm text-gray-500 mt-1">{project.description}</p>
-            </div>
+    <DashboardLayout>
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
             <button
-              onClick={() => router.push('/dashboard')}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+              onClick={() => router.push('/dashboard/projects')}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              Back to Dashboard
+              <i className="fas fa-arrow-left text-gray-500"></i>
             </button>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{project.name}</h1>
           </div>
+          <p className="text-gray-500 dark:text-gray-400 ml-11">{project.description || 'No description'}</p>
         </div>
-      </header>
+      </div>
 
       {/* Navigation Tabs */}
-      <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8 py-3">
-            <a
-              href={`/dashboard/project/${projectId}`}
-              className="text-indigo-600 border-b-2 border-indigo-600 px-1 pb-3 text-sm font-medium"
-            >
-              <i className="fas fa-home mr-2"></i>
-              Overview
-            </a>
-            <a
-              href={`/dashboard/project/${projectId}/reports`}
-              className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
-            >
-              <i className="fas fa-bug mr-2"></i>
-              Reports
-            </a>
-            <a
-              href={`/dashboard/project/${projectId}/versions`}
-              className="text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 px-1 pb-3 text-sm font-medium"
-            >
-              <i className="fas fa-code-branch mr-2"></i>
-              Versions
-            </a>
+      <div className="card mb-6 p-1">
+        <div className="flex gap-1">
+          <a
+            href={`/dashboard/project/${projectId}`}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm"
+          >
+            <i className="fas fa-home"></i>
+            Overview
+          </a>
+          <a
+            href={`/dashboard/project/${projectId}/reports`}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
+          >
+            <i className="fas fa-bug"></i>
+            Reports
+          </a>
+          <a
+            href={`/dashboard/project/${projectId}/versions`}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
+          >
+            <i className="fas fa-code-branch"></i>
+            Versions
+          </a>
+        </div>
+      </div>
+
+      {/* Project Info Card */}
+      <div className="card p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Project Information</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Status</p>
+            <span className={`badge ${getStatusBadge(project.status)} capitalize`}>
+              {project.status.replace('_', ' ')}
+            </span>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Priority</p>
+            <span className={`badge ${getPriorityBadge(project.priority)} capitalize`}>
+              {project.priority}
+            </span>
+          </div>
+          {project.start_date && (
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Start Date</p>
+              <p className="text-base font-medium text-gray-800 dark:text-white">
+                {new Date(project.start_date).toLocaleDateString()}
+              </p>
+            </div>
+          )}
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Created</p>
+            <p className="text-base font-medium text-gray-800 dark:text-white">
+              {new Date(project.created_at).toLocaleDateString()}
+            </p>
           </div>
         </div>
-      </nav>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Project Info */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Project Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Status</p>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 capitalize">
-                {project.status.replace('_', ' ')}
-              </span>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a
+          href={`/dashboard/project/${projectId}/reports`}
+          className="card p-6 hover:shadow-lg transition-shadow group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i className="fas fa-bug text-orange-600 dark:text-orange-400 text-xl"></i>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Priority</p>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 capitalize">
-                {project.priority}
-              </span>
+              <h3 className="font-semibold text-gray-800 dark:text-white">Reports & Issues</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Track bugs, features, and improvements</p>
             </div>
-            {project.start_date && (
-              <div>
-                <p className="text-sm text-gray-500">Start Date</p>
-                <p className="text-base font-medium text-gray-900">
-                  {new Date(project.start_date).toLocaleDateString()}
-                </p>
-              </div>
-            )}
+            <i className="fas fa-chevron-right text-gray-400 ml-auto"></i>
           </div>
-        </div>
+        </a>
 
-        {/* Placeholder for future features */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Project Dashboard
-          </h2>
-          <p className="text-gray-600">
-            Project dashboard features (tasks, documents, timeline) will be added here.
-          </p>
-        </div>
-      </main>
-    </div>
+        <a
+          href={`/dashboard/project/${projectId}/versions`}
+          className="card p-6 hover:shadow-lg transition-shadow group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+              <i className="fas fa-code-branch text-indigo-600 dark:text-indigo-400 text-xl"></i>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-800 dark:text-white">Version Testing</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Track testing progress for each version</p>
+            </div>
+            <i className="fas fa-chevron-right text-gray-400 ml-auto"></i>
+          </div>
+        </a>
+      </div>
+    </DashboardLayout>
   );
 }

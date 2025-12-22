@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface Report {
   id: string;
@@ -258,34 +259,34 @@ export default function ProjectReportsPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      open: 'bg-blue-100 text-blue-800 border-blue-300',
-      in_progress: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      resolved: 'bg-green-100 text-green-800 border-green-300',
-      wont_fix: 'bg-gray-100 text-gray-800 border-gray-300'
+    const badges: Record<string, string> = {
+      open: 'badge-info',
+      in_progress: 'badge-warning',
+      resolved: 'badge-success',
+      wont_fix: 'badge-purple',
     };
-    const labels = {
-      open: '🔵 OPEN',
-      in_progress: '⏳ IN PROGRESS',
-      resolved: '✅ RESOLVED',
-      wont_fix: '❌ WON\'T FIX'
+    const labels: Record<string, string> = {
+      open: 'Open',
+      in_progress: 'In Progress',
+      resolved: 'Resolved',
+      wont_fix: "Won't Fix"
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status as keyof typeof styles]}`}>
-        {labels[status as keyof typeof labels]}
+      <span className={`badge ${badges[status] || 'badge-info'}`}>
+        {labels[status] || status}
       </span>
     );
   };
 
   const getPriorityBadge = (priority: string) => {
-    const styles = {
-      low: 'bg-gray-100 text-gray-800 border-gray-300',
-      medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      high: 'bg-orange-100 text-orange-800 border-orange-300',
-      critical: 'bg-red-100 text-red-800 border-red-300'
+    const badges: Record<string, string> = {
+      low: 'badge-info',
+      medium: 'badge-warning',
+      high: 'badge-danger',
+      critical: 'badge-danger',
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[priority as keyof typeof styles]} uppercase`}>
+      <span className={`badge ${badges[priority] || 'badge-info'} uppercase`}>
         {priority}
       </span>
     );
@@ -293,192 +294,215 @@ export default function ProjectReportsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg text-gray-600">Loading reports...</div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                <i className="fas fa-bug mr-2 text-red-600"></i>
-                Reports & Issues
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Track bugs, features, and improvements
-              </p>
-            </div>
+    <DashboardLayout>
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
             <button
               onClick={() => router.push(`/dashboard/project/${projectId}`)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              Back to Project
+              <i className="fas fa-arrow-left text-gray-500"></i>
             </button>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+              <i className="fas fa-bug mr-2 text-orange-500"></i>
+              Reports & Issues
+            </h1>
           </div>
+          <p className="text-gray-500 dark:text-gray-400 ml-11">Track bugs, features, and improvements</p>
         </div>
-      </header>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <i className="fas fa-plus"></i>
+          New Report
+        </button>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex items-center gap-2">
-              <i className="fas fa-filter text-gray-600"></i>
-              <span className="font-medium text-gray-700">Filters:</span>
-            </div>
+      {/* Navigation Tabs */}
+      <div className="card mb-6 p-1">
+        <div className="flex gap-1">
+          <a
+            href={`/dashboard/project/${projectId}`}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
+          >
+            <i className="fas fa-home"></i>
+            Overview
+          </a>
+          <a
+            href={`/dashboard/project/${projectId}/reports`}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm"
+          >
+            <i className="fas fa-bug"></i>
+            Reports
+          </a>
+          <a
+            href={`/dashboard/project/${projectId}/versions`}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
+          >
+            <i className="fas fa-code-branch"></i>
+            Versions
+          </a>
+        </div>
+      </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-              <option value="wont_fix">Won't Fix</option>
-            </select>
-
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Types</option>
-              <option value="bug">Bugs</option>
-              <option value="feature">Features</option>
-              <option value="improvement">Improvements</option>
-              <option value="task">Tasks</option>
-            </select>
-
-            <button
-              onClick={() => {
-                setStatusFilter('all');
-                setTypeFilter('all');
-              }}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 transition"
-            >
-              <i className="fas fa-redo"></i> Reset
-            </button>
+      {/* Filters */}
+      <div className="card p-4 mb-6">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <i className="fas fa-filter text-gray-500"></i>
+            <span className="font-medium text-gray-700 dark:text-gray-300">Filters:</span>
           </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="input-field w-auto"
+          >
+            <option value="all">All Status</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="wont_fix">Won't Fix</option>
+          </select>
+
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="input-field w-auto"
+          >
+            <option value="all">All Types</option>
+            <option value="bug">Bugs</option>
+            <option value="feature">Features</option>
+            <option value="improvement">Improvements</option>
+            <option value="task">Tasks</option>
+          </select>
+
+          <button
+            onClick={() => {
+              setStatusFilter('all');
+              setTypeFilter('all');
+            }}
+            className="btn-secondary"
+          >
+            <i className="fas fa-redo mr-1"></i> Reset
+          </button>
         </div>
+      </div>
 
-        {/* Reports List */}
-        <div className="space-y-4">
-          {reports.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <i className="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
-              <p className="text-gray-600 text-lg">No reports found</p>
-              <p className="text-gray-500 text-sm mt-2">Click the + button to create your first report</p>
-            </div>
-          ) : (
-            reports.map((report) => (
-              <div
-                key={report.id}
-                onClick={() => handleViewReport(report)}
-                className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition cursor-pointer"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl">{getTypeEmoji(report.type)}</span>
-                      <h3 className="text-xl font-bold text-gray-900">{report.title}</h3>
-                      {getStatusBadge(report.status)}
-                      {report.priority !== 'medium' && getPriorityBadge(report.priority)}
-                    </div>
-
-                    <p className="text-gray-700 mb-3 line-clamp-2">{report.description}</p>
-
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                      {report.version && (
-                        <span><i className="fas fa-tag"></i> {report.version.version_number}</span>
-                      )}
-                      <span><i className="fas fa-user"></i> {report.reported_by_user.full_name}</span>
-                      {report.browser && (
-                        <span><i className="fas fa-globe"></i> {report.browser}</span>
-                      )}
-                      {report.device && (
-                        <span><i className="fas fa-mobile-alt"></i> {report.device}</span>
-                      )}
-                      <span>
-                        <i className="fas fa-clock"></i>{' '}
-                        {new Date(report.created_at).toLocaleString()}
-                      </span>
-                      {report.attachments.length > 0 && (
-                        <span><i className="fas fa-paperclip"></i> {report.attachments.length} file(s)</span>
-                      )}
-                    </div>
+      {/* Reports List */}
+      <div className="space-y-4">
+        {reports.length === 0 ? (
+          <div className="card p-12 text-center">
+            <i className="fas fa-inbox text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+            <p className="text-gray-600 dark:text-gray-400 text-lg">No reports found</p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">Click "New Report" to create your first report</p>
+          </div>
+        ) : (
+          reports.map((report) => (
+            <div
+              key={report.id}
+              onClick={() => handleViewReport(report)}
+              className="card p-6 hover:shadow-lg transition cursor-pointer"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl">{getTypeEmoji(report.type)}</span>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{report.title}</h3>
+                    {getStatusBadge(report.status)}
+                    {report.priority !== 'medium' && getPriorityBadge(report.priority)}
                   </div>
 
-                  <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2">
-                    <i className="fas fa-eye"></i>
-                    View
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </main>
+                  <p className="text-gray-700 dark:text-gray-300 mb-3 line-clamp-2">{report.description}</p>
 
-      {/* Floating Action Button */}
-      <button
-        onClick={() => setShowCreateModal(true)}
-        className="fixed bottom-8 right-8 bg-orange-500 hover:bg-orange-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 z-50"
-        title="Create New Report"
-      >
-        <i className="fas fa-plus text-xl"></i>
-      </button>
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+                    {report.version && (
+                      <span><i className="fas fa-tag"></i> {report.version.version_number}</span>
+                    )}
+                    <span><i className="fas fa-user"></i> {report.reported_by_user.full_name}</span>
+                    {report.browser && (
+                      <span><i className="fas fa-globe"></i> {report.browser}</span>
+                    )}
+                    {report.device && (
+                      <span><i className="fas fa-mobile-alt"></i> {report.device}</span>
+                    )}
+                    <span>
+                      <i className="fas fa-clock"></i>{' '}
+                      {new Date(report.created_at).toLocaleString()}
+                    </span>
+                    {report.attachments.length > 0 && (
+                      <span><i className="fas fa-paperclip"></i> {report.attachments.length} file(s)</span>
+                    )}
+                  </div>
+                </div>
+
+                <button className="btn-primary">
+                  <i className="fas fa-eye mr-1"></i>
+                  View
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
       {/* Create Report Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-content max-w-3xl animate-fadeIn" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">
-                <i className="fas fa-plus-circle mr-2 text-orange-500"></i>
-                Create New Report
-              </h3>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                  <i className="fas fa-plus-circle mr-2 text-orange-500"></i>
+                  Create New Report
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Report a bug or request a feature</p>
+              </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <i className="fas fa-times text-xl"></i>
+                <i className="fas fa-times text-gray-500"></i>
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* Title */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="input-field"
                   placeholder="Brief summary of the issue or feature"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={5}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="input-field"
                   placeholder="Detailed description, steps to reproduce, expected vs actual behavior..."
                 />
               </div>
@@ -486,29 +510,25 @@ export default function ProjectReportsPage() {
               {/* Type and Priority */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Type
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="input-field"
                   >
-                    <option value="bug">🐛 Bug</option>
-                    <option value="feature">💡 Feature Request</option>
-                    <option value="improvement">⬆️ Improvement</option>
-                    <option value="task">📋 Task</option>
+                    <option value="bug">Bug</option>
+                    <option value="feature">Feature Request</option>
+                    <option value="improvement">Improvement</option>
+                    <option value="task">Task</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Priority
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority</label>
                   <select
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="input-field"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -518,39 +538,39 @@ export default function ProjectReportsPage() {
                 </div>
               </div>
 
-              {/* Browser and Device (auto-detected) */}
+              {/* Browser and Device */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Browser (auto-detected)
                   </label>
                   <input
                     type="text"
                     value={formData.browser}
                     onChange={(e) => setFormData({ ...formData, browser: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
+                    className="input-field bg-gray-50 dark:bg-gray-700"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Device (auto-detected)
                   </label>
                   <input
                     type="text"
                     value={formData.device}
                     onChange={(e) => setFormData({ ...formData, device: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50"
+                    className="input-field bg-gray-50 dark:bg-gray-700"
                   />
                 </div>
               </div>
 
               {/* File Attachments */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Attachments (Screenshots, Videos, Audio)
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4">
                   <input
                     type="file"
                     multiple
@@ -564,7 +584,7 @@ export default function ProjectReportsPage() {
                     className="cursor-pointer flex flex-col items-center"
                   >
                     <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       Click to upload files or drag and drop
                     </span>
                     <span className="text-xs text-gray-500 mt-1">
@@ -572,17 +592,16 @@ export default function ProjectReportsPage() {
                     </span>
                   </label>
 
-                  {/* Attached Files List */}
                   {attachments.length > 0 && (
                     <div className="mt-4 space-y-2">
                       {attachments.map((file, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between bg-gray-50 p-2 rounded border"
+                          className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded border dark:border-gray-600"
                         >
                           <div className="flex items-center gap-2">
-                            <i className="fas fa-file text-gray-600"></i>
-                            <span className="text-sm text-gray-700">{file.name}</span>
+                            <i className="fas fa-file text-gray-600 dark:text-gray-400"></i>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{file.name}</span>
                             <span className="text-xs text-gray-500">
                               ({(file.size / 1024 / 1024).toFixed(2)} MB)
                             </span>
@@ -601,10 +620,10 @@ export default function ProjectReportsPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                  className="btn-secondary flex-1"
                   disabled={uploading}
                 >
                   Cancel
@@ -612,18 +631,18 @@ export default function ProjectReportsPage() {
                 <button
                   onClick={handleCreateReport}
                   disabled={uploading}
-                  className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="btn-primary flex-1 disabled:opacity-50"
                 >
                   {uploading ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin"></i>
+                    <span className="flex items-center justify-center gap-2">
+                      <i className="fas fa-spinner animate-spin"></i>
                       Creating...
-                    </>
+                    </span>
                   ) : (
-                    <>
+                    <span className="flex items-center justify-center gap-2">
                       <i className="fas fa-paper-plane"></i>
                       Create Report
-                    </>
+                    </span>
                   )}
                 </button>
               </div>
@@ -634,14 +653,14 @@ export default function ProjectReportsPage() {
 
       {/* View/Manage Report Modal */}
       {selectedReport && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="modal-overlay" onClick={() => setSelectedReport(null)}>
+          <div className="modal-content max-w-4xl animate-fadeIn" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-3xl">{getTypeEmoji(selectedReport.type)}</span>
-                  <h3 className="text-2xl font-bold text-gray-900">{selectedReport.title}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedReport.title}</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {getStatusBadge(selectedReport.status)}
@@ -650,9 +669,9 @@ export default function ProjectReportsPage() {
               </div>
               <button
                 onClick={() => setSelectedReport(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <i className="fas fa-times text-xl"></i>
+                <i className="fas fa-times text-gray-500"></i>
               </button>
             </div>
 
@@ -660,49 +679,49 @@ export default function ProjectReportsPage() {
             <div className="space-y-6">
               {/* Description */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Description</h4>
-                <p className="text-gray-900 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</h4>
+                <p className="text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-4 rounded-xl whitespace-pre-wrap">
                   {selectedReport.description}
                 </p>
               </div>
 
               {/* Metadata Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-700 p-4 rounded-xl">
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Type</p>
-                  <p className="text-sm font-medium text-gray-900 capitalize">{selectedReport.type}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Type</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{selectedReport.type}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Reported By</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedReport.reported_by_user.full_name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reported By</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.reported_by_user.full_name}</p>
                 </div>
                 {selectedReport.assigned_to_user && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Assigned To</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedReport.assigned_to_user.full_name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assigned To</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.assigned_to_user.full_name}</p>
                   </div>
                 )}
                 {selectedReport.version && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Version</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedReport.version.version_number}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Version</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.version.version_number}</p>
                   </div>
                 )}
                 {selectedReport.browser && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Browser</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedReport.browser}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Browser</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.browser}</p>
                   </div>
                 )}
                 {selectedReport.device && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Device</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedReport.device}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Device</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.device}</p>
                   </div>
                 )}
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Created</p>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Created</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {new Date(selectedReport.created_at).toLocaleString()}
                   </p>
                 </div>
@@ -711,7 +730,7 @@ export default function ProjectReportsPage() {
               {/* Attachments */}
               {selectedReport.attachments.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Attachments ({selectedReport.attachments.length})</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Attachments ({selectedReport.attachments.length})</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {selectedReport.attachments.map((url, index) => (
                       <a
@@ -719,10 +738,10 @@ export default function ProjectReportsPage() {
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="border border-gray-300 rounded-lg p-3 hover:border-blue-500 hover:bg-blue-50 transition flex items-center gap-2"
+                        className="border border-gray-300 dark:border-gray-600 rounded-xl p-3 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition flex items-center gap-2"
                       >
-                        <i className="fas fa-paperclip text-blue-600"></i>
-                        <span className="text-sm text-gray-700 truncate">Attachment {index + 1}</span>
+                        <i className="fas fa-paperclip text-indigo-600"></i>
+                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate">Attachment {index + 1}</span>
                         <i className="fas fa-external-link-alt text-xs text-gray-400 ml-auto"></i>
                       </a>
                     ))}
@@ -733,8 +752,8 @@ export default function ProjectReportsPage() {
               {/* Developer Notes */}
               {selectedReport.dev_notes && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Developer Notes</h4>
-                  <p className="text-gray-900 bg-yellow-50 border border-yellow-200 p-4 rounded-lg whitespace-pre-wrap">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Developer Notes</h4>
+                  <p className="text-gray-900 dark:text-gray-100 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-xl whitespace-pre-wrap">
                     {selectedReport.dev_notes}
                   </p>
                 </div>
@@ -742,21 +761,19 @@ export default function ProjectReportsPage() {
 
               {/* Management Section - Only for Admin/PM */}
               {canManageReport() && (
-                <div className="border-t pt-6">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                <div className="border-t dark:border-gray-700 pt-6">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     <i className="fas fa-cog mr-2"></i>
                     Manage Report
                   </h4>
                   <div className="space-y-4">
                     {/* Status */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Status
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
                       <select
                         value={editData.status}
                         onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="input-field"
                       >
                         <option value="open">Open</option>
                         <option value="in_progress">In Progress</option>
@@ -767,13 +784,11 @@ export default function ProjectReportsPage() {
 
                     {/* Assign To */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Assign To
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assign To</label>
                       <select
                         value={editData.assigned_to}
                         onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="input-field"
                       >
                         <option value="">Unassigned</option>
                         {users.map((user) => (
@@ -786,14 +801,12 @@ export default function ProjectReportsPage() {
 
                     {/* Developer Notes */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Developer Notes
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Developer Notes</label>
                       <textarea
                         value={editData.dev_notes}
                         onChange={(e) => setEditData({ ...editData, dev_notes: e.target.value })}
                         rows={4}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="input-field"
                         placeholder="Add notes about the fix, workarounds, or technical details..."
                       />
                     </div>
@@ -802,10 +815,10 @@ export default function ProjectReportsPage() {
               )}
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex gap-3 pt-4 border-t dark:border-gray-700">
                 <button
                   onClick={() => setSelectedReport(null)}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                  className="btn-secondary flex-1"
                   disabled={uploading}
                 >
                   Close
@@ -814,18 +827,18 @@ export default function ProjectReportsPage() {
                   <button
                     onClick={handleUpdateReport}
                     disabled={uploading}
-                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="btn-primary flex-1 disabled:opacity-50"
                   >
                     {uploading ? (
-                      <>
-                        <i className="fas fa-spinner fa-spin"></i>
+                      <span className="flex items-center justify-center gap-2">
+                        <i className="fas fa-spinner animate-spin"></i>
                         Updating...
-                      </>
+                      </span>
                     ) : (
-                      <>
+                      <span className="flex items-center justify-center gap-2">
                         <i className="fas fa-save"></i>
                         Save Changes
-                      </>
+                      </span>
                     )}
                   </button>
                 )}
@@ -834,6 +847,6 @@ export default function ProjectReportsPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
