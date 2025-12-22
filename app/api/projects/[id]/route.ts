@@ -61,29 +61,33 @@ export async function PUT(
       return NextResponse.json({ error: projectError.message }, { status: 500 });
     }
 
-    // Update team members: delete all existing and insert new ones
-    const { error: deleteError } = await supabaseAdmin
-      .from('project_members')
-      .delete()
-      .eq('project_id', id);
-
-    if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    }
-
-    if (team_members && team_members.length > 0) {
-      const memberInserts = team_members.map((userId: string) => ({
-        project_id: id,
-        user_id: userId,
-        role: null
-      }));
-
-      const { error: membersError } = await supabaseAdmin
+    // Update team members only if team_members array is provided in the request
+    if (team_members !== undefined) {
+      // Delete all existing members for this project
+      const { error: deleteError } = await supabaseAdmin
         .from('project_members')
-        .insert(memberInserts);
+        .delete()
+        .eq('project_id', id);
 
-      if (membersError) {
-        return NextResponse.json({ error: membersError.message }, { status: 500 });
+      if (deleteError) {
+        return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      }
+
+      // Insert new members if any are provided
+      if (Array.isArray(team_members) && team_members.length > 0) {
+        const memberInserts = team_members.map((userId: string) => ({
+          project_id: id,
+          user_id: userId,
+          role: null
+        }));
+
+        const { error: membersError } = await supabaseAdmin
+          .from('project_members')
+          .insert(memberInserts);
+
+        if (membersError) {
+          return NextResponse.json({ error: membersError.message }, { status: 500 });
+        }
       }
     }
 
