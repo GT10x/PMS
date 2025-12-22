@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import DashboardLayout from '@/components/DashboardLayout';
 import { User } from '@/lib/types';
-
-interface UserWithPassword extends User {
-  password?: string;
-}
 
 export default function UserManagementPage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -39,14 +35,10 @@ export default function UserManagementPage() {
         return;
       }
       const data = await response.json();
-      setCurrentUser(data.user);
-
-      // Only admins can access this page
       if (!data.user.is_admin) {
         router.push('/dashboard');
         return;
       }
-
       fetchUsers();
     } catch (error) {
       console.error('Auth error:', error);
@@ -75,43 +67,27 @@ export default function UserManagementPage() {
     setSubmitting(true);
 
     try {
-      console.log('Submitting user data:', formData);
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
 
       if (!response.ok) {
-        const errorMsg = data.error || 'Failed to add user';
-        setError(errorMsg);
-        console.error('Error adding user:', errorMsg);
-        alert('Error: ' + errorMsg);
+        setError(data.error || 'Failed to add user');
         setSubmitting(false);
         return;
       }
 
       setSuccess('User added successfully');
-      alert('User added successfully!');
       setShowAddModal(false);
-      setFormData({
-        full_name: '',
-        username: '',
-        email: '',
-        password: '',
-        role: 'developer',
-      });
+      resetForm();
       fetchUsers();
       setSubmitting(false);
     } catch (error) {
-      console.error('Exception adding user:', error);
-      const errorMsg = 'Failed to add user: ' + (error instanceof Error ? error.message : 'Unknown error');
-      setError(errorMsg);
-      alert('Exception: ' + errorMsg);
+      setError('Failed to add user');
       setSubmitting(false);
     }
   };
@@ -122,6 +98,7 @@ export default function UserManagementPage() {
 
     setError('');
     setSuccess('');
+    setSubmitting(true);
 
     try {
       const updateData: any = {
@@ -143,6 +120,7 @@ export default function UserManagementPage() {
 
       if (!response.ok) {
         setError(data.error || 'Failed to update user');
+        setSubmitting(false);
         return;
       }
 
@@ -150,8 +128,10 @@ export default function UserManagementPage() {
       setShowEditModal(false);
       setSelectedUser(null);
       fetchUsers();
+      setSubmitting(false);
     } catch (error) {
       setError('Failed to update user');
+      setSubmitting(false);
     }
   };
 
@@ -187,7 +167,7 @@ export default function UserManagementPage() {
     setShowEditModal(true);
   };
 
-  const openAddModal = () => {
+  const resetForm = () => {
     setFormData({
       full_name: '',
       username: '',
@@ -195,214 +175,223 @@ export default function UserManagementPage() {
       password: '',
       role: 'developer',
     });
-    setShowAddModal(true);
+    setError('');
+  };
+
+  const getRoleBadge = (role: string) => {
+    const badges: Record<string, string> = {
+      admin: 'badge-danger',
+      project_manager: 'badge-purple',
+      cto: 'badge-info',
+      developer: 'badge-success',
+      react_native_developer: 'badge-success',
+      tester: 'badge-warning',
+      consultant: 'badge-info',
+    };
+    return badges[role] || 'badge-info';
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">PMS Dashboard</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Welcome, {currentUser?.full_name}
-              </p>
-            </div>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-            >
-              Back to Dashboard
-            </button>
-          </div>
+    <DashboardLayout>
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">User Management</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage system users and their roles</p>
         </div>
-      </header>
+        <button
+          onClick={() => { resetForm(); setShowAddModal(true); }}
+          className="btn-primary flex items-center gap-2"
+        >
+          <i className="fas fa-user-plus"></i>
+          Add Employee
+        </button>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Title */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">User Management</h2>
-              <p className="text-gray-600 mt-1">Manage system users and their roles</p>
-            </div>
-            <button
-              onClick={openAddModal}
-              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition flex items-center gap-2"
-            >
-              <span className="text-xl">+</span>
-              Add Employee
-            </button>
-          </div>
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-xl flex items-center gap-2 animate-fadeIn">
+          <i className="fas fa-check-circle"></i>
+          {success}
         </div>
+      )}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl flex items-center gap-2 animate-fadeIn">
+          <i className="fas fa-exclamation-circle"></i>
+          {error}
+        </div>
+      )}
 
-        {/* Success/Error Messages */}
-        {success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg">
-            {success}
-          </div>
-        )}
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        {/* Users Table */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <h3 className="text-lg font-semibold text-gray-900">System Users</h3>
-            </div>
-            <p className="text-sm text-gray-500 mt-1">All registered users in the system</p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Name</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Role</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Created</th>
-                  <th className="px-6 py-3 text-right text-sm font-medium text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">{user.full_name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {user.role.replace('_', ' ')}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(user.created_at).toLocaleDateString('en-US')}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => openEditModal(user)}
-                          className="text-gray-600 hover:text-indigo-600 transition"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-gray-600 hover:text-red-600 transition"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+      {/* Users Table */}
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="table-modern">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th className="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                        {user.full_name.charAt(0).toUpperCase()}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {users.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                No users found. Add your first employee to get started.
-              </div>
-            )}
-          </div>
+                      <div>
+                        <p className="font-medium text-gray-800 dark:text-white">{user.full_name}</p>
+                        {user.email && (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="text-gray-600 dark:text-gray-400">
+                    {user.username || '-'}
+                  </td>
+                  <td>
+                    <span className={`badge ${getRoleBadge(user.role)} capitalize`}>
+                      {user.role.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="text-gray-600 dark:text-gray-400">
+                    {new Date(user.created_at).toLocaleDateString()}
+                  </td>
+                  <td>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openEditModal(user)}
+                        className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {users.length === 0 && (
+            <div className="text-center py-12">
+              <i className="fas fa-users text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+              <p className="text-gray-500 dark:text-gray-400">No users found. Add your first employee!</p>
+            </div>
+          )}
         </div>
-      </main>
+      </div>
 
-      {/* Add Employee Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full p-6">
+      {/* Add/Edit Modal */}
+      {(showAddModal || showEditModal) && (
+        <div className="modal-overlay" onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>
+          <div className="modal-content p-6 animate-fadeIn" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Add Employee</h3>
-                <p className="text-sm text-gray-600 mt-1">Create a new user account.</p>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                  {showAddModal ? 'Add Employee' : 'Edit Employee'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {showAddModal ? 'Create a new user account' : 'Update employee information'}
+                </p>
               </div>
               <button
-                onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <i className="fas fa-times text-gray-500"></i>
               </button>
             </div>
 
-            <form onSubmit={handleAddUser} className="space-y-4">
+            <form onSubmit={showAddModal ? handleAddUser : handleEditUser} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Full Name
                 </label>
                 <input
                   type="text"
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  className="input-field"
+                  placeholder="Enter full name"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  required
-                />
-              </div>
+              {showAddModal && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      className="input-field"
+                      placeholder="Enter username"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Email (optional)
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="input-field"
+                      placeholder="Enter email"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email (optional)
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {showAddModal ? 'Password' : 'New Password (optional)'}
                 </label>
                 <input
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  required
+                  className="input-field"
+                  placeholder={showEditModal ? 'Leave blank to keep current' : 'Enter password'}
+                  required={showAddModal}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Role
                 </label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as User['role'] })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  className="input-field"
                 >
                   <option value="developer">Developer</option>
                   <option value="react_native_developer">React Native Developer</option>
@@ -416,121 +405,30 @@ export default function UserManagementPage() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                  onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+                  className="btn-secondary flex-1"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-primary flex-1 disabled:opacity-50"
                 >
-                  {submitting ? 'Adding...' : 'Add Employee'}
+                  {submitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <i className="fas fa-spinner animate-spin"></i>
+                      {showAddModal ? 'Adding...' : 'Updating...'}
+                    </span>
+                  ) : (
+                    showAddModal ? 'Add Employee' : 'Update Employee'
+                  )}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* Edit Employee Modal */}
-      {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">Edit Employee</h3>
-                <p className="text-sm text-gray-600 mt-1">Update employee information and role.</p>
-              </div>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleEditUser} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Role
-                </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as User['role'] })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                >
-                  <option value="developer">Developer</option>
-                  <option value="react_native_developer">React Native Developer</option>
-                  <option value="project_manager">Project Manager</option>
-                  <option value="cto">CTO</option>
-                  <option value="consultant">Consultant</option>
-                  <option value="tester">Tester</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  New Password (optional)
-                </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-gray-50"
-                  placeholder="Leave blank to keep current password"
-                />
-              </div>
-
-              {/* Module Access Permissions - Placeholder for future */}
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Module Access Permissions</span>
-                  <div className="flex gap-3 text-sm">
-                    <button type="button" className="text-indigo-600 hover:text-indigo-700">Select All</button>
-                    <button type="button" className="text-indigo-600 hover:text-indigo-700">Deselect All</button>
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4 text-center text-sm text-gray-500">
-                  Module permissions will be configured later
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
-                >
-                  Update Employee
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+    </DashboardLayout>
   );
 }
