@@ -441,6 +441,13 @@ function TestCaseRow({ testCase, index, result, onUpdate, saving, versionId }) {
   const [attachments, setAttachments] = useState<string[]>(result?.attachments || []);
   const [uploading, setUploading] = useState(false);
 
+  // Sync local state with result prop when it changes
+  useEffect(() => {
+    setStatus(result?.status || 'pending');
+    setNotes(result?.notes || '');
+    setAttachments(result?.attachments || []);
+  }, [result?.status, result?.notes, result?.attachments]);
+
   const handleStatusChange = (newStatus: string) => {
     setStatus(newStatus);
     onUpdate(testCase.id, newStatus, notes, attachments);
