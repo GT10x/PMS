@@ -185,7 +185,8 @@ export async function POST(req: NextRequest) {
             title: tc.title,
             description: tc.description || null,
             steps: tc.steps || [],
-            sort_order: i
+            sort_order: i,
+            test_number: i + 1  // Add test_number for backward compatibility
           })
           .select()
           .single();
