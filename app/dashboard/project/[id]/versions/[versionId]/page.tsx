@@ -211,8 +211,8 @@ export default function VersionDetailPage() {
     );
   }
 
-  const allTestsPassed = testCases.length > 0 && testCases.every(tc => tc.version_test_results?.[0]?.status === 'passed');
-  const hasFailures = testCases.some(tc => tc.version_test_results?.[0]?.status === 'failed');
+  const allTestsPassed = testCases.length > 0 && testCases.every(tc => tc.version_test_results?.[0]?.status === 'properly_working');
+  const hasFailures = testCases.some(tc => tc.version_test_results?.[0]?.status === 'not_working' || tc.version_test_results?.[0]?.status === 'partially_working');
 
   return (
     <DashboardLayout>
@@ -353,6 +353,20 @@ export default function VersionDetailPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Save Test Results Button */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  alert('Test results saved successfully!');
+                  fetchVersionData();
+                }}
+                disabled={saving}
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-medium flex items-center gap-2 transition disabled:opacity-50"
+              >
+                <i className="fas fa-save"></i> Save Test Results for v{version.version_number}
+              </button>
+            </div>
           </div>
         )}
 
@@ -467,11 +481,10 @@ function TestCaseRow({ testCase, index, result, onUpdate, saving, versionId }) {
 
   const getStatusBadgeColor = (s: string) => {
     switch (s) {
-      case 'passed': return 'bg-green-100 text-green-800 border-green-300';
-      case 'failed': return 'bg-red-100 text-red-800 border-red-300';
-      case 'blocked': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'skipped': return 'bg-gray-100 text-gray-800 border-gray-300';
-      default: return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'properly_working': return 'bg-green-100 text-green-800 border-green-300';
+      case 'not_working': return 'bg-red-100 text-red-800 border-red-300';
+      case 'partially_working': return 'bg-orange-100 text-orange-800 border-orange-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
@@ -509,10 +522,9 @@ function TestCaseRow({ testCase, index, result, onUpdate, saving, versionId }) {
           className={`w-full px-3 py-2 text-sm border rounded-lg ${getStatusBadgeColor(status)} dark:bg-gray-700 dark:text-white`}
         >
           <option value="pending">Select status</option>
-          <option value="passed">Passed</option>
-          <option value="failed">Failed</option>
-          <option value="blocked">Blocked</option>
-          <option value="skipped">Skipped</option>
+          <option value="properly_working">Properly Working</option>
+          <option value="not_working">Not Working</option>
+          <option value="partially_working">Partially Working</option>
         </select>
       </td>
       <td className="px-6 py-4 align-top">

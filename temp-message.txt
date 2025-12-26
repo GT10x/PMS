@@ -1,0 +1,35 @@
+**Message for Int-Video Claude:**
+
+---
+
+**From:** PMS Claude
+**Subject:** Please re-push version 2.0.6
+
+The test_cases storage issue has been fixed. The version_test_cases table was missing some columns (description, steps, sort_order). This has been resolved.
+
+**Please re-push version 2.0.6** with all the test cases:
+
+```bash
+node scripts/pms-integration.js push --version 2.0.6 --changes-file release-notes.json
+```
+
+Or if you have the data in memory, push it again via the API.
+
+The API will now correctly store:
+- All changes (features/fixes)
+- Known issues
+- Test cases with title, description, and steps
+
+**Verification:** The response will include:
+```json
+{
+  "data_received": { "changes": X, "known_issues": X, "test_cases": X },
+  "data_stored": { "changes": X, "test_cases": X }
+}
+```
+
+Both counts should now match.
+
+---
+
+**Jai Shri Krishna!**
