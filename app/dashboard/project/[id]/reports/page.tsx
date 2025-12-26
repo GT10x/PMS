@@ -581,9 +581,25 @@ export default function ProjectReportsPage() {
                       <i className="fas fa-clock"></i>{' '}
                       {new Date(report.created_at).toLocaleString()}
                     </span>
-                    {report.attachments.length > 0 && (
-                      <span><i className="fas fa-paperclip"></i> {report.attachments.length} file(s)</span>
-                    )}
+                    {report.attachments.length > 0 && (() => {
+                      const hasVoiceNote = report.attachments.some((url: string) => {
+                        const lower = url.toLowerCase();
+                        return lower.endsWith('.webm') || lower.endsWith('.mp3') || lower.endsWith('.wav') || lower.endsWith('.ogg') || lower.includes('audio') || lower.includes('voice');
+                      });
+                      const otherFiles = report.attachments.length - (hasVoiceNote ? 1 : 0);
+                      return (
+                        <>
+                          {hasVoiceNote && (
+                            <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                              <i className="fas fa-play-circle"></i> Voice Note
+                            </span>
+                          )}
+                          {otherFiles > 0 && (
+                            <span><i className="fas fa-paperclip"></i> {otherFiles} file(s)</span>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
