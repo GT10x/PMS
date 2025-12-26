@@ -172,10 +172,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert test cases
-    if (test_cases.length > 0) {
+    console.log(`Processing ${test_cases.length} test cases for version ${versionId}`);
+    if (test_cases && test_cases.length > 0) {
       for (let i = 0; i < test_cases.length; i++) {
         const tc = test_cases[i];
-        const { data: testCase } = await supabaseAdmin
+        console.log(`Inserting test case ${i + 1}: ${tc.title}`);
+
+        const { data: testCase, error: testCaseError } = await supabaseAdmin
           .from('version_test_cases')
           .insert({
             version_id: versionId,
@@ -187,12 +190,23 @@ export async function POST(req: NextRequest) {
           .select()
           .single();
 
+        if (testCaseError) {
+          console.error(`Error inserting test case: ${testCaseError.message}`);
+          continue;
+        }
+
+        console.log(`Test case inserted with id: ${testCase?.id}`);
+
         // Create empty test result for this test case
         if (testCase) {
-          await supabaseAdmin.from('version_test_results').insert({
+          const { error: resultError } = await supabaseAdmin.from('version_test_results').insert({
             test_case_id: testCase.id,
             status: 'pending'
           });
+
+          if (resultError) {
+            console.error(`Error inserting test result: ${resultError.message}`);
+          }
         }
       }
     }
@@ -212,6 +226,17 @@ export async function POST(req: NextRequest) {
       .eq('id', versionId)
       .single();
 
+    // Get counts for response
+    const { count: testCaseCount } = await supabaseAdmin
+      .from('version_test_cases')
+      .select('*', { count: 'exact', head: true })
+      .eq('version_id', versionId);
+
+    const { count: changesCount } = await supabaseAdmin
+      .from('version_changes')
+      .select('*', { count: 'exact', head: true })
+      .eq('version_id', versionId);
+
     return NextResponse.json({
       message: isNewVersion ? 'Version registered successfully' : 'Version updated successfully',
       version: fullVersion,
@@ -219,7 +244,16 @@ export async function POST(req: NextRequest) {
       project_name: project.name,
       project_id: project.id,
       pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}/versions/${versionId}`,
-      feedback_url: `https://pms.globaltechtrums.com/api/integrations/version-feedback/${versionId}`
+      feedback_url: `https://pms.globaltechtrums.com/api/integrations/version-feedback/${versionId}`,
+      data_received: {
+        changes: changes?.length || 0,
+        known_issues: known_issues?.length || 0,
+        test_cases: test_cases?.length || 0
+      },
+      data_stored: {
+        changes: changesCount || 0,
+        test_cases: testCaseCount || 0
+      }
     }, { status: isNewVersion ? 201 : 200 });
 
   } catch (error) {
