@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     // Find project by API key
     const { data: project, error: projectError } = await supabaseAdmin
       .from('projects')
-      .select('id, name')
+      .select('id, name, webhook_secret')
       .eq('api_key', apiKey)
       .single();
 
@@ -28,57 +28,20 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       version_number,
+      release_title,
+      release_summary,
       description,
       deploy_url,
-      release_notes,
       git_commit,
       git_branch,
-      deployed_by
+      webhook_url,
+      changes = [],        // Array of { type: 'feature'|'fix'|'improvement', title, description }
+      known_issues = [],   // Array of { description, severity }
+      test_cases = []      // Array of { title, description, steps: [] }
     } = body;
 
     if (!version_number) {
       return NextResponse.json({ error: 'version_number is required' }, { status: 400 });
-    }
-
-    // Check if version already exists
-    const { data: existingVersion } = await supabaseAdmin
-      .from('project_versions')
-      .select('id')
-      .eq('project_id', project.id)
-      .eq('version_number', version_number)
-      .single();
-
-    if (existingVersion) {
-      // Update existing version
-      const { data: updatedVersion, error: updateError } = await supabaseAdmin
-        .from('project_versions')
-        .update({
-          description: description || undefined,
-          release_date: new Date().toISOString(),
-          status: 'testing'
-        })
-        .eq('id', existingVersion.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
-      }
-
-      // Update project deploy_url
-      if (deploy_url) {
-        await supabaseAdmin
-          .from('projects')
-          .update({ deploy_url })
-          .eq('id', project.id);
-      }
-
-      return NextResponse.json({
-        message: 'Version updated',
-        version: updatedVersion,
-        project_name: project.name,
-        pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}/versions`
-      });
     }
 
     // Get project owner or first admin for created_by
@@ -91,7 +54,6 @@ export async function POST(req: NextRequest) {
 
     let createdBy = projectOwner?.user_id;
 
-    // Fallback to first admin if no project member found
     if (!createdBy) {
       const { data: admin } = await supabaseAdmin
         .from('user_profiles')
@@ -102,22 +64,137 @@ export async function POST(req: NextRequest) {
       createdBy = admin?.id;
     }
 
-    // Create new version
-    const { data: version, error: versionError } = await supabaseAdmin
+    // Check if version already exists
+    const { data: existingVersion } = await supabaseAdmin
       .from('project_versions')
-      .insert({
-        project_id: project.id,
-        version_number,
-        description: description || `Deployed version ${version_number}`,
-        release_date: new Date().toISOString(),
-        status: 'testing',
-        created_by: createdBy
-      })
-      .select()
+      .select('id')
+      .eq('project_id', project.id)
+      .eq('version_number', version_number)
       .single();
 
-    if (versionError) {
-      return NextResponse.json({ error: versionError.message }, { status: 500 });
+    let versionId: string;
+    let isNewVersion = false;
+
+    if (existingVersion) {
+      // Update existing version
+      const { data: updatedVersion, error: updateError } = await supabaseAdmin
+        .from('project_versions')
+        .update({
+          release_title: release_title || undefined,
+          release_summary: release_summary || undefined,
+          description: description || undefined,
+          deploy_url: deploy_url || undefined,
+          git_commit: git_commit || undefined,
+          git_branch: git_branch || undefined,
+          webhook_url: webhook_url || undefined,
+          release_date: new Date().toISOString(),
+          status: 'testing',
+          rebuild_requested: false,
+          rebuild_requested_at: null
+        })
+        .eq('id', existingVersion.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+
+      versionId = existingVersion.id;
+
+      // Clear old changes, known_issues, test_cases for this version
+      await supabaseAdmin.from('version_changes').delete().eq('version_id', versionId);
+      await supabaseAdmin.from('version_known_issues').delete().eq('version_id', versionId);
+
+      // Delete test results first (foreign key constraint)
+      const { data: oldTestCases } = await supabaseAdmin
+        .from('version_test_cases')
+        .select('id')
+        .eq('version_id', versionId);
+
+      if (oldTestCases && oldTestCases.length > 0) {
+        const testCaseIds = oldTestCases.map(tc => tc.id);
+        await supabaseAdmin.from('version_test_results').delete().in('test_case_id', testCaseIds);
+      }
+      await supabaseAdmin.from('version_test_cases').delete().eq('version_id', versionId);
+
+    } else {
+      // Create new version
+      const { data: newVersion, error: versionError } = await supabaseAdmin
+        .from('project_versions')
+        .insert({
+          project_id: project.id,
+          version_number,
+          release_title: release_title || `Version ${version_number}`,
+          release_summary: release_summary || '',
+          description: description || `Deployed version ${version_number}`,
+          deploy_url: deploy_url || null,
+          git_commit: git_commit || null,
+          git_branch: git_branch || null,
+          webhook_url: webhook_url || null,
+          release_date: new Date().toISOString(),
+          status: 'testing',
+          created_by: createdBy
+        })
+        .select()
+        .single();
+
+      if (versionError) {
+        return NextResponse.json({ error: versionError.message }, { status: 500 });
+      }
+
+      versionId = newVersion.id;
+      isNewVersion = true;
+    }
+
+    // Insert changes (features, fixes, etc.)
+    if (changes.length > 0) {
+      const changesData = changes.map((change: any, index: number) => ({
+        version_id: versionId,
+        change_type: change.type || 'feature',
+        title: change.title,
+        description: change.description || null,
+        sort_order: index
+      }));
+
+      await supabaseAdmin.from('version_changes').insert(changesData);
+    }
+
+    // Insert known issues
+    if (known_issues.length > 0) {
+      const issuesData = known_issues.map((issue: any) => ({
+        version_id: versionId,
+        description: issue.description || issue,
+        severity: issue.severity || 'low'
+      }));
+
+      await supabaseAdmin.from('version_known_issues').insert(issuesData);
+    }
+
+    // Insert test cases
+    if (test_cases.length > 0) {
+      for (let i = 0; i < test_cases.length; i++) {
+        const tc = test_cases[i];
+        const { data: testCase } = await supabaseAdmin
+          .from('version_test_cases')
+          .insert({
+            version_id: versionId,
+            title: tc.title,
+            description: tc.description || null,
+            steps: tc.steps || [],
+            sort_order: i
+          })
+          .select()
+          .single();
+
+        // Create empty test result for this test case
+        if (testCase) {
+          await supabaseAdmin.from('version_test_results').insert({
+            test_case_id: testCase.id,
+            status: 'pending'
+          });
+        }
+      }
     }
 
     // Update project deploy_url
@@ -128,12 +205,22 @@ export async function POST(req: NextRequest) {
         .eq('id', project.id);
     }
 
+    // Get the full version data
+    const { data: fullVersion } = await supabaseAdmin
+      .from('project_versions')
+      .select('*')
+      .eq('id', versionId)
+      .single();
+
     return NextResponse.json({
-      message: 'Version registered successfully',
-      version,
+      message: isNewVersion ? 'Version registered successfully' : 'Version updated successfully',
+      version: fullVersion,
+      version_id: versionId,
       project_name: project.name,
-      pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}/versions`
-    }, { status: 201 });
+      project_id: project.id,
+      pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}/versions/${versionId}`,
+      feedback_url: `https://pms.globaltechtrums.com/api/integrations/version-feedback/${versionId}`
+    }, { status: isNewVersion ? 201 : 200 });
 
   } catch (error) {
     console.error('Error registering version:', error);
@@ -161,10 +248,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
     }
 
-    // Get latest version
+    // Get latest version with details
     const { data: latestVersion } = await supabaseAdmin
       .from('project_versions')
-      .select('version_number, status, release_date')
+      .select(`
+        id,
+        version_number,
+        release_title,
+        status,
+        release_date,
+        rebuild_requested,
+        rebuild_notes
+      `)
       .eq('project_id', project.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -175,7 +270,9 @@ export async function GET(req: NextRequest) {
       project_id: project.id,
       deploy_url: project.deploy_url,
       latest_version: latestVersion || null,
-      pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}`
+      pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}`,
+      needs_rebuild: latestVersion?.rebuild_requested || false,
+      rebuild_notes: latestVersion?.rebuild_notes || null
     });
 
   } catch (error) {
