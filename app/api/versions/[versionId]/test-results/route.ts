@@ -241,7 +241,7 @@ export async function POST(
 
     } else if (action === 'approve') {
       // Mark version as approved/released
-      await supabaseAdmin
+      const { error: approveError } = await supabaseAdmin
         .from('project_versions')
         .update({
           status: final_status || 'released',
@@ -249,6 +249,11 @@ export async function POST(
           tested_at: new Date().toISOString()
         })
         .eq('id', versionId);
+
+      if (approveError) {
+        console.error('Error approving version:', approveError);
+        return NextResponse.json({ error: approveError.message }, { status: 500 });
+      }
 
       // Call webhook if configured
       if (version.webhook_url) {
