@@ -260,13 +260,15 @@ export default function ProjectVersionsPage() {
               className="card overflow-hidden"
             >
               {/* Version Header */}
-              <div
-                onClick={() => setExpandedVersion(expandedVersion === version.id ? null : version.id)}
-                className="p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
-              >
+              <div className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <i className={`fas fa-chevron-${expandedVersion === version.id ? 'down' : 'right'} text-gray-400`}></i>
+                    <div
+                      onClick={() => setExpandedVersion(expandedVersion === version.id ? null : version.id)}
+                      className="cursor-pointer p-2 -m-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <i className={`fas fa-chevron-${expandedVersion === version.id ? 'down' : 'right'} text-gray-400`}></i>
+                    </div>
                     <div>
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                         Version {version.version_number}
@@ -286,7 +288,16 @@ export default function ProjectVersionsPage() {
                       </div>
                     </div>
                   </div>
-                  {getStatusBadge(version.status)}
+                  <div className="flex items-center gap-3">
+                    {getStatusBadge(version.status)}
+                    <button
+                      onClick={() => router.push(`/dashboard/project/${projectId}/versions/${version.id}`)}
+                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm hover:from-indigo-600 hover:to-purple-600 transition-all flex items-center gap-2"
+                    >
+                      <i className="fas fa-clipboard-check"></i>
+                      Open Tester Dashboard
+                    </button>
+                  </div>
                 </div>
               </div>
 
