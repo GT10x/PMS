@@ -132,17 +132,27 @@ export async function PUT(
     };
 
     if (existingResult) {
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from('version_test_results')
         .update(updateData)
         .eq('id', existingResult.id);
+
+      if (updateError) {
+        console.error('Error updating test result:', updateError);
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
     } else {
-      await supabaseAdmin
+      const { error: insertError } = await supabaseAdmin
         .from('version_test_results')
         .insert({
           test_case_id,
           ...updateData
         });
+
+      if (insertError) {
+        console.error('Error inserting test result:', insertError);
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
     }
 
     // Update version tester info
