@@ -81,6 +81,27 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Get project owner or first admin for created_by
+    const { data: projectOwner } = await supabaseAdmin
+      .from('project_members')
+      .select('user_id')
+      .eq('project_id', project.id)
+      .limit(1)
+      .single();
+
+    let createdBy = projectOwner?.user_id;
+
+    // Fallback to first admin if no project member found
+    if (!createdBy) {
+      const { data: admin } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id')
+        .eq('is_admin', true)
+        .limit(1)
+        .single();
+      createdBy = admin?.id;
+    }
+
     // Create new version
     const { data: version, error: versionError } = await supabaseAdmin
       .from('project_versions')
@@ -89,7 +110,8 @@ export async function POST(req: NextRequest) {
         version_number,
         description: description || `Deployed version ${version_number}`,
         release_date: new Date().toISOString(),
-        status: 'testing'
+        status: 'testing',
+        created_by: createdBy
       })
       .select()
       .single();
