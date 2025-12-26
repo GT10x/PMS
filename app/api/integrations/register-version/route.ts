@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
         message: 'Version updated',
         version: updatedVersion,
         project_name: project.name,
-        pms_url: `https://pms-lime-two.vercel.app/dashboard/project/${project.id}/versions`
+        pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}/versions`
       });
     }
 
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       message: 'Version registered successfully',
       version,
       project_name: project.name,
-      pms_url: `https://pms-lime-two.vercel.app/dashboard/project/${project.id}/versions`
+      pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}/versions`
     }, { status: 201 });
 
   } catch (error) {
@@ -175,7 +175,7 @@ export async function GET(req: NextRequest) {
       project_id: project.id,
       deploy_url: project.deploy_url,
       latest_version: latestVersion || null,
-      pms_url: `https://pms-lime-two.vercel.app/dashboard/project/${project.id}`
+      pms_url: `https://pms.globaltechtrums.com/dashboard/project/${project.id}`
     });
 
   } catch (error) {

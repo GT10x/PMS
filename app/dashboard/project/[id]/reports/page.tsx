@@ -943,8 +943,9 @@ export default function ProjectReportsPage() {
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Attachments ({selectedReport.attachments.length})</h4>
                   <div className="space-y-3">
                     {selectedReport.attachments.map((url, index) => {
-                      const isAudio = url.includes('.webm') || url.includes('audio') || url.includes('voice') || url.includes('.mp3') || url.includes('.wav') || url.includes('.ogg');
-                      const isImage = url.includes('.png') || url.includes('.jpg') || url.includes('.jpeg') || url.includes('.gif') || url.includes('.webp');
+                      const lowerUrl = url.toLowerCase();
+                      const isAudio = lowerUrl.endsWith('.webm') || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a') || lowerUrl.includes('audio') || lowerUrl.includes('voice');
+                      const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp') || lowerUrl.endsWith('.svg');
 
                       if (isAudio) {
                         return (

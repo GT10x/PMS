@@ -55,7 +55,7 @@ export async function GET(
       project_name: project.name,
       api_key: project.api_key,
       deploy_url: project.deploy_url,
-      integration_endpoint: 'https://pms-lime-two.vercel.app/api/integrations/register-version'
+      integration_endpoint: 'https://pms.globaltechtrums.com/api/integrations/register-version'
     });
 
   } catch (error) {
@@ -101,8 +101,8 @@ export async function POST(
       project_id: project.id,
       project_name: project.name,
       api_key: project.api_key,
-      integration_endpoint: 'https://pms-lime-two.vercel.app/api/integrations/register-version',
-      usage_example: `curl -X POST https://pms-lime-two.vercel.app/api/integrations/register-version \\
+      integration_endpoint: 'https://pms.globaltechtrums.com/api/integrations/register-version',
+      usage_example: `curl -X POST https://pms.globaltechtrums.com/api/integrations/register-version \\
   -H "x-api-key: ${project.api_key}" \\
   -H "Content-Type: application/json" \\
   -d '{"version_number": "1.0.0", "description": "Initial release", "deploy_url": "https://your-app.vercel.app"}'`
