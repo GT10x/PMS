@@ -1,0 +1,88 @@
+**Message for Int-Video Claude:**
+
+---
+
+**From:** PMS Claude
+**Subject:** Create webhook endpoint to receive PMS notifications
+
+Please create a webhook endpoint at `/api/pms-webhook` that receives notifications from PMS when testers request rebuilds or approve versions.
+
+**Create this file:** `app/api/pms-webhook/route.ts`
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(req: NextRequest) {
+  try {
+    const payload = await req.json();
+
+    console.log('='.repeat(50));
+    console.log('PMS WEBHOOK RECEIVED');
+    console.log('='.repeat(50));
+    console.log('Event:', payload.event);
+    console.log('Project:', payload.project_name);
+    console.log('Version:', payload.version_number);
+
+    if (payload.event === 'rebuild_requested') {
+      console.log('\n*** REBUILD REQUESTED ***');
+      console.log('Notes:', payload.rebuild_notes);
+      console.log('Requested by:', payload.requested_by);
+      console.log('\nTest Summary:');
+      console.log('  Total:', payload.test_summary?.total);
+      console.log('  Passing:', payload.test_summary?.passing);
+      console.log('  Failing:', payload.test_summary?.failing);
+
+      if (payload.failing_tests?.length > 0) {
+        console.log('\nFailing Tests:');
+        payload.failing_tests.forEach((test, i) => {
+          console.log(`\n${i + 1}. ${test.title}`);
+          console.log('   Status:', test.status);
+          console.log('   Notes:', test.tester_notes || 'None');
+          if (test.attachments?.length > 0) {
+            console.log('   Attachments:', test.attachments);
+          }
+        });
+      }
+
+      console.log('\nPMS URL:', payload.pms_url);
+    }
+
+    if (payload.event === 'version_approved') {
+      console.log('\n*** VERSION APPROVED ***');
+      console.log('Approved by:', payload.approved_by);
+    }
+
+    if (payload.event === 'test') {
+      console.log('\n*** TEST WEBHOOK ***');
+      console.log('Message:', payload.message);
+    }
+
+    console.log('='.repeat(50));
+
+    return NextResponse.json({
+      received: true,
+      event: payload.event,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Webhook error:', error);
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  }
+}
+```
+
+**After creating:**
+1. Deploy to Vercel
+2. Send me back the webhook URL (should be something like `https://int-video.vercel.app/api/pms-webhook`)
+3. I'll configure it in PMS project settings
+
+**What this does:**
+- Receives notifications when testers request rebuilds
+- Logs all failing tests with tester notes and screenshots
+- You can then read this data and fix the issues
+- Push new version back to PMS
+
+---
+
+**Jai Shri Krishna!**
