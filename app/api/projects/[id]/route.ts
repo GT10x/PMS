@@ -22,6 +22,36 @@ async function getCurrentUser(request: NextRequest): Promise<User | null> {
   return data as User | null;
 }
 
+// GET /api/projects/[id] - Get project details
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser(req);
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const { data: project, error } = await supabaseAdmin
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ project });
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 // PUT /api/projects/[id] - Update a project
 export async function PUT(
   req: NextRequest,
@@ -36,18 +66,20 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { name, description, status, priority, start_date, team_members } = body;
+    const { name, description, status, priority, start_date, team_members, webhook_url, deploy_url } = body;
 
-    // Update project (only include dates if provided)
+    // Update project (only include fields that are provided)
     const updateData: any = {
-      name,
-      description,
-      status,
-      priority,
       updated_at: new Date().toISOString()
     };
 
-    if (start_date) updateData.start_date = start_date;
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (status !== undefined) updateData.status = status;
+    if (priority !== undefined) updateData.priority = priority;
+    if (start_date !== undefined) updateData.start_date = start_date;
+    if (webhook_url !== undefined) updateData.webhook_url = webhook_url;
+    if (deploy_url !== undefined) updateData.deploy_url = deploy_url;
 
     // @ts-ignore - Supabase types are too strict
     const { data: project, error: projectError } = await supabaseAdmin

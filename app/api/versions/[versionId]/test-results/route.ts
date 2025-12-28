@@ -188,10 +188,10 @@ export async function POST(
     const body = await req.json();
     const { action, notes, final_status } = body;
 
-    // Get version with webhook URL
+    // Get version with webhook URL (check both version and project level)
     const { data: version } = await supabaseAdmin
       .from('project_versions')
-      .select('*, project:projects(id, name, api_key)')
+      .select('*, project:projects(id, name, api_key, webhook_url)')
       .eq('id', versionId)
       .single();
 
@@ -199,7 +199,20 @@ export async function POST(
       return NextResponse.json({ error: 'Version not found' }, { status: 404 });
     }
 
+    // Use version-level webhook_url, fallback to project-level
+    const webhookUrl = version.webhook_url || version.project?.webhook_url;
+
     if (action === 'request_rebuild') {
+      // Fetch all test cases with results for detailed webhook
+      const { data: testCases } = await supabaseAdmin
+        .from('version_test_cases')
+        .select(`
+          id, title, description, steps,
+          version_test_results (status, notes, attachments, tested_at)
+        `)
+        .eq('version_id', versionId)
+        .order('sort_order', { ascending: true });
+
       // Mark version as needing rebuild
       await supabaseAdmin
         .from('project_versions')
@@ -212,20 +225,47 @@ export async function POST(
         })
         .eq('id', versionId);
 
-      // Call webhook if configured
-      if (version.webhook_url) {
+      // Call webhook if configured - send detailed payload
+      if (webhookUrl) {
         try {
-          await fetch(version.webhook_url, {
+          // Build detailed test results for webhook
+          const detailedResults = (testCases || []).map(tc => ({
+            title: tc.title,
+            description: tc.description,
+            steps: tc.steps,
+            status: tc.version_test_results?.[0]?.status || 'pending',
+            tester_notes: tc.version_test_results?.[0]?.notes || null,
+            attachments: tc.version_test_results?.[0]?.attachments || [],
+            tested_at: tc.version_test_results?.[0]?.tested_at || null
+          }));
+
+          // Identify failing tests
+          const failingTests = detailedResults.filter(t =>
+            t.status === 'not_working' || t.status === 'partially_working' || t.status === 'failed'
+          );
+
+          await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               event: 'rebuild_requested',
+              project_id: version.project?.id,
+              project_name: version.project?.name,
               version_id: versionId,
               version_number: version.version_number,
-              project_name: version.project?.name,
-              notes: notes,
+              rebuild_notes: notes || 'Rebuild requested by tester',
               requested_by: currentUser.full_name || currentUser.email,
-              feedback_url: `https://pms.globaltechtrums.com/api/integrations/version-feedback/${versionId}`
+              requested_at: new Date().toISOString(),
+              test_summary: {
+                total: detailedResults.length,
+                passing: detailedResults.filter(t => t.status === 'properly_working' || t.status === 'passed').length,
+                failing: failingTests.length,
+                pending: detailedResults.filter(t => t.status === 'pending').length
+              },
+              failing_tests: failingTests,
+              all_test_results: detailedResults,
+              pms_url: `https://pms.globaltechtrums.com/dashboard/project/${version.project?.id}/versions/${versionId}`,
+              feedback_api: `https://pms.globaltechtrums.com/api/integrations/version-feedback/${versionId}`
             })
           });
         } catch (webhookError) {
@@ -236,7 +276,8 @@ export async function POST(
       return NextResponse.json({
         message: 'Rebuild requested',
         status: 'needs_fixes',
-        webhook_sent: !!version.webhook_url
+        webhook_sent: !!webhookUrl,
+        webhook_url: webhookUrl ? 'configured' : 'not configured'
       });
 
     } else if (action === 'approve') {
