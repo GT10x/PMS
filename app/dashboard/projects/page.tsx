@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+import { PageSkeleton } from '@/components/LoadingSkeleton';
+import Pagination from '@/components/Pagination';
+import { NoProjectsEmptyState } from '@/components/EmptyState';
+import Tooltip from '@/components/Tooltip';
+import Button from '@/components/Button';
 
 interface Project {
   id: string;
@@ -29,6 +35,8 @@ interface User {
   role: string;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -37,6 +45,7 @@ export default function ProjectsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -48,6 +57,13 @@ export default function ProjectsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Pagination
+  const totalPages = Math.ceil(projects.length / ITEMS_PER_PAGE);
+  const paginatedProjects = projects.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   useEffect(() => {
     checkAuth();
@@ -249,28 +265,29 @@ export default function ProjectsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <Breadcrumb items={[{ label: 'Projects' }]} />
+        <PageSkeleton type="table" />
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[{ label: 'Projects', icon: 'fas fa-folder' }]} />
+
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Projects</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Manage and track your projects</p>
         </div>
-        <button
+        <Button
           onClick={() => { resetForm(); setShowAddModal(true); }}
-          className="btn-primary flex items-center gap-2"
+          icon="fas fa-plus"
         >
-          <i className="fas fa-plus"></i>
           Add Project
-        </button>
+        </Button>
       </div>
 
       {/* Success/Error Messages */}
@@ -302,7 +319,7 @@ export default function ProjectsPage() {
               </tr>
             </thead>
             <tbody>
-              {projects.map((project) => (
+              {paginatedProjects.map((project) => (
                 <tr key={project.id}>
                   <td>
                     <div className="flex items-center gap-3">
@@ -333,13 +350,13 @@ export default function ProjectsPage() {
                     <div className="flex items-center">
                       <div className="flex -space-x-2">
                         {project.members?.slice(0, 3).map((member, i) => (
-                          <div
-                            key={i}
-                            className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-semibold border-2 border-white dark:border-gray-800"
-                            title={member.full_name}
-                          >
-                            {member.full_name.charAt(0)}
-                          </div>
+                          <Tooltip key={i} content={member.full_name}>
+                            <div
+                              className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-semibold border-2 border-white dark:border-gray-800"
+                            >
+                              {member.full_name.charAt(0)}
+                            </div>
+                          </Tooltip>
                         ))}
                       </div>
                       {(project.members?.length || 0) > 3 && (
@@ -356,49 +373,65 @@ export default function ProjectsPage() {
                     {new Date(project.created_at).toLocaleDateString()}
                   </td>
                   <td>
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => router.push(`/dashboard/project/${project.id}`)}
-                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                        title="View"
-                      >
-                        <i className="fas fa-eye"></i>
-                      </button>
-                      <button
-                        onClick={() => router.push(`/dashboard/project/${project.id}/versions`)}
-                        className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-                        title="Versions"
-                      >
-                        <i className="fas fa-code-branch"></i>
-                      </button>
-                      <button
-                        onClick={() => openEditModal(project)}
-                        className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProject(project.id)}
-                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Tooltip content="View project">
+                        <button
+                          onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-eye"></i>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="View versions">
+                        <button
+                          onClick={() => router.push(`/dashboard/project/${project.id}/versions`)}
+                          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-code-branch"></i>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Edit project">
+                        <button
+                          onClick={() => openEditModal(project)}
+                          className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Delete project">
+                        <button
+                          onClick={() => handleDeleteProject(project.id)}
+                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {projects.length === 0 && (
-            <div className="text-center py-12">
-              <i className="fas fa-folder-open text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
-              <p className="text-gray-500 dark:text-gray-400">No projects found. Create your first project!</p>
-            </div>
-          )}
         </div>
+
+        {/* Pagination */}
+        {projects.length > 0 && (
+          <div className="p-4 border-t dark:border-gray-700">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={projects.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Empty State */}
+      {projects.length === 0 && (
+        <NoProjectsEmptyState onCreateProject={() => { resetForm(); setShowAddModal(true); }} />
+      )}
 
       {/* Add/Edit Modal */}
       {(showAddModal || showEditModal) && (

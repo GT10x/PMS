@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+import { ProjectCardSkeleton } from '@/components/LoadingSkeleton';
+import Tooltip from '@/components/Tooltip';
 
 interface Project {
   id: string;
@@ -66,8 +69,14 @@ export default function ProjectDashboardPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <Breadcrumb items={[{ label: 'Projects', href: '/dashboard/projects' }, { label: 'Loading...' }]} />
+        <div className="space-y-6">
+          <ProjectCardSkeleton />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ProjectCardSkeleton />
+            <ProjectCardSkeleton />
+            <ProjectCardSkeleton />
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -79,20 +88,26 @@ export default function ProjectDashboardPage() {
 
   return (
     <DashboardLayout>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Projects', href: '/dashboard/projects', icon: 'fas fa-folder' },
+        { label: project.name }
+      ]} />
+
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <button
-              onClick={() => router.push('/dashboard/projects')}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <i className="fas fa-arrow-left text-gray-500"></i>
-            </button>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{project.name}</h1>
-          </div>
-          <p className="text-gray-500 dark:text-gray-400 ml-11">{project.description || 'No description'}</p>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{project.name}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{project.description || 'No description'}</p>
         </div>
+        <Tooltip content="Go back to projects">
+          <button
+            onClick={() => router.push('/dashboard/projects')}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="fas fa-arrow-left text-gray-500"></i>
+          </button>
+        </Tooltip>
       </div>
 
       {/* Navigation Tabs */}

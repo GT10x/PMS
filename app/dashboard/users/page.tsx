@@ -3,7 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+import { PageSkeleton } from '@/components/LoadingSkeleton';
+import Pagination from '@/components/Pagination';
+import { NoUsersEmptyState } from '@/components/EmptyState';
+import Tooltip from '@/components/Tooltip';
+import Button from '@/components/Button';
 import { User } from '@/lib/types';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function UserManagementPage() {
   const router = useRouter();
@@ -12,6 +20,7 @@ export default function UserManagementPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({
     full_name: '',
     username: '',
@@ -22,6 +31,13 @@ export default function UserManagementPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Pagination
+  const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
+  const paginatedUsers = users.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   useEffect(() => {
     checkAuth();
@@ -194,28 +210,29 @@ export default function UserManagementPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <Breadcrumb items={[{ label: 'Users' }]} />
+        <PageSkeleton type="table" />
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[{ label: 'Users', icon: 'fas fa-users' }]} />
+
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">User Management</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Manage system users and their roles</p>
         </div>
-        <button
+        <Button
           onClick={() => { resetForm(); setShowAddModal(true); }}
-          className="btn-primary flex items-center gap-2"
+          icon="fas fa-user-plus"
         >
-          <i className="fas fa-user-plus"></i>
           Add Employee
-        </button>
+        </Button>
       </div>
 
       {/* Success/Error Messages */}
@@ -246,7 +263,7 @@ export default function UserManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {paginatedUsers.map((user) => (
                 <tr key={user.id}>
                   <td>
                     <div className="flex items-center gap-3">
@@ -273,35 +290,49 @@ export default function UserManagementPage() {
                     {new Date(user.created_at).toLocaleDateString()}
                   </td>
                   <td>
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEditModal(user)}
-                        className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Tooltip content="Edit user">
+                        <button
+                          onClick={() => openEditModal(user)}
+                          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Delete user">
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {users.length === 0 && (
-            <div className="text-center py-12">
-              <i className="fas fa-users text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
-              <p className="text-gray-500 dark:text-gray-400">No users found. Add your first employee!</p>
-            </div>
-          )}
         </div>
+
+        {/* Pagination */}
+        {users.length > 0 && (
+          <div className="p-4 border-t dark:border-gray-700">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={users.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Empty State */}
+      {users.length === 0 && (
+        <NoUsersEmptyState onInviteUser={() => { resetForm(); setShowAddModal(true); }} />
+      )}
 
       {/* Add/Edit Modal */}
       {(showAddModal || showEditModal) && (
