@@ -16,7 +16,11 @@ interface Report {
   attachments: string[];
   dev_notes?: string;
   created_at: string;
-  reported_by_user: { full_name: string };
+  edited_at?: string;
+  deleted_at?: string;
+  is_deleted?: boolean;
+  reported_by: string;
+  reported_by_user: { id: string; full_name: string };
   assigned_to_user?: { full_name: string };
   version?: { version_number: string };
 }
@@ -374,6 +378,78 @@ export default function ProjectReportsPage() {
     return currentUser.role === 'admin' || currentUser.role === 'project_manager';
   };
 
+  // State for edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingReport, setEditingReport] = useState<Report | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    type: 'bug',
+    priority: 'medium'
+  });
+
+  const handleEditReport = (report: Report) => {
+    setEditingReport(report);
+    setEditFormData({
+      title: report.title,
+      description: report.description,
+      type: report.type,
+      priority: report.priority
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingReport) return;
+
+    setUploading(true);
+    try {
+      const response = await fetch(`/api/reports/${editingReport.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData)
+      });
+
+      if (response.ok) {
+        alert('Report updated successfully!');
+        setShowEditModal(false);
+        setEditingReport(null);
+        fetchReports();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error updating report:', error);
+      alert('Failed to update report');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    if (!confirm('Are you sure you want to delete this report? It will be marked as deleted but still visible.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/reports/${reportId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        alert('Report deleted successfully!');
+        fetchReports();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      alert('Failed to delete report');
+    }
+  };
+
   const getTypeEmoji = (type: string) => {
     switch (type) {
       case 'bug': return '🐛';
@@ -553,15 +629,25 @@ export default function ProjectReportsPage() {
             <div
               key={report.id}
               onClick={() => handleViewReport(report)}
-              className="card p-6 hover:shadow-lg transition cursor-pointer"
+              className={`card p-6 hover:shadow-lg transition cursor-pointer ${report.is_deleted ? 'opacity-60 bg-red-50 dark:bg-red-900/10' : ''}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <span className="text-2xl">{getTypeEmoji(report.type)}</span>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{report.title}</h3>
+                    <h3 className={`text-xl font-bold ${report.is_deleted ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>{report.title}</h3>
                     {getStatusBadge(report.status)}
                     {report.priority !== 'medium' && getPriorityBadge(report.priority)}
+                    {report.is_deleted && (
+                      <span className="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs font-medium rounded-full">
+                        Deleted
+                      </span>
+                    )}
+                    {report.edited_at && !report.is_deleted && (
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-xs font-medium rounded-full">
+                        Edited
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-gray-700 dark:text-gray-300 mb-3 line-clamp-2">{report.description}</p>
@@ -603,10 +689,37 @@ export default function ProjectReportsPage() {
                   </div>
                 </div>
 
-                <button className="btn-primary">
-                  <i className="fas fa-eye mr-1"></i>
-                  View
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Edit/Delete buttons - only for creator */}
+                  {currentUser && report.reported_by === currentUser.id && !report.is_deleted && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditReport(report);
+                        }}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition"
+                        title="Edit Report"
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteReport(report.id);
+                        }}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
+                        title="Delete Report"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </>
+                  )}
+                  <button className="btn-primary">
+                    <i className="fas fa-eye mr-1"></i>
+                    View
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -1105,6 +1218,118 @@ export default function ProjectReportsPage() {
                     )}
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Report Modal */}
+      {showEditModal && editingReport && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content max-w-2xl animate-fadeIn" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                  <i className="fas fa-edit mr-2 text-indigo-500"></i>
+                  Edit Report
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Update report details</p>
+              </div>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <i className="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.title}
+                  onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                  className="input-field"
+                  placeholder="Brief summary of the issue or feature"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  rows={5}
+                  className="input-field"
+                  placeholder="Detailed description..."
+                />
+              </div>
+
+              {/* Type and Priority */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+                  <select
+                    value={editFormData.type}
+                    onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="bug">Bug</option>
+                    <option value="feature">Feature Request</option>
+                    <option value="improvement">Improvement</option>
+                    <option value="task">Task</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority</label>
+                  <select
+                    value={editFormData.priority}
+                    onChange={(e) => setEditFormData({ ...editFormData, priority: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="btn-secondary flex-1"
+                  disabled={uploading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={uploading}
+                  className="btn-primary flex-1 disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <i className="fas fa-spinner animate-spin"></i>
+                      Saving...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <i className="fas fa-save"></i>
+                      Save Changes
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
           </div>
