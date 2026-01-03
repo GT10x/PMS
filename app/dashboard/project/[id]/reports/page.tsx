@@ -1096,8 +1096,10 @@ export default function ProjectReportsPage() {
                   <div className="space-y-3">
                     {selectedReport.attachments.map((url, index) => {
                       const lowerUrl = url.toLowerCase();
-                      const isAudio = lowerUrl.endsWith('.webm') || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a') || lowerUrl.includes('audio') || lowerUrl.includes('voice');
-                      const isVideo = lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.mkv') || lowerUrl.endsWith('.webm') && !lowerUrl.includes('audio') && !lowerUrl.includes('voice');
+                      // Check for voice/audio first (voice notes contain 'voice' in filename)
+                      const isVoiceNote = lowerUrl.includes('voice') || lowerUrl.includes('audio');
+                      const isAudio = isVoiceNote || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a');
+                      const isVideo = !isVoiceNote && (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.mkv') || lowerUrl.endsWith('.webm'));
                       const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp') || lowerUrl.endsWith('.svg');
 
                       if (isVideo) {
