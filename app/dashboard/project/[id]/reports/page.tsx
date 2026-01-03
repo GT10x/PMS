@@ -400,6 +400,8 @@ export default function ProjectReportsPage() {
     type: 'bug',
     priority: 'medium'
   });
+  const [editAttachments, setEditAttachments] = useState<string[]>([]);
+  const [newEditFiles, setNewEditFiles] = useState<File[]>([]);
 
   const handleEditReport = (report: Report) => {
     setEditingReport(report);
@@ -409,7 +411,24 @@ export default function ProjectReportsPage() {
       type: report.type,
       priority: report.priority
     });
+    setEditAttachments(report.attachments || []);
+    setNewEditFiles([]);
     setShowEditModal(true);
+  };
+
+  const handleRemoveEditAttachment = (index: number) => {
+    setEditAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setNewEditFiles(prev => [...prev, ...files]);
+    }
+  };
+
+  const removeNewEditFile = (index: number) => {
+    setNewEditFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveEdit = async () => {
@@ -417,10 +436,31 @@ export default function ProjectReportsPage() {
 
     setUploading(true);
     try {
+      // Upload new files
+      const uploadedUrls: string[] = [];
+      for (const file of newEditFiles) {
+        const formDataToSend = new FormData();
+        formDataToSend.append('file', file);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataToSend
+        });
+        if (uploadResponse.ok) {
+          const { url } = await uploadResponse.json();
+          uploadedUrls.push(url);
+        }
+      }
+
+      // Combine existing and new attachments
+      const allAttachments = [...editAttachments, ...uploadedUrls];
+
       const response = await fetch(`/api/reports/${editingReport.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editFormData)
+        body: JSON.stringify({
+          ...editFormData,
+          attachments: allAttachments
+        })
       });
 
       if (response.ok) {
@@ -713,9 +753,7 @@ export default function ProjectReportsPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Debug info - remove after testing */}
-                  <span className="text-xs text-red-400">U:{currentUser?.id?.slice(0,8) || 'none'} R:{report.reported_by?.slice(0,8) || 'none'}</span>
-                  {/* Edit/Delete buttons - only for creator */}
+                                    {/* Edit/Delete buttons - only for creator */}
                   {currentUser && currentUser.id && report.reported_by && report.reported_by === currentUser.id && !report.is_deleted && (
                     <>
                       <button
@@ -1339,6 +1377,89 @@ export default function ProjectReportsPage() {
                     <option value="high">High</option>
                     <option value="critical">Critical</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Existing Attachments */}
+              {editAttachments.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Current Attachments
+                  </label>
+                  <div className="space-y-2">
+                    {editAttachments.map((url, index) => {
+                      const lowerUrl = url.toLowerCase();
+                      const isAudio = lowerUrl.includes('voice') || lowerUrl.includes('audio') || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav');
+                      const isVideo = lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.webm');
+                      const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif');
+
+                      return (
+                        <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <i className={`fas ${isAudio ? 'fa-microphone text-indigo-500' : isVideo ? 'fa-video text-purple-500' : isImage ? 'fa-image text-green-500' : 'fa-paperclip text-gray-500'}`}></i>
+                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs">
+                              {isAudio ? 'Voice Note' : isVideo ? 'Video' : isImage ? 'Image' : 'File'} {index + 1}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEditAttachment(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="Remove attachment"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Attachments */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Add New Attachments
+                </label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*,audio/*,.pdf"
+                    onChange={handleEditFileChange}
+                    className="hidden"
+                    id="edit-file-upload"
+                  />
+                  <label
+                    htmlFor="edit-file-upload"
+                    className="cursor-pointer flex flex-col items-center"
+                  >
+                    <i className="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Click to upload files
+                    </span>
+                  </label>
+
+                  {newEditFiles.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {newEditFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 p-2 rounded border border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-2">
+                            <i className="fas fa-file text-green-600"></i>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{file.name}</span>
+                            <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeNewEditFile(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <i className="fas fa-times"></i>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
