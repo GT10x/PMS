@@ -1163,15 +1163,15 @@ export default function ProjectReportsPage() {
       {/* View/Manage Report Modal */}
       {selectedReport && (
         <div className="modal-overlay" onClick={() => setSelectedReport(null)}>
-          <div className="modal-content max-w-4xl animate-fadeIn" onClick={e => e.stopPropagation()}>
+          <div className="modal-content max-w-5xl animate-fadeIn" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-3xl">{getTypeEmoji(selectedReport.type)}</span>
-                  <h3 className={`text-2xl font-bold ${selectedReport.is_deleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>{selectedReport.title}</h3>
+            <div className="flex items-start justify-between gap-4 mb-6 pb-4 border-b dark:border-gray-700">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-3xl flex-shrink-0">{getTypeEmoji(selectedReport.type)}</span>
+                  <h3 className={`text-xl md:text-2xl font-bold break-words ${selectedReport.is_deleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>{selectedReport.title}</h3>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 ml-12">
                   {selectedReport.is_deleted && (
                     <span className="px-3 py-1 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-sm font-medium rounded-full">
                       <i className="fas fa-trash mr-1"></i> Deleted
@@ -1188,9 +1188,9 @@ export default function ProjectReportsPage() {
               </div>
               <button
                 onClick={() => setSelectedReport(null)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
               >
-                <i className="fas fa-times text-gray-500"></i>
+                <i className="fas fa-times text-gray-500 text-lg"></i>
               </button>
             </div>
 
@@ -1231,59 +1231,71 @@ export default function ProjectReportsPage() {
 
               {/* Description */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</h4>
-                <p className="text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 p-4 rounded-xl whitespace-pre-wrap">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <i className="fas fa-align-left text-indigo-500"></i>
+                  Description
+                </h4>
+                <div className="text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl whitespace-pre-wrap text-sm leading-relaxed max-h-64 overflow-y-auto">
                   {selectedReport.description}
-                </p>
+                </div>
               </div>
 
               {/* Metadata Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 dark:bg-gray-700 p-4 rounded-xl">
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Type</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{selectedReport.type}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reported By</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.reported_by_user.full_name}</p>
-                </div>
-                {selectedReport.assigned_to_user && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assigned To</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.assigned_to_user.full_name}</p>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                  <i className="fas fa-info-circle text-indigo-500"></i>
+                  Details
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Type</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{selectedReport.type}</p>
                   </div>
-                )}
-                {selectedReport.version && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Version</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.version.version_number}</p>
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reported By</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{selectedReport.reported_by_user.full_name}</p>
                   </div>
-                )}
-                {selectedReport.browser && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Browser</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.browser}</p>
+                  {selectedReport.assigned_to_user && (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assigned To</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{selectedReport.assigned_to_user.full_name}</p>
+                    </div>
+                  )}
+                  {selectedReport.version && (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Version</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.version.version_number}</p>
+                    </div>
+                  )}
+                  {selectedReport.browser && (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Browser</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.browser}</p>
+                    </div>
+                  )}
+                  {selectedReport.device && (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Device</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.device}</p>
+                    </div>
+                  )}
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Created</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {new Date(selectedReport.created_at).toLocaleDateString()}
+                    </p>
                   </div>
-                )}
-                {selectedReport.device && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Device</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.device}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Created</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {new Date(selectedReport.created_at).toLocaleString()}
-                  </p>
                 </div>
               </div>
 
               {/* Attachments */}
               {selectedReport.attachments.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Attachments ({selectedReport.attachments.length})</h4>
-                  <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                    <i className="fas fa-paperclip text-indigo-500"></i>
+                    Attachments ({selectedReport.attachments.length})
+                  </h4>
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                     {selectedReport.attachments.map((url, index) => {
                       const lowerUrl = url.toLowerCase();
                       // Check for voice/audio first (voice notes contain 'voice' in filename)
@@ -1294,8 +1306,12 @@ export default function ProjectReportsPage() {
 
                       if (isVideo) {
                         return (
-                          <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-                            <video controls className="w-full max-h-96" src={url}>
+                          <div key={index} className="border border-purple-200 dark:border-purple-800 rounded-xl overflow-hidden bg-purple-50 dark:bg-purple-900/20">
+                            <div className="flex items-center gap-2 px-3 py-2 border-b border-purple-200 dark:border-purple-800">
+                              <i className="fas fa-video text-purple-500"></i>
+                              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Video</span>
+                            </div>
+                            <video controls className="w-full max-h-72" src={url}>
                               Your browser does not support the video element.
                             </video>
                           </div>
@@ -1306,10 +1322,10 @@ export default function ProjectReportsPage() {
                         return (
                           <div key={index} className="border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 bg-indigo-50 dark:bg-indigo-900/20">
                             <div className="flex items-center gap-3 mb-3">
-                              <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center">
+                              <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
                                 <i className="fas fa-microphone text-white"></i>
                               </div>
-                              <div>
+                              <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium text-gray-900 dark:text-white">Voice Note</p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Audio recording</p>
                               </div>
@@ -1323,27 +1339,39 @@ export default function ProjectReportsPage() {
 
                       if (isImage) {
                         return (
-                          <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                          <div key={index} className="border border-green-200 dark:border-green-800 rounded-xl overflow-hidden bg-green-50 dark:bg-green-900/20">
+                            <div className="flex items-center gap-2 px-3 py-2 border-b border-green-200 dark:border-green-800">
+                              <i className="fas fa-image text-green-500"></i>
+                              <span className="text-sm font-medium text-green-700 dark:text-green-300">Image</span>
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-green-600 hover:underline flex items-center gap-1">
+                                Open full size <i className="fas fa-external-link-alt"></i>
+                              </a>
+                            </div>
                             <a href={url} target="_blank" rel="noopener noreferrer">
-                              <img src={url} alt={`Attachment ${index + 1}`} className="w-full max-h-64 object-contain bg-gray-100 dark:bg-gray-800" />
+                              <img src={url} alt={`Attachment ${index + 1}`} className="w-full max-h-56 object-contain bg-white dark:bg-gray-800" />
                             </a>
                           </div>
                         );
                       }
 
+                      // Extract filename
+                      const fileName = decodeURIComponent(url.split('/').pop() || 'Unknown file');
                       return (
                         <a
                           key={index}
                           href={url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="border border-gray-300 dark:border-gray-600 rounded-xl p-3 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition flex items-center gap-2"
+                          className="border border-gray-300 dark:border-gray-600 rounded-xl p-3 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition flex items-center gap-3"
                         >
-                          <i className="fas fa-paperclip text-indigo-600"></i>
-                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                            Attachment {index + 1}
-                          </span>
-                          <i className="fas fa-external-link-alt text-xs text-gray-400 ml-auto"></i>
+                          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i className="fas fa-file text-gray-500 dark:text-gray-400"></i>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{fileName}</p>
+                            <p className="text-xs text-gray-500">File attachment</p>
+                          </div>
+                          <i className="fas fa-external-link-alt text-gray-400 flex-shrink-0"></i>
                         </a>
                       );
                     })}
@@ -1354,21 +1382,24 @@ export default function ProjectReportsPage() {
               {/* Developer Notes */}
               {selectedReport.dev_notes && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Developer Notes</h4>
-                  <p className="text-gray-900 dark:text-gray-100 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-xl whitespace-pre-wrap">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                    <i className="fas fa-code text-yellow-500"></i>
+                    Developer Notes
+                  </h4>
+                  <div className="text-gray-900 dark:text-gray-100 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-xl whitespace-pre-wrap text-sm max-h-48 overflow-y-auto">
                     {selectedReport.dev_notes}
-                  </p>
+                  </div>
                 </div>
               )}
 
               {/* Management Section - Only for Admin/PM */}
               {canManageReport() && (
-                <div className="border-t dark:border-gray-700 pt-6">
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    <i className="fas fa-cog mr-2"></i>
+                <div className="border-t dark:border-gray-700 pt-6 mt-6">
+                  <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <i className="fas fa-cog text-indigo-500"></i>
                     Manage Report
                   </h4>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Status */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
@@ -1401,13 +1432,13 @@ export default function ProjectReportsPage() {
                       </select>
                     </div>
 
-                    {/* Developer Notes */}
-                    <div>
+                    {/* Developer Notes - Full width */}
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Developer Notes</label>
                       <textarea
                         value={editData.dev_notes}
                         onChange={(e) => setEditData({ ...editData, dev_notes: e.target.value })}
-                        rows={4}
+                        rows={3}
                         className="input-field"
                         placeholder="Add notes about the fix, workarounds, or technical details..."
                       />
