@@ -1169,11 +1169,21 @@ export default function ProjectReportsPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-3xl">{getTypeEmoji(selectedReport.type)}</span>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedReport.title}</h3>
+                  <h3 className={`text-2xl font-bold ${selectedReport.is_deleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>{selectedReport.title}</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {getStatusBadge(selectedReport.status)}
-                  {getPriorityBadge(selectedReport.priority)}
+                  {selectedReport.is_deleted && (
+                    <span className="px-3 py-1 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-sm font-medium rounded-full">
+                      <i className="fas fa-trash mr-1"></i> Deleted
+                    </span>
+                  )}
+                  {selectedReport.edited_at && !selectedReport.is_deleted && (
+                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-sm font-medium rounded-full">
+                      <i className="fas fa-edit mr-1"></i> Edited
+                    </span>
+                  )}
+                  {!selectedReport.is_deleted && getStatusBadge(selectedReport.status)}
+                  {!selectedReport.is_deleted && getPriorityBadge(selectedReport.priority)}
                 </div>
               </div>
               <button
@@ -1184,8 +1194,41 @@ export default function ProjectReportsPage() {
               </button>
             </div>
 
-            {/* Report Details */}
+            {/* Deleted Report Message */}
+            {selectedReport.is_deleted ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fas fa-trash-alt text-red-500 text-3xl"></i>
+                </div>
+                <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">This report has been deleted</h4>
+                <p className="text-gray-500 dark:text-gray-400 mb-2">
+                  Deleted by {selectedReport.reported_by_user.full_name}
+                </p>
+                {selectedReport.deleted_at && (
+                  <p className="text-sm text-gray-400 dark:text-gray-500">
+                    on {new Date(selectedReport.deleted_at).toLocaleString()}
+                  </p>
+                )}
+                <button
+                  onClick={() => setSelectedReport(null)}
+                  className="btn-secondary mt-6"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+            /* Report Details */
             <div className="space-y-6">
+              {/* Edited Notice */}
+              {selectedReport.edited_at && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-3 flex items-center gap-2">
+                  <i className="fas fa-info-circle text-yellow-600 dark:text-yellow-400"></i>
+                  <span className="text-sm text-yellow-800 dark:text-yellow-200">
+                    This report was edited on {new Date(selectedReport.edited_at).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
               {/* Description */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description</h4>
@@ -1403,6 +1446,7 @@ export default function ProjectReportsPage() {
                 )}
               </div>
             </div>
+            )}
           </div>
         </div>
       )}

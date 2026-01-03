@@ -46,11 +46,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate unique filename
+    // Generate unique filename (preserve 'voice' prefix for voice notes)
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(7);
     const fileExt = file.name.split('.').pop();
-    const fileName = `${timestamp}-${randomString}.${fileExt}`;
+    const isVoiceNote = file.name.toLowerCase().includes('voice');
+    const fileName = isVoiceNote
+      ? `voice-${timestamp}-${randomString}.${fileExt}`
+      : `${timestamp}-${randomString}.${fileExt}`;
 
     // Upload to Supabase Storage
     const { data, error } = await supabaseAdmin.storage
