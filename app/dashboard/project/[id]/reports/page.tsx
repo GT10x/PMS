@@ -670,14 +670,24 @@ export default function ProjectReportsPage() {
                     {report.attachments.length > 0 && (() => {
                       const hasVoiceNote = report.attachments.some((url: string) => {
                         const lower = url.toLowerCase();
-                        return lower.endsWith('.webm') || lower.endsWith('.mp3') || lower.endsWith('.wav') || lower.endsWith('.ogg') || lower.includes('audio') || lower.includes('voice');
+                        return lower.endsWith('.mp3') || lower.endsWith('.wav') || lower.endsWith('.ogg') || lower.endsWith('.m4a') || lower.includes('audio') || lower.includes('voice');
                       });
-                      const otherFiles = report.attachments.length - (hasVoiceNote ? 1 : 0);
+                      const hasVideo = report.attachments.some((url: string) => {
+                        const lower = url.toLowerCase();
+                        return lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.avi') || lower.endsWith('.mkv') || (lower.endsWith('.webm') && !lower.includes('audio') && !lower.includes('voice'));
+                      });
+                      const specialFiles = (hasVoiceNote ? 1 : 0) + (hasVideo ? 1 : 0);
+                      const otherFiles = report.attachments.length - specialFiles;
                       return (
                         <>
                           {hasVoiceNote && (
                             <span className="text-indigo-600 dark:text-indigo-400 font-medium">
                               <i className="fas fa-play-circle"></i> Voice Note
+                            </span>
+                          )}
+                          {hasVideo && (
+                            <span className="text-purple-600 dark:text-purple-400 font-medium">
+                              <i className="fas fa-video"></i> Video
                             </span>
                           )}
                           {otherFiles > 0 && (
@@ -1074,7 +1084,18 @@ export default function ProjectReportsPage() {
                     {selectedReport.attachments.map((url, index) => {
                       const lowerUrl = url.toLowerCase();
                       const isAudio = lowerUrl.endsWith('.webm') || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a') || lowerUrl.includes('audio') || lowerUrl.includes('voice');
+                      const isVideo = lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.mkv') || lowerUrl.endsWith('.webm') && !lowerUrl.includes('audio') && !lowerUrl.includes('voice');
                       const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp') || lowerUrl.endsWith('.svg');
+
+                      if (isVideo) {
+                        return (
+                          <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                            <video controls className="w-full max-h-96" src={url}>
+                              Your browser does not support the video element.
+                            </video>
+                          </div>
+                        );
+                      }
 
                       if (isAudio) {
                         return (
