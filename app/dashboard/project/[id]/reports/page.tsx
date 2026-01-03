@@ -403,6 +403,17 @@ export default function ProjectReportsPage() {
   const [editAttachments, setEditAttachments] = useState<string[]>([]);
   const [newEditFiles, setNewEditFiles] = useState<File[]>([]);
 
+  // Edit modal voice recording state
+  const [editIsRecording, setEditIsRecording] = useState(false);
+  const [editRecordingTime, setEditRecordingTime] = useState(0);
+  const [editVoiceNote, setEditVoiceNote] = useState<Blob | null>(null);
+  const [editVoiceNoteUrl, setEditVoiceNoteUrl] = useState<string | null>(null);
+  const [editIsPlaying, setEditIsPlaying] = useState(false);
+  const editMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const editAudioChunksRef = useRef<Blob[]>([]);
+  const editTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const editAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const handleEditReport = (report: Report) => {
     setEditingReport(report);
     setEditFormData({
@@ -413,6 +424,11 @@ export default function ProjectReportsPage() {
     });
     setEditAttachments(report.attachments || []);
     setNewEditFiles([]);
+    // Reset voice note state
+    setEditVoiceNote(null);
+    setEditVoiceNoteUrl(null);
+    setEditRecordingTime(0);
+    setEditIsPlaying(false);
     setShowEditModal(true);
   };
 
@@ -431,6 +447,82 @@ export default function ProjectReportsPage() {
     setNewEditFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Edit modal voice recording functions
+  const startEditRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      editMediaRecorderRef.current = mediaRecorder;
+      editAudioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          editAudioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(editAudioChunksRef.current, { type: 'audio/webm' });
+        setEditVoiceNote(audioBlob);
+        const url = URL.createObjectURL(audioBlob);
+        setEditVoiceNoteUrl(url);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setEditIsRecording(true);
+      setEditRecordingTime(0);
+
+      editTimerRef.current = setInterval(() => {
+        setEditRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Could not access microphone. Please ensure microphone permissions are granted.');
+    }
+  };
+
+  const stopEditRecording = () => {
+    if (editMediaRecorderRef.current && editIsRecording) {
+      editMediaRecorderRef.current.stop();
+      setEditIsRecording(false);
+      if (editTimerRef.current) {
+        clearInterval(editTimerRef.current);
+        editTimerRef.current = null;
+      }
+    }
+  };
+
+  const deleteEditVoiceNote = () => {
+    if (editVoiceNoteUrl) {
+      URL.revokeObjectURL(editVoiceNoteUrl);
+    }
+    setEditVoiceNote(null);
+    setEditVoiceNoteUrl(null);
+    setEditRecordingTime(0);
+    setEditIsPlaying(false);
+    if (editAudioRef.current) {
+      editAudioRef.current.pause();
+      editAudioRef.current = null;
+    }
+  };
+
+  const toggleEditPlayback = () => {
+    if (!editVoiceNoteUrl) return;
+
+    if (editIsPlaying && editAudioRef.current) {
+      editAudioRef.current.pause();
+      setEditIsPlaying(false);
+    } else {
+      if (!editAudioRef.current) {
+        editAudioRef.current = new Audio(editVoiceNoteUrl);
+        editAudioRef.current.onended = () => setEditIsPlaying(false);
+      }
+      editAudioRef.current.play();
+      setEditIsPlaying(true);
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!editingReport) return;
 
@@ -444,6 +536,21 @@ export default function ProjectReportsPage() {
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
           body: formDataToSend
+        });
+        if (uploadResponse.ok) {
+          const { url } = await uploadResponse.json();
+          uploadedUrls.push(url);
+        }
+      }
+
+      // Upload new voice note if exists
+      if (editVoiceNote) {
+        const voiceFormData = new FormData();
+        const voiceFile = new File([editVoiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
+        voiceFormData.append('file', voiceFile);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: voiceFormData
         });
         if (uploadResponse.ok) {
           const { url } = await uploadResponse.json();
@@ -1461,6 +1568,72 @@ export default function ProjectReportsPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Voice Note Recording */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <i className="fas fa-microphone mr-1"></i>
+                  Record New Voice Note
+                </label>
+
+                {!editVoiceNote ? (
+                  <div className="flex items-center gap-4">
+                    {!editIsRecording ? (
+                      <button
+                        type="button"
+                        onClick={startEditRecording}
+                        className="flex items-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
+                      >
+                        <i className="fas fa-microphone"></i>
+                        Start Recording
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
+                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                          <span className="text-red-600 dark:text-red-400 font-medium">
+                            Recording... {formatTime(editRecordingTime)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={stopEditRecording}
+                          className="flex items-center gap-2 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors"
+                        >
+                          <i className="fas fa-stop"></i>
+                          Stop
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
+                    <button
+                      type="button"
+                      onClick={toggleEditPlayback}
+                      className="w-12 h-12 flex items-center justify-center bg-indigo-500 hover:bg-indigo-600 text-white rounded-full transition-colors"
+                    >
+                      <i className={`fas ${editIsPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                    </button>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-800 dark:text-white">
+                        New Voice Note Recorded
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Duration: {formatTime(editRecordingTime)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={deleteEditVoiceNote}
+                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="Delete voice note"
+                    >
+                      <i className="fas fa-trash"></i>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
