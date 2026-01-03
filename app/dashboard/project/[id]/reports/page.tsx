@@ -713,8 +713,10 @@ export default function ProjectReportsPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* Debug info - remove after testing */}
+                  <span className="text-xs text-red-400">U:{currentUser?.id?.slice(0,8) || 'none'} R:{report.reported_by?.slice(0,8) || 'none'}</span>
                   {/* Edit/Delete buttons - only for creator */}
-                  {currentUser && report.reported_by === currentUser.id && !report.is_deleted && (
+                  {currentUser && currentUser.id && report.reported_by && report.reported_by === currentUser.id && !report.is_deleted && (
                     <>
                       <button
                         onClick={(e) => {
