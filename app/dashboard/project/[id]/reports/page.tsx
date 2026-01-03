@@ -1496,22 +1496,33 @@ export default function ProjectReportsPage() {
                   <div className="space-y-2">
                     {editAttachments.map((url, index) => {
                       const lowerUrl = url.toLowerCase();
-                      const isAudio = lowerUrl.includes('voice') || lowerUrl.includes('audio') || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav');
-                      const isVideo = lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.webm');
-                      const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif');
+                      const isVoiceNote = lowerUrl.includes('voice') || lowerUrl.includes('audio');
+                      const isAudio = isVoiceNote || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a');
+                      const isVideo = !isVoiceNote && (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.webm') || lowerUrl.endsWith('.avi'));
+                      const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp');
+
+                      // Extract filename from URL
+                      const fileName = decodeURIComponent(url.split('/').pop() || 'Unknown file');
 
                       return (
-                        <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <i className={`fas ${isAudio ? 'fa-microphone text-indigo-500' : isVideo ? 'fa-video text-purple-500' : isImage ? 'fa-image text-green-500' : 'fa-paperclip text-gray-500'}`}></i>
-                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs">
-                              {isAudio ? 'Voice Note' : isVideo ? 'Video' : isImage ? 'Image' : 'File'} {index + 1}
-                            </span>
+                        <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${isVoiceNote ? 'bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800' : 'bg-gray-50 dark:bg-gray-700'}`}>
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isVoiceNote ? 'bg-indigo-500' : isVideo ? 'bg-purple-500' : isImage ? 'bg-green-500' : 'bg-gray-500'}`}>
+                              <i className={`fas ${isVoiceNote ? 'fa-microphone' : isVideo ? 'fa-video' : isImage ? 'fa-image' : 'fa-file'} text-white text-sm`}></i>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium truncate ${isVoiceNote ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                                {isVoiceNote ? 'Voice Note' : fileName}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {isVoiceNote ? 'Audio Recording' : isVideo ? 'Video' : isImage ? 'Image' : 'File'}
+                              </p>
+                            </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleRemoveEditAttachment(index)}
-                            className="text-red-500 hover:text-red-700 p-1"
+                            className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition ml-2"
                             title="Remove attachment"
                           >
                             <i className="fas fa-trash"></i>
