@@ -81,11 +81,24 @@ export default function ProjectChatPage() {
   useEffect(() => {
     fetchCurrentUser();
     fetchMessages();
+    markChatAsRead();
 
     // Poll for new messages every 3 seconds
     const pollInterval = setInterval(pollNewMessages, 3000);
     return () => clearInterval(pollInterval);
   }, []);
+
+  const markChatAsRead = async () => {
+    try {
+      await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId, type: 'chat' })
+      });
+    } catch (error) {
+      // Silent fail
+    }
+  };
 
   useEffect(() => {
     scrollToBottom();

@@ -21,10 +21,20 @@ interface Project {
   priority: string;
 }
 
+interface NotificationCounts {
+  [projectId: string]: {
+    chat: number;
+    reports: number;
+    total: number;
+  };
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
+  const [notificationCounts, setNotificationCounts] = useState<NotificationCounts>({});
   const [stats, setStats] = useState({
     totalProjects: 0,
     activeProjects: 0,
@@ -47,12 +57,13 @@ export default function DashboardPage() {
       const data = await response.json();
       setUser(data.user);
 
-      // Fetch stats for admin/PM
+      // Fetch projects based on role
       if (data.user.is_admin || data.user.role === 'project_manager') {
         const projectsRes = await fetch('/api/projects');
         if (projectsRes.ok) {
           const projectsData = await projectsRes.json();
           const projects = projectsData.projects || [];
+          setAllProjects(projects);
           setStats({
             totalProjects: projects.length,
             activeProjects: projects.filter((p: Project) => p.status === 'in_progress').length,
@@ -67,6 +78,13 @@ export default function DashboardPage() {
           const projectsData = await projectsRes.json();
           setAssignedProjects(projectsData.projects || []);
         }
+      }
+
+      // Fetch notification counts
+      const countsRes = await fetch('/api/notifications/counts');
+      if (countsRes.ok) {
+        const countsData = await countsRes.json();
+        setNotificationCounts(countsData.counts || {});
       }
 
       setLoading(false);
@@ -250,39 +268,121 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* All Projects for Admin/PM */}
+      {isAdminOrPM && allProjects.length > 0 && (
+        <div className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+            <i className="fas fa-folder-open mr-2 text-indigo-500"></i>
+            All Projects
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {allProjects.map((project) => {
+              const counts = notificationCounts[project.id];
+              const totalUnread = counts?.total || 0;
+              return (
+                <button
+                  key={project.id}
+                  onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                  className="relative p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-left group border-2 border-transparent hover:border-indigo-500"
+                >
+                  {/* Notification Badge */}
+                  {totalUnread > 0 && (
+                    <div className="absolute -top-2 -right-2 min-w-[24px] h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1.5 shadow-lg animate-pulse">
+                      {totalUnread > 99 ? '99+' : totalUnread}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                      <i className="fas fa-folder text-white"></i>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                        {project.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`badge text-xs ${
+                          project.status === 'completed' ? 'badge-success' :
+                          project.status === 'in_progress' ? 'badge-info' :
+                          'badge-warning'
+                        }`}>
+                          {project.status.replace('_', ' ')}
+                        </span>
+                        {counts && counts.chat > 0 && (
+                          <span className="text-xs text-green-600 dark:text-green-400" title="Unread chat messages">
+                            <i className="fas fa-comments"></i> {counts.chat}
+                          </span>
+                        )}
+                        {counts && counts.reports > 0 && (
+                          <span className="text-xs text-orange-600 dark:text-orange-400" title="New reports">
+                            <i className="fas fa-bug"></i> {counts.reports}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Projects for Regular Users */}
       {!isAdminOrPM && (
         <div className="card p-6">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+            <i className="fas fa-folder-open mr-2 text-indigo-500"></i>
             Your Projects
           </h2>
           {assignedProjects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {assignedProjects.map((project) => (
-                <button
-                  key={project.id}
-                  onClick={() => router.push(`/dashboard/project/${project.id}`)}
-                  className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
-                      <i className="fas fa-folder text-white"></i>
+              {assignedProjects.map((project) => {
+                const counts = notificationCounts[project.id];
+                const totalUnread = counts?.total || 0;
+                return (
+                  <button
+                    key={project.id}
+                    onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                    className="relative p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-left group border-2 border-transparent hover:border-indigo-500"
+                  >
+                    {/* Notification Badge */}
+                    {totalUnread > 0 && (
+                      <div className="absolute -top-2 -right-2 min-w-[24px] h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1.5 shadow-lg animate-pulse">
+                        {totalUnread > 99 ? '99+' : totalUnread}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                        <i className="fas fa-folder text-white"></i>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                          {project.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`badge text-xs ${
+                            project.status === 'completed' ? 'badge-success' :
+                            project.status === 'in_progress' ? 'badge-info' :
+                            'badge-warning'
+                          }`}>
+                            {project.status.replace('_', ' ')}
+                          </span>
+                          {counts && counts.chat > 0 && (
+                            <span className="text-xs text-green-600 dark:text-green-400" title="Unread chat messages">
+                              <i className="fas fa-comments"></i> {counts.chat}
+                            </span>
+                          )}
+                          {counts && counts.reports > 0 && (
+                            <span className="text-xs text-orange-600 dark:text-orange-400" title="New reports">
+                              <i className="fas fa-bug"></i> {counts.reports}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-gray-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                        {project.name}
-                      </h3>
-                      <span className={`badge ${
-                        project.status === 'completed' ? 'badge-success' :
-                        project.status === 'in_progress' ? 'badge-info' :
-                        'badge-warning'
-                      }`}>
-                        {project.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8">

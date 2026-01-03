@@ -81,7 +81,20 @@ export default function ProjectReportsPage() {
     fetchReports();
     fetchUsers();
     fetchCurrentUser();
+    markReportsAsRead();
   }, [statusFilter, typeFilter]);
+
+  const markReportsAsRead = async () => {
+    try {
+      await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId, type: 'reports' })
+      });
+    } catch (error) {
+      // Silent fail
+    }
+  };
 
   useEffect(() => {
     // Detect browser and device info
