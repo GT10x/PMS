@@ -17,6 +17,8 @@ interface SidebarProps {
   currentPath: string;
   darkMode: boolean;
   onDarkModeToggle: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
 export default function Sidebar({
@@ -27,6 +29,8 @@ export default function Sidebar({
   currentPath,
   darkMode,
   onDarkModeToggle,
+  mobileOpen,
+  onMobileClose,
 }: SidebarProps) {
   const menuItems = [
     {
@@ -68,12 +72,28 @@ export default function Sidebar({
     return currentPath.startsWith(path);
   };
 
+  const handleLinkClick = () => {
+    // Close mobile menu when a link is clicked
+    if (mobileOpen) {
+      onMobileClose();
+    }
+  };
+
   return (
-    <aside
-      className={`fixed top-0 left-0 h-full bg-white dark:bg-gray-800 shadow-xl transition-all duration-300 z-50 ${
-        collapsed ? 'w-20' : 'w-64'
-      }`}
-    >
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+
+      <aside
+        className={`fixed top-0 left-0 h-full bg-white dark:bg-gray-800 shadow-xl transition-all duration-300 z-50 ${
+          collapsed ? 'w-20' : 'w-64'
+        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+      >
       {/* Logo Section */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3">
@@ -103,6 +123,7 @@ export default function Sidebar({
             <Link
               key={item.path}
               href={item.path}
+              onClick={handleLinkClick}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                 isActive(item.path)
                   ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
@@ -158,5 +179,6 @@ export default function Sidebar({
         </div>
       </div>
     </aside>
+    </>
   );
 }

@@ -15,17 +15,27 @@ interface HeaderProps {
   user: User;
   onLogout: () => void;
   darkMode: boolean;
+  onMenuToggle?: () => void;
 }
 
-export default function Header({ user, onLogout, darkMode }: HeaderProps) {
+export default function Header({ user, onLogout, darkMode, onMenuToggle }: HeaderProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between h-16 px-6">
+      <div className="flex items-center justify-between h-16 px-4 sm:px-6">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={onMenuToggle}
+          className="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mr-2"
+          aria-label="Toggle menu"
+        >
+          <i className="fas fa-bars text-xl"></i>
+        </button>
+
         {/* Search Bar */}
-        <div className="flex-1 max-w-xl">
+        <div className="flex-1 max-w-xl hidden sm:block">
           <div className="relative">
             <input
               type="text"
@@ -36,6 +46,14 @@ export default function Header({ user, onLogout, darkMode }: HeaderProps) {
             />
             <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
           </div>
+        </div>
+
+        {/* Mobile Logo */}
+        <div className="lg:hidden flex items-center gap-2 sm:hidden">
+          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">P</span>
+          </div>
+          <span className="font-bold text-gray-800 dark:text-white">PMS</span>
         </div>
 
         {/* Right Section */}

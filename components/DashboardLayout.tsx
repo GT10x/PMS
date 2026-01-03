@@ -23,6 +23,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -98,19 +99,22 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         currentPath={pathname}
         darkMode={darkMode}
         onDarkModeToggle={toggleDarkMode}
+        mobileOpen={mobileMenuOpen}
+        onMobileClose={() => setMobileMenuOpen(false)}
       />
 
       {/* Main Content */}
-      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className={`transition-all duration-300 lg:${sidebarCollapsed ? 'ml-20' : 'ml-64'} ml-0`}>
         {/* Header */}
         <Header
           user={user}
           onLogout={handleLogout}
           darkMode={darkMode}
+          onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
 
         {/* Page Content */}
-        <main className="p-6">
+        <main className="p-4 sm:p-6">
           {children}
         </main>
       </div>
