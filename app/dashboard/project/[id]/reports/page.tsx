@@ -173,7 +173,7 @@ export default function ProjectReportsPage() {
       const response = await fetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
-        setCurrentUser(data);
+        setCurrentUser(data.user);
       }
     } catch (error) {
       console.error('Error fetching current user:', error);
