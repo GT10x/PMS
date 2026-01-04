@@ -3,6 +3,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+import { ChatMessageSkeleton } from '@/components/LoadingSkeleton';
+import { NoMessagesEmptyState } from '@/components/EmptyState';
+import Tooltip from '@/components/Tooltip';
 
 interface User {
   id: string;
@@ -398,8 +402,17 @@ export default function ProjectChatPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <Breadcrumb items={[
+          { label: 'Projects', href: '/dashboard/projects' },
+          { label: 'Project', href: `/dashboard/project/${projectId}` },
+          { label: 'Chat' }
+        ]} />
+        <div className="card p-4 space-y-4" style={{ height: 'calc(100vh - 280px)' }}>
+          <ChatMessageSkeleton />
+          <ChatMessageSkeleton isOwn />
+          <ChatMessageSkeleton />
+          <ChatMessageSkeleton isOwn />
+          <ChatMessageSkeleton />
         </div>
       </DashboardLayout>
     );
@@ -407,22 +420,21 @@ export default function ProjectChatPage() {
 
   return (
     <DashboardLayout>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Projects', href: '/dashboard/projects', icon: 'fas fa-folder' },
+        { label: 'Project', href: `/dashboard/project/${projectId}` },
+        { label: 'Chat', icon: 'fas fa-comments' }
+      ]} />
+
       {/* Page Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <button
-              onClick={() => router.push(`/dashboard/project/${projectId}`)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <i className="fas fa-arrow-left text-gray-500"></i>
-            </button>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-              <i className="fas fa-comments mr-2 text-green-500"></i>
-              Team Chat
-            </h1>
-          </div>
-          <p className="text-gray-500 dark:text-gray-400 ml-11">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            <i className="fas fa-comments mr-2 text-green-500"></i>
+            Team Chat
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             {members.length} team member{members.length !== 1 ? 's' : ''} in this project
           </p>
         </div>
@@ -467,10 +479,8 @@ export default function ProjectChatPage() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
-              <i className="fas fa-comments text-6xl mb-4 opacity-30"></i>
-              <p>No messages yet</p>
-              <p className="text-sm">Start the conversation!</p>
+            <div className="flex flex-col items-center justify-center h-full">
+              <NoMessagesEmptyState />
             </div>
           ) : (
             messages.map((message, index) => {
@@ -687,32 +697,36 @@ export default function ProjectChatPage() {
                 className="hidden"
                 onChange={handleImageSelect}
               />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors"
-                title="Attach image"
-              >
-                <i className="fas fa-image"></i>
-              </button>
+              <Tooltip content="Attach image">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors"
+                >
+                  <i className="fas fa-image"></i>
+                </button>
+              </Tooltip>
 
               {!isRecording && !voiceNote && (
-                <button
-                  onClick={startRecording}
-                  className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
-                  title="Record voice note"
-                >
-                  <i className="fas fa-microphone"></i>
-                </button>
+                <Tooltip content="Record voice note">
+                  <button
+                    onClick={startRecording}
+                    className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                  >
+                    <i className="fas fa-microphone"></i>
+                  </button>
+                </Tooltip>
               )}
 
               {isRecording && (
-                <button
-                  onClick={stopRecording}
-                  className="p-2.5 bg-red-500 text-white rounded-xl animate-pulse flex items-center gap-2"
-                >
-                  <i className="fas fa-stop"></i>
-                  <span className="text-sm">{formatTime(recordingTime)}</span>
-                </button>
+                <Tooltip content="Stop recording">
+                  <button
+                    onClick={stopRecording}
+                    className="p-2.5 bg-red-500 text-white rounded-xl animate-pulse flex items-center gap-2"
+                  >
+                    <i className="fas fa-stop"></i>
+                    <span className="text-sm">{formatTime(recordingTime)}</span>
+                  </button>
+                </Tooltip>
               )}
             </div>
 
@@ -731,17 +745,19 @@ export default function ProjectChatPage() {
             </div>
 
             {/* Send button */}
-            <button
-              onClick={sendMessage}
-              disabled={sending || (!messageText.trim() && !voiceNote && !selectedImage)}
-              className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {sending ? (
-                <i className="fas fa-spinner animate-spin"></i>
-              ) : (
-                <i className="fas fa-paper-plane"></i>
-              )}
-            </button>
+            <Tooltip content="Send message">
+              <button
+                onClick={sendMessage}
+                disabled={sending || (!messageText.trim() && !voiceNote && !selectedImage)}
+                className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {sending ? (
+                  <i className="fas fa-spinner animate-spin"></i>
+                ) : (
+                  <i className="fas fa-paper-plane"></i>
+                )}
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>

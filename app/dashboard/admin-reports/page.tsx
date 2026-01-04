@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+import { PageSkeleton } from '@/components/LoadingSkeleton';
+import Tooltip from '@/components/Tooltip';
+import Pagination from '@/components/Pagination';
 
 interface Report {
   id: string;
@@ -248,20 +252,31 @@ export default function AdminReportsPage() {
 
   const filteredReports = getFilteredReports();
 
+  // Pagination
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
+  const paginatedReports = filteredReports.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <Breadcrumb items={[{ label: 'Admin Reports' }]} />
+        <PageSkeleton type="table" />
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[{ label: 'Admin Reports', icon: 'fas fa-chart-line' }]} />
+
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
             <i className="fas fa-chart-line mr-2 text-purple-500"></i>
@@ -432,7 +447,7 @@ export default function AdminReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredReports.length === 0 ? (
+              {paginatedReports.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-12">
                     <i className="fas fa-inbox text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
@@ -440,7 +455,7 @@ export default function AdminReportsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredReports.map((report) => (
+                paginatedReports.map((report) => (
                   <tr key={report.id}>
                     <td>
                       <span className="text-xl">{getTypeEmoji(report.type)}</span>
@@ -470,13 +485,14 @@ export default function AdminReportsPage() {
                     </td>
                     <td>
                       <div className="flex items-center justify-end">
-                        <button
-                          onClick={() => handleViewReport(report)}
-                          className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                          title="View"
-                        >
-                          <i className="fas fa-eye"></i>
-                        </button>
+                        <Tooltip content="View and manage report">
+                          <button
+                            onClick={() => handleViewReport(report)}
+                            className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                          >
+                            <i className="fas fa-eye"></i>
+                          </button>
+                        </Tooltip>
                       </div>
                     </td>
                   </tr>
@@ -485,6 +501,19 @@ export default function AdminReportsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {filteredReports.length > 0 && (
+          <div className="p-4 border-t dark:border-gray-700">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredReports.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
       {/* View/Manage Report Modal */}

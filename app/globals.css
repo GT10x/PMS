@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/*
+ * Safelist: Classes used dynamically that Tailwind must generate
+ * lg:ml-20 lg:ml-64 - Sidebar margin classes
+ */
+
 :root {
   --background: #f3f4f6;
   --foreground: #1f2937;

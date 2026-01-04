@@ -22,7 +22,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -104,7 +104,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       />
 
       {/* Main Content */}
-      <div className={`transition-all duration-300 lg:${sidebarCollapsed ? 'ml-20' : 'ml-64'} ml-0`}>
+      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         {/* Header */}
         <Header
           user={user}

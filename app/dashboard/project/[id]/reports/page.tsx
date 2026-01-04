@@ -3,6 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+import { ReportCardSkeleton } from '@/components/LoadingSkeleton';
+import { NoReportsEmptyState } from '@/components/EmptyState';
+import Tooltip from '@/components/Tooltip';
+import Button from '@/components/Button';
 
 interface Report {
   id: string;
@@ -29,6 +34,31 @@ interface User {
   id: string;
   full_name: string;
   role: string;
+  is_admin?: boolean;
+}
+
+interface Reply {
+  id: string;
+  content: string;
+  attachments: string[];
+  created_at: string;
+  user: {
+    id: string;
+    full_name: string;
+    role: string;
+  };
+}
+
+interface StatusLog {
+  id: string;
+  old_status: string;
+  new_status: string;
+  changed_at: string;
+  user: {
+    id: string;
+    full_name: string;
+    role: string;
+  };
 }
 
 export default function ProjectReportsPage() {
@@ -76,6 +106,29 @@ export default function ProjectReportsPage() {
     assigned_to: '',
     dev_notes: ''
   });
+
+  // Reply thread state
+  const [replies, setReplies] = useState<Reply[]>([]);
+  const [replyContent, setReplyContent] = useState('');
+  const [loadingReplies, setLoadingReplies] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // Status log state
+  const [statusLog, setStatusLog] = useState<StatusLog[]>([]);
+  const [loadingStatusLog, setLoadingStatusLog] = useState(false);
+
+  // Reply attachments state
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
+  const [replyIsRecording, setReplyIsRecording] = useState(false);
+  const [replyRecordingTime, setReplyRecordingTime] = useState(0);
+  const [replyVoiceNote, setReplyVoiceNote] = useState<Blob | null>(null);
+  const [replyVoiceNoteUrl, setReplyVoiceNoteUrl] = useState<string | null>(null);
+  const [replyIsPlaying, setReplyIsPlaying] = useState(false);
+  const replyMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const replyAudioChunksRef = useRef<Blob[]>([]);
+  const replyTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const replyAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     fetchReports();
@@ -180,6 +233,169 @@ export default function ProjectReportsPage() {
     }
   };
 
+  // Fetch replies for a report
+  const fetchReplies = async (reportId: string) => {
+    setLoadingReplies(true);
+    try {
+      const response = await fetch(`/api/reports/${reportId}/replies`);
+      if (response.ok) {
+        const data = await response.json();
+        setReplies(data.replies || []);
+      }
+    } catch (error) {
+      console.error('Error fetching replies:', error);
+    } finally {
+      setLoadingReplies(false);
+    }
+  };
+
+  // Fetch status log for a report
+  const fetchStatusLog = async (reportId: string) => {
+    setLoadingStatusLog(true);
+    try {
+      const response = await fetch(`/api/reports/${reportId}/status`);
+      if (response.ok) {
+        const data = await response.json();
+        setStatusLog(data.logs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching status log:', error);
+    } finally {
+      setLoadingStatusLog(false);
+    }
+  };
+
+  // Send a reply
+  const handleSendReply = async () => {
+    if (!selectedReport || (!replyContent.trim() && replyAttachments.length === 0 && !replyVoiceNote)) return;
+
+    setSendingReply(true);
+    try {
+      // Upload attachments first
+      const uploadedUrls: string[] = [];
+
+      // Upload regular files
+      for (const file of replyAttachments) {
+        const formDataToSend = new FormData();
+        formDataToSend.append('file', file);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataToSend
+        });
+        if (uploadResponse.ok) {
+          const { url } = await uploadResponse.json();
+          uploadedUrls.push(url);
+        }
+      }
+
+      // Upload voice note if exists
+      if (replyVoiceNote) {
+        const voiceFormData = new FormData();
+        const voiceFile = new File([replyVoiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
+        voiceFormData.append('file', voiceFile);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: voiceFormData
+        });
+        if (uploadResponse.ok) {
+          const { url } = await uploadResponse.json();
+          uploadedUrls.push(url);
+        }
+      }
+
+      const response = await fetch(`/api/reports/${selectedReport.id}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: replyContent.trim() || '(Attachment)',
+          attachments: uploadedUrls
+        })
+      });
+
+      if (response.ok) {
+        const newReply = await response.json();
+        setReplies(prev => [...prev, newReply]);
+        setReplyContent('');
+        setReplyAttachments([]);
+        deleteReplyVoiceNote();
+        // Refresh reports to get updated status
+        fetchReports();
+        // Refresh status log
+        fetchStatusLog(selectedReport.id);
+      }
+    } catch (error) {
+      console.error('Error sending reply:', error);
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  // Update report status
+  const handleStatusChange = async (newStatus: string) => {
+    if (!selectedReport) return;
+
+    setUpdatingStatus(true);
+    try {
+      const response = await fetch(`/api/reports/${selectedReport.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        // Update local state
+        setSelectedReport({ ...selectedReport, status: newStatus as Report['status'] });
+        // Refresh reports list
+        fetchReports();
+        // Refresh status log
+        fetchStatusLog(selectedReport.id);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  // Check if user can change status
+  const canChangeStatus = (toStatus: string) => {
+    if (!currentUser || !selectedReport) return false;
+
+    const isAdmin = currentUser.is_admin;
+    const isPM = currentUser.role === 'project_manager' || currentUser.role === 'cto';
+    const isDeveloper = currentUser.role === 'developer' || currentUser.role === 'react_native_developer';
+    const isTester = currentUser.role === 'tester';
+    const isReporter = selectedReport.reported_by === currentUser.id;
+
+    // Admins and PMs can do anything
+    if (isAdmin || isPM) return true;
+
+    // Developers can mark as in_progress
+    if (isDeveloper && toStatus === 'in_progress') return true;
+
+    // Testers or reporters can mark as resolved (approve)
+    if ((isTester || isReporter) && toStatus === 'resolved') return true;
+
+    return false;
+  };
+
+  // Get role badge color
+  const getRoleBadgeColor = (role: string) => {
+    const colors: Record<string, string> = {
+      admin: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+      project_manager: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+      cto: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
+      developer: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+      react_native_developer: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+      tester: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+      consultant: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    };
+    return colors[role] || colors.consultant;
+  };
+
   // Voice Recording Functions
   const startRecording = async () => {
     try {
@@ -264,6 +480,93 @@ export default function ProjectReportsPage() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Reply voice recording functions
+  const startReplyRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      replyMediaRecorderRef.current = mediaRecorder;
+      replyAudioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          replyAudioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(replyAudioChunksRef.current, { type: 'audio/webm' });
+        setReplyVoiceNote(audioBlob);
+        const url = URL.createObjectURL(audioBlob);
+        setReplyVoiceNoteUrl(url);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setReplyIsRecording(true);
+      setReplyRecordingTime(0);
+
+      replyTimerRef.current = setInterval(() => {
+        setReplyRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Could not access microphone. Please ensure microphone permissions are granted.');
+    }
+  };
+
+  const stopReplyRecording = () => {
+    if (replyMediaRecorderRef.current && replyIsRecording) {
+      replyMediaRecorderRef.current.stop();
+      setReplyIsRecording(false);
+      if (replyTimerRef.current) {
+        clearInterval(replyTimerRef.current);
+        replyTimerRef.current = null;
+      }
+    }
+  };
+
+  const deleteReplyVoiceNote = () => {
+    if (replyVoiceNoteUrl) {
+      URL.revokeObjectURL(replyVoiceNoteUrl);
+    }
+    setReplyVoiceNote(null);
+    setReplyVoiceNoteUrl(null);
+    setReplyRecordingTime(0);
+    setReplyIsPlaying(false);
+    if (replyAudioRef.current) {
+      replyAudioRef.current.pause();
+      replyAudioRef.current = null;
+    }
+  };
+
+  const toggleReplyPlayback = () => {
+    if (!replyVoiceNoteUrl) return;
+
+    if (replyIsPlaying && replyAudioRef.current) {
+      replyAudioRef.current.pause();
+      setReplyIsPlaying(false);
+    } else {
+      if (!replyAudioRef.current) {
+        replyAudioRef.current = new Audio(replyVoiceNoteUrl);
+        replyAudioRef.current.onended = () => setReplyIsPlaying(false);
+      }
+      replyAudioRef.current.play();
+      setReplyIsPlaying(true);
+    }
+  };
+
+  const handleReplyFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setReplyAttachments(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeReplyFile = (index: number) => {
+    setReplyAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleCreateReport = async () => {
@@ -353,6 +656,14 @@ export default function ProjectReportsPage() {
       assigned_to: report.assigned_to_user?.full_name || '',
       dev_notes: report.dev_notes || ''
     });
+    // Fetch replies for this report
+    setReplies([]);
+    setReplyContent('');
+    setReplyAttachments([]);
+    deleteReplyVoiceNote();
+    setStatusLog([]);
+    fetchReplies(report.id);
+    fetchStatusLog(report.id);
   };
 
   const handleUpdateReport = async () => {
@@ -663,8 +974,15 @@ export default function ProjectReportsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <Breadcrumb items={[
+          { label: 'Projects', href: '/dashboard/projects' },
+          { label: 'Project', href: `/dashboard/project/${projectId}` },
+          { label: 'Reports' }
+        ]} />
+        <div className="space-y-4">
+          <ReportCardSkeleton />
+          <ReportCardSkeleton />
+          <ReportCardSkeleton />
         </div>
       </DashboardLayout>
     );
@@ -672,30 +990,28 @@ export default function ProjectReportsPage() {
 
   return (
     <DashboardLayout>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Projects', href: '/dashboard/projects', icon: 'fas fa-folder' },
+        { label: 'Project', href: `/dashboard/project/${projectId}` },
+        { label: 'Reports', icon: 'fas fa-bug' }
+      ]} />
+
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <button
-              onClick={() => router.push(`/dashboard/project/${projectId}`)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <i className="fas fa-arrow-left text-gray-500"></i>
-            </button>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-              <i className="fas fa-bug mr-2 text-orange-500"></i>
-              Reports & Issues
-            </h1>
-          </div>
-          <p className="text-gray-500 dark:text-gray-400 ml-11">Track bugs, features, and improvements</p>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            <i className="fas fa-bug mr-2 text-orange-500"></i>
+            Reports & Issues
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Track bugs, features, and improvements</p>
         </div>
-        <button
+        <Button
           onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center gap-2"
+          icon="fas fa-plus"
         >
-          <i className="fas fa-plus"></i>
           New Report
-        </button>
+        </Button>
       </div>
 
       {/* Navigation Tabs */}
@@ -779,11 +1095,7 @@ export default function ProjectReportsPage() {
       {/* Reports List */}
       <div className="space-y-4">
         {reports.length === 0 ? (
-          <div className="card p-12 text-center">
-            <i className="fas fa-inbox text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
-            <p className="text-gray-600 dark:text-gray-400 text-lg">No reports found</p>
-            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">Click "New Report" to create your first report</p>
-          </div>
+          <NoReportsEmptyState onCreateReport={() => setShowCreateModal(true)} />
         ) : (
           reports.map((report) => (
             <div
@@ -860,35 +1172,39 @@ export default function ProjectReportsPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                                    {/* Edit/Delete buttons - only for creator */}
+                  {/* Edit/Delete buttons - only for creator */}
                   {currentUser && currentUser.id && report.reported_by && report.reported_by === currentUser.id && !report.is_deleted && (
                     <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditReport(report);
-                        }}
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition"
-                        title="Edit Report"
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteReport(report.id);
-                        }}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
-                        title="Delete Report"
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
+                      <Tooltip content="Edit report">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditReport(report);
+                          }}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Delete report">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteReport(report.id);
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </Tooltip>
                     </>
                   )}
-                  <button className="btn-primary">
-                    <i className="fas fa-eye mr-1"></i>
-                    View
-                  </button>
+                  <Tooltip content="View details">
+                    <button className="btn-primary">
+                      <i className="fas fa-eye mr-1"></i>
+                      View
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
             </div>
@@ -1163,35 +1479,71 @@ export default function ProjectReportsPage() {
       {/* View/Manage Report Modal */}
       {selectedReport && (
         <div className="modal-overlay" onClick={() => setSelectedReport(null)}>
-          <div className="modal-content max-w-5xl animate-fadeIn" onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div className="flex items-start justify-between gap-4 mb-6 pb-4 border-b dark:border-gray-700">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="text-3xl flex-shrink-0">{getTypeEmoji(selectedReport.type)}</span>
-                  <h3 className={`text-xl md:text-2xl font-bold break-words ${selectedReport.is_deleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>{selectedReport.title}</h3>
-                </div>
-                <div className="flex flex-wrap gap-2 ml-12">
+          <div className="modal-content max-w-5xl animate-fadeIn flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            {/* Sticky Header with Title and Status */}
+            <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 pb-4 border-b dark:border-gray-700 -mx-6 px-6 pt-1 -mt-1">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-2xl flex-shrink-0">{getTypeEmoji(selectedReport.type)}</span>
+                  <h3 className={`text-lg md:text-xl font-bold truncate ${selectedReport.is_deleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>
+                    {selectedReport.title}
+                  </h3>
+
+                  {/* Status Dropdown - Inline with title */}
+                  {!selectedReport.is_deleted && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <select
+                        value={selectedReport.status}
+                        onChange={(e) => handleStatusChange(e.target.value)}
+                        disabled={updatingStatus || !(
+                          currentUser?.is_admin ||
+                          currentUser?.role === 'project_manager' ||
+                          currentUser?.role === 'cto' ||
+                          (selectedReport.status === 'open' && (currentUser?.role === 'developer' || currentUser?.role === 'react_native_developer')) ||
+                          (selectedReport.status === 'in_progress')
+                        )}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border-0 cursor-pointer transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                          selectedReport.status === 'open'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : selectedReport.status === 'in_progress'
+                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            : selectedReport.status === 'resolved'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                        }`}
+                      >
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                      </select>
+                      {updatingStatus && (
+                        <i className="fas fa-spinner animate-spin text-indigo-500"></i>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Priority Badge */}
+                  {!selectedReport.is_deleted && getPriorityBadge(selectedReport.priority)}
+
+                  {/* Tags */}
                   {selectedReport.is_deleted && (
-                    <span className="px-3 py-1 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-sm font-medium rounded-full">
+                    <span className="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs font-medium rounded-full flex-shrink-0">
                       <i className="fas fa-trash mr-1"></i> Deleted
                     </span>
                   )}
                   {selectedReport.edited_at && !selectedReport.is_deleted && (
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-sm font-medium rounded-full">
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-xs font-medium rounded-full flex-shrink-0">
                       <i className="fas fa-edit mr-1"></i> Edited
                     </span>
                   )}
-                  {!selectedReport.is_deleted && getStatusBadge(selectedReport.status)}
-                  {!selectedReport.is_deleted && getPriorityBadge(selectedReport.priority)}
                 </div>
+                <button
+                  onClick={() => setSelectedReport(null)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
+                >
+                  <i className="fas fa-times text-gray-500 text-lg"></i>
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedReport(null)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
-              >
-                <i className="fas fa-times text-gray-500 text-lg"></i>
-              </button>
             </div>
 
             {/* Deleted Report Message */}
@@ -1217,8 +1569,57 @@ export default function ProjectReportsPage() {
                 </button>
               </div>
             ) : (
-            /* Report Details */
-            <div className="space-y-6">
+            /* Report Details - Scrollable content */
+            <div className="space-y-6 overflow-y-auto flex-1 mt-4">
+              {/* Status Change Log */}
+              {statusLog.length > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                    <i className="fas fa-history text-indigo-500"></i>
+                    Status History
+                  </h4>
+                  <div className="space-y-2">
+                    {statusLog.map((log, index) => (
+                      <div key={log.id} className="flex items-center gap-3 text-sm">
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0"></div>
+                        <div className="flex-1 flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            log.old_status === 'open' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                            log.old_status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          }`}>
+                            {log.old_status.replace('_', ' ')}
+                          </span>
+                          <i className="fas fa-arrow-right text-gray-400 text-xs"></i>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            log.new_status === 'open' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                            log.new_status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          }`}>
+                            {log.new_status.replace('_', ' ')}
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400">by</span>
+                          <span className="font-medium text-gray-700 dark:text-gray-300">{log.user.full_name}</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">
+                            ({log.user.role.replace('_', ' ')})
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                          {new Date(log.changed_at).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {loadingStatusLog && (
+                <div className="flex items-center justify-center py-4">
+                  <i className="fas fa-spinner animate-spin text-indigo-500 mr-2"></i>
+                  <span className="text-sm text-gray-500">Loading status history...</span>
+                </div>
+              )}
+
               {/* Edited Notice */}
               {selectedReport.edited_at && (
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-3 flex items-center gap-2">
@@ -1422,6 +1823,274 @@ export default function ProjectReportsPage() {
                   </div>
                 </div>
               )}
+
+              {/* Reply Thread Section */}
+              <div className="border-t dark:border-gray-700 pt-6">
+                <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <i className="fas fa-comments text-indigo-500"></i>
+                  Discussion Thread
+                  {replies.length > 0 && (
+                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                      ({replies.length} {replies.length === 1 ? 'reply' : 'replies'})
+                    </span>
+                  )}
+                </h4>
+
+                {/* Replies List */}
+                <div className="space-y-4 max-h-80 overflow-y-auto mb-4">
+                  {loadingReplies ? (
+                    <div className="flex items-center justify-center py-8">
+                      <i className="fas fa-spinner animate-spin text-indigo-500 text-2xl"></i>
+                    </div>
+                  ) : replies.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                      <i className="fas fa-comment-slash text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">No replies yet</p>
+                      <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Be the first to respond to this report</p>
+                    </div>
+                  ) : (
+                    replies.map((reply) => (
+                      <div
+                        key={reply.id}
+                        className={`p-4 rounded-xl ${
+                          reply.user.id === currentUser?.id
+                            ? 'bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 ml-8'
+                            : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 mr-8'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            reply.user.role === 'developer' || reply.user.role === 'react_native_developer'
+                              ? 'bg-blue-500'
+                              : reply.user.role === 'tester'
+                              ? 'bg-orange-500'
+                              : reply.user.role === 'project_manager'
+                              ? 'bg-purple-500'
+                              : 'bg-gray-500'
+                          }`}>
+                            <span className="text-white font-semibold text-sm">
+                              {reply.user.full_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="font-medium text-gray-900 dark:text-white text-sm">
+                                {reply.user.full_name}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(reply.user.role)}`}>
+                                {reply.user.role.replace('_', ' ')}
+                              </span>
+                              <span className="text-xs text-gray-400 dark:text-gray-500">
+                                {new Date(reply.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            {reply.content !== '(Attachment)' && (
+                              <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
+                                {reply.content}
+                              </p>
+                            )}
+
+                            {/* Reply Attachments */}
+                            {reply.attachments && reply.attachments.length > 0 && (
+                              <div className="mt-2 space-y-2">
+                                {reply.attachments.map((url: string, idx: number) => {
+                                  const lowerUrl = url.toLowerCase();
+                                  const isVoiceNote = lowerUrl.includes('voice') || lowerUrl.includes('audio') || lowerUrl.endsWith('.webm');
+                                  const isAudio = isVoiceNote || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a');
+                                  const isVideo = !isVoiceNote && (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi'));
+                                  const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp');
+
+                                  if (isAudio) {
+                                    return (
+                                      <div key={idx} className="bg-indigo-100 dark:bg-indigo-900/30 rounded-lg p-2">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <i className="fas fa-microphone text-indigo-600 dark:text-indigo-400 text-sm"></i>
+                                          <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Voice Note</span>
+                                        </div>
+                                        <audio controls className="w-full h-8" src={url}>
+                                          Your browser does not support the audio element.
+                                        </audio>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (isVideo) {
+                                    return (
+                                      <div key={idx} className="bg-purple-100 dark:bg-purple-900/30 rounded-lg overflow-hidden">
+                                        <video controls className="w-full max-h-48" src={url}>
+                                          Your browser does not support the video element.
+                                        </video>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (isImage) {
+                                    return (
+                                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                                        <img src={url} alt="Attachment" className="max-w-full max-h-48 rounded-lg" />
+                                      </a>
+                                    );
+                                  }
+
+                                  const fileName = decodeURIComponent(url.split('/').pop() || 'File');
+                                  return (
+                                    <a
+                                      key={idx}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                                    >
+                                      <i className="fas fa-file"></i>
+                                      {fileName}
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Reply Input */}
+                <div className="flex gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-semibold text-sm">
+                      {currentUser?.full_name.charAt(0).toUpperCase() || '?'}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      placeholder="Write a reply... (Developers: your reply will mark this as 'In Progress')"
+                      rows={3}
+                      className="input-field resize-none"
+                    />
+
+                    {/* Attachments Preview */}
+                    {(replyAttachments.length > 0 || replyVoiceNote) && (
+                      <div className="mt-2 space-y-2">
+                        {replyAttachments.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-lg text-sm">
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-file text-gray-500"></i>
+                              <span className="text-gray-700 dark:text-gray-300 truncate max-w-xs">{file.name}</span>
+                              <span className="text-xs text-gray-500">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeReplyFile(index)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <i className="fas fa-times"></i>
+                            </button>
+                          </div>
+                        ))}
+
+                        {replyVoiceNote && (
+                          <div className="flex items-center gap-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                            <button
+                              type="button"
+                              onClick={toggleReplyPlayback}
+                              className="w-10 h-10 flex items-center justify-center bg-indigo-500 hover:bg-indigo-600 text-white rounded-full transition-colors"
+                            >
+                              <i className={`fas ${replyIsPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                            </button>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-800 dark:text-white">Voice Note</p>
+                              <p className="text-xs text-gray-500">{formatTime(replyRecordingTime)}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={deleteReplyVoiceNote}
+                              className="p-2 text-red-500 hover:text-red-700"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Action Bar */}
+                    <div className="flex items-center justify-between mt-3 gap-3">
+                      <div className="flex items-center gap-2">
+                        {/* File Upload */}
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,video/*,audio/*,.pdf"
+                          onChange={handleReplyFileChange}
+                          className="hidden"
+                          id="reply-file-upload"
+                        />
+                        <label
+                          htmlFor="reply-file-upload"
+                          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg cursor-pointer transition"
+                          title="Attach file"
+                        >
+                          <i className="fas fa-paperclip"></i>
+                        </label>
+
+                        {/* Voice Recording */}
+                        {!replyVoiceNote && (
+                          <>
+                            {!replyIsRecording ? (
+                              <button
+                                type="button"
+                                onClick={startReplyRecording}
+                                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+                                title="Record voice note"
+                              >
+                                <i className="fas fa-microphone"></i>
+                              </button>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                                  <span className="text-red-600 dark:text-red-400 text-sm font-medium">
+                                    {formatTime(replyRecordingTime)}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={stopReplyRecording}
+                                  className="p-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition"
+                                  title="Stop recording"
+                                >
+                                  <i className="fas fa-stop"></i>
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={handleSendReply}
+                        disabled={sendingReply || (!replyContent.trim() && replyAttachments.length === 0 && !replyVoiceNote)}
+                        className="btn-primary disabled:opacity-50"
+                      >
+                        {sendingReply ? (
+                          <span className="flex items-center gap-2">
+                            <i className="fas fa-spinner animate-spin"></i>
+                            Sending...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <i className="fas fa-paper-plane"></i>
+                            Send Reply
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Management Section - Only for Admin/PM */}
               {canManageReport() && (

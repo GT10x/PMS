@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+import { CardSkeleton } from '@/components/LoadingSkeleton';
+import { NoVersionsEmptyState } from '@/components/EmptyState';
+import Tooltip from '@/components/Tooltip';
+import Button from '@/components/Button';
 
 interface TestCase {
   id: string;
@@ -176,8 +181,15 @@ export default function ProjectVersionsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <Breadcrumb items={[
+          { label: 'Projects', href: '/dashboard/projects' },
+          { label: 'Project', href: `/dashboard/project/${projectId}` },
+          { label: 'Versions' }
+        ]} />
+        <div className="space-y-4">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
         </div>
       </DashboardLayout>
     );
@@ -185,30 +197,28 @@ export default function ProjectVersionsPage() {
 
   return (
     <DashboardLayout>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Projects', href: '/dashboard/projects', icon: 'fas fa-folder' },
+        { label: 'Project', href: `/dashboard/project/${projectId}` },
+        { label: 'Versions', icon: 'fas fa-code-branch' }
+      ]} />
+
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <button
-              onClick={() => router.push(`/dashboard/project/${projectId}`)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <i className="fas fa-arrow-left text-gray-500"></i>
-            </button>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-              <i className="fas fa-code-branch mr-2 text-indigo-500"></i>
-              Version Testing Tracker
-            </h1>
-          </div>
-          <p className="text-gray-500 dark:text-gray-400 ml-11">Track testing progress for each version release</p>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            <i className="fas fa-code-branch mr-2 text-indigo-500"></i>
+            Version Testing Tracker
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Track testing progress for each version release</p>
         </div>
-        <button
+        <Button
           onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center gap-2"
+          icon="fas fa-plus"
         >
-          <i className="fas fa-plus"></i>
           New Version
-        </button>
+        </Button>
       </div>
 
       {/* Navigation Tabs */}
@@ -255,11 +265,7 @@ export default function ProjectVersionsPage() {
       {/* Versions List */}
       <div className="space-y-4">
         {versions.length === 0 ? (
-          <div className="card p-12 text-center">
-            <i className="fas fa-code-branch text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
-            <p className="text-gray-600 dark:text-gray-400 text-lg">No versions found</p>
-            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">Click "New Version" to create your first version</p>
-          </div>
+          <NoVersionsEmptyState onCreateVersion={() => setShowCreateModal(true)} />
         ) : (
           versions.map((version) => (
             <div
@@ -297,13 +303,15 @@ export default function ProjectVersionsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     {getStatusBadge(version.status)}
-                    <button
-                      onClick={() => router.push(`/dashboard/project/${projectId}/versions/${version.id}`)}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm hover:from-indigo-600 hover:to-purple-600 transition-all flex items-center gap-2"
-                    >
-                      <i className="fas fa-clipboard-check"></i>
-                      Open Tester Dashboard
-                    </button>
+                    <Tooltip content="Open testing dashboard for this version">
+                      <button
+                        onClick={() => router.push(`/dashboard/project/${projectId}/versions/${version.id}`)}
+                        className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm hover:from-indigo-600 hover:to-purple-600 transition-all flex items-center gap-2"
+                      >
+                        <i className="fas fa-clipboard-check"></i>
+                        Open Tester Dashboard
+                      </button>
+                    </Tooltip>
                   </div>
                 </div>
               </div>

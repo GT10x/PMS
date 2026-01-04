@@ -44,14 +44,22 @@ export default function EmptyState({
 }
 
 // Specific empty states for common use cases
-export function NoProjectsEmptyState({ onCreateProject }: { onCreateProject?: () => void }) {
+export function NoProjectsEmptyState({
+  onCreateProject,
+  showCreateButton = true
+}: {
+  onCreateProject?: () => void;
+  showCreateButton?: boolean;
+}) {
   return (
     <EmptyState
       icon="fas fa-folder-open"
       title="No projects yet"
-      description="Get started by creating your first project to track versions, reports, and team collaboration."
-      actionLabel="Create Project"
-      onAction={onCreateProject}
+      description={showCreateButton
+        ? "Get started by creating your first project to track versions, reports, and team collaboration."
+        : "You haven't been assigned to any projects yet. Contact your administrator to get added to a project."}
+      actionLabel={showCreateButton ? "Create Project" : undefined}
+      onAction={showCreateButton ? onCreateProject : undefined}
     />
   );
 }

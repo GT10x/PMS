@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+import { StatsCardSkeleton, ProjectCardSkeleton } from '@/components/LoadingSkeleton';
+import { NoProjectsEmptyState } from '@/components/EmptyState';
+import Tooltip from '@/components/Tooltip';
 
 interface User {
   id: string;
@@ -96,12 +100,24 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-gray-600">Loading...</span>
+      <DashboardLayout>
+        <Breadcrumb items={[{ label: 'Dashboard' }]} />
+        <div className="mb-8">
+          <div className="h-8 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+          <div className="h-4 w-96 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
         </div>
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <ProjectCardSkeleton />
+          <ProjectCardSkeleton />
+          <ProjectCardSkeleton />
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -111,6 +127,9 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[{ label: 'Dashboard', icon: 'fas fa-home' }]} />
+
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -221,50 +240,56 @@ export default function DashboardPage() {
       {/* Quick Actions for Admin/PM */}
       {isAdminOrPM && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <a
-            href="/dashboard/projects"
-            className="card p-6 hover:border-indigo-500 border-2 border-transparent cursor-pointer group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 gradient-primary rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <i className="fas fa-folder-plus text-white text-xl"></i>
+          <Tooltip content="View and create projects">
+            <a
+              href="/dashboard/projects"
+              className="card p-6 hover:border-indigo-500 border-2 border-transparent cursor-pointer group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 gradient-primary rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <i className="fas fa-folder-plus text-white text-xl"></i>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800 dark:text-white">Manage Projects</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Create and manage projects</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">Manage Projects</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Create and manage projects</p>
-              </div>
-            </div>
-          </a>
+            </a>
+          </Tooltip>
 
-          <a
-            href="/dashboard/users"
-            className="card p-6 hover:border-green-500 border-2 border-transparent cursor-pointer group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 gradient-success rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <i className="fas fa-user-plus text-white text-xl"></i>
+          <Tooltip content="Add team members and manage roles">
+            <a
+              href="/dashboard/users"
+              className="card p-6 hover:border-green-500 border-2 border-transparent cursor-pointer group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 gradient-success rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <i className="fas fa-user-plus text-white text-xl"></i>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800 dark:text-white">User Management</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Add and manage users</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">User Management</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Add and manage users</p>
-              </div>
-            </div>
-          </a>
+            </a>
+          </Tooltip>
 
-          <a
-            href="/dashboard/admin-reports"
-            className="card p-6 hover:border-purple-500 border-2 border-transparent cursor-pointer group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <i className="fas fa-chart-line text-white text-xl"></i>
+          <Tooltip content="View reports from all projects">
+            <a
+              href="/dashboard/admin-reports"
+              className="card p-6 hover:border-purple-500 border-2 border-transparent cursor-pointer group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <i className="fas fa-chart-line text-white text-xl"></i>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800 dark:text-white">Admin Reports</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">View all reports</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">Admin Reports</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">View all reports</p>
-              </div>
-            </div>
-          </a>
+            </a>
+          </Tooltip>
         </div>
       )}
 
@@ -385,44 +410,11 @@ export default function DashboardPage() {
               })}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <i className="fas fa-folder-open text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
-              <p className="text-gray-500 dark:text-gray-400">No projects assigned yet.</p>
-            </div>
+            <NoProjectsEmptyState showCreateButton={false} />
           )}
         </div>
       )}
 
-      {/* User Profile Card */}
-      <div className="card p-6 mt-6">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-          Your Profile
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Full Name</p>
-            <p className="font-medium text-gray-800 dark:text-white mt-1">{user.full_name}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Role</p>
-            <span className="badge badge-purple mt-1 capitalize">
-              {user.role.replace('_', ' ')}
-            </span>
-          </div>
-          {user.email && (
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
-              <p className="font-medium text-gray-800 dark:text-white mt-1">{user.email}</p>
-            </div>
-          )}
-          {user.username && (
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Username</p>
-              <p className="font-medium text-gray-800 dark:text-white mt-1">{user.username}</p>
-            </div>
-          )}
-        </div>
-      </div>
     </DashboardLayout>
   );
 }
