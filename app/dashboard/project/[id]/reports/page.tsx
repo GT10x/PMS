@@ -1768,16 +1768,22 @@ export default function ProjectReportsPage() {
                                     <source src={url} type="video/quicktime" />
                                     Your browser does not support the video element.
                                   </video>
-                                  <a
-                                    href={url}
-                                    download
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 py-2 text-sm text-purple-600 hover:text-purple-800 dark:text-purple-400"
-                                  >
-                                    <i className="fas fa-download"></i>
-                                    Download Video
-                                  </a>
+                                  <div className="flex items-center justify-between px-3 py-2 bg-purple-100 dark:bg-purple-900/40">
+                                    <span className="text-xs text-purple-600 dark:text-purple-400">
+                                      <i className="fas fa-info-circle mr-1"></i>
+                                      Video not playing? Download to view (HEVC codec not supported in browser)
+                                    </span>
+                                    <a
+                                      href={url}
+                                      download
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition"
+                                    >
+                                      <i className="fas fa-download"></i>
+                                      Download
+                                    </a>
+                                  </div>
                                 </div>
                               );
                             }
@@ -1946,16 +1952,20 @@ export default function ProjectReportsPage() {
                                           <source src={url} type="video/quicktime" />
                                           Your browser does not support the video element.
                                         </video>
-                                        <a
-                                          href={url}
-                                          download
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="flex items-center justify-center gap-1 py-1.5 text-xs text-purple-600 hover:text-purple-800"
-                                        >
-                                          <i className="fas fa-download"></i>
-                                          Download
-                                        </a>
+                                        <div className="flex items-center justify-between px-2 py-1.5">
+                                          <span className="text-xs text-purple-600 dark:text-purple-400">
+                                            Not playing? Download
+                                          </span>
+                                          <a
+                                            href={url}
+                                            download
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1 px-2 py-0.5 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
+                                          >
+                                            <i className="fas fa-download"></i>
+                                          </a>
+                                        </div>
                                       </div>
                                     );
                                   }
