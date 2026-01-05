@@ -15,13 +15,11 @@ export async function GET(
   try {
     const { reportId } = await params;
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
+    const userId = cookieStore.get('user_id')?.value;
 
-    if (!sessionCookie) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const session = JSON.parse(sessionCookie.value);
 
     // Fetch replies with user info
     const { data: replies, error } = await supabase
@@ -57,13 +55,12 @@ export async function POST(
   try {
     const { reportId } = await params;
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
+    const userId = cookieStore.get('user_id')?.value;
 
-    if (!sessionCookie) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const session = JSON.parse(sessionCookie.value);
     const body = await request.json();
     const { content, attachments = [] } = body;
 
@@ -75,7 +72,7 @@ export async function POST(
     const { data: user } = await supabase
       .from('user_profiles')
       .select('role, is_admin')
-      .eq('id', session.userId)
+      .eq('id', userId)
       .single();
 
     // Create the reply
@@ -83,7 +80,7 @@ export async function POST(
       .from('report_replies')
       .insert({
         report_id: reportId,
-        user_id: session.userId,
+        user_id: userId,
         content: content.trim(),
         attachments
       })

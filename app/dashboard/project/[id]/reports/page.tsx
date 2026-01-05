@@ -311,9 +311,14 @@ export default function ProjectReportsPage() {
         fetchReports();
         // Refresh status log
         fetchStatusLog(selectedReport.id);
+      } else {
+        const errorData = await response.json();
+        console.error('Reply API error:', errorData);
+        alert('Failed to send reply: ' + (errorData.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error sending reply:', error);
+      alert('Error sending reply. Please try again.');
     } finally {
       setSendingReply(false);
     }

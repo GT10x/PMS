@@ -15,13 +15,12 @@ export async function PATCH(
   try {
     const { reportId } = await params;
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
+    const userId = cookieStore.get('user_id')?.value;
 
-    if (!sessionCookie) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const session = JSON.parse(sessionCookie.value);
     const body = await request.json();
     const { status } = body;
 
@@ -34,7 +33,7 @@ export async function PATCH(
     const { data: user } = await supabase
       .from('user_profiles')
       .select('id, full_name, role, is_admin')
-      .eq('id', session.userId)
+      .eq('id', userId)
       .single();
 
     if (!user) {
@@ -135,9 +134,9 @@ export async function GET(
   try {
     const { reportId } = await params;
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
+    const userId = cookieStore.get('user_id')?.value;
 
-    if (!sessionCookie) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
