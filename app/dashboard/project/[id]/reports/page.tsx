@@ -8,6 +8,7 @@ import { ReportCardSkeleton } from '@/components/LoadingSkeleton';
 import { NoReportsEmptyState } from '@/components/EmptyState';
 import Tooltip from '@/components/Tooltip';
 import Button from '@/components/Button';
+import { uploadFileDirect } from '@/lib/supabase';
 
 interface Report {
   id: string;
@@ -271,34 +272,22 @@ export default function ProjectReportsPage() {
 
     setSendingReply(true);
     try {
-      // Upload attachments first
+      // Upload attachments directly to Supabase (bypasses Vercel 4.5MB limit)
       const uploadedUrls: string[] = [];
 
       // Upload regular files
       for (const file of replyAttachments) {
-        const formDataToSend = new FormData();
-        formDataToSend.append('file', file);
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataToSend
-        });
-        if (uploadResponse.ok) {
-          const { url } = await uploadResponse.json();
+        const url = await uploadFileDirect(file);
+        if (url) {
           uploadedUrls.push(url);
         }
       }
 
       // Upload voice note if exists
       if (replyVoiceNote) {
-        const voiceFormData = new FormData();
         const voiceFile = new File([replyVoiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-        voiceFormData.append('file', voiceFile);
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: voiceFormData
-        });
-        if (uploadResponse.ok) {
-          const { url } = await uploadResponse.json();
+        const url = await uploadFileDirect(voiceFile);
+        if (url) {
           uploadedUrls.push(url);
         }
       }
@@ -577,38 +566,24 @@ export default function ProjectReportsPage() {
 
     setUploading(true);
     try {
-      // Upload attachments
+      // Upload attachments directly to Supabase (bypasses Vercel 4.5MB limit)
       const uploadedUrls: string[] = [];
 
       // Upload regular files
       for (const file of attachments) {
-        const formDataToSend = new FormData();
-        formDataToSend.append('file', file);
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataToSend
-        });
-
-        if (uploadResponse.ok) {
-          const { url } = await uploadResponse.json();
+        const url = await uploadFileDirect(file);
+        if (url) {
           uploadedUrls.push(url);
+        } else {
+          console.error('Failed to upload file:', file.name);
         }
       }
 
       // Upload voice note if exists
       if (voiceNote) {
-        const voiceFormData = new FormData();
         const voiceFile = new File([voiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-        voiceFormData.append('file', voiceFile);
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: voiceFormData
-        });
-
-        if (uploadResponse.ok) {
-          const { url } = await uploadResponse.json();
+        const url = await uploadFileDirect(voiceFile);
+        if (url) {
           uploadedUrls.push(url);
         }
       }
