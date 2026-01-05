@@ -1757,9 +1757,27 @@ export default function ProjectReportsPage() {
                                     <i className="fas fa-video text-purple-500"></i>
                                     <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Video</span>
                                   </div>
-                                  <video controls className="w-full max-h-72" src={url}>
+                                  <video
+                                    controls
+                                    playsInline
+                                    preload="metadata"
+                                    className="w-full max-h-72"
+                                  >
+                                    <source src={url} type="video/mp4" />
+                                    <source src={url} type="video/webm" />
+                                    <source src={url} type="video/quicktime" />
                                     Your browser does not support the video element.
                                   </video>
+                                  <a
+                                    href={url}
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 py-2 text-sm text-purple-600 hover:text-purple-800 dark:text-purple-400"
+                                  >
+                                    <i className="fas fa-download"></i>
+                                    Download Video
+                                  </a>
                                 </div>
                               );
                             }
@@ -1917,9 +1935,27 @@ export default function ProjectReportsPage() {
                                   if (isVideo) {
                                     return (
                                       <div key={idx} className="bg-purple-100 dark:bg-purple-900/30 rounded-lg overflow-hidden">
-                                        <video controls className="w-full max-h-48" src={url}>
+                                        <video
+                                          controls
+                                          playsInline
+                                          preload="metadata"
+                                          className="w-full max-h-48"
+                                        >
+                                          <source src={url} type="video/mp4" />
+                                          <source src={url} type="video/webm" />
+                                          <source src={url} type="video/quicktime" />
                                           Your browser does not support the video element.
                                         </video>
+                                        <a
+                                          href={url}
+                                          download
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center justify-center gap-1 py-1.5 text-xs text-purple-600 hover:text-purple-800"
+                                        >
+                                          <i className="fas fa-download"></i>
+                                          Download
+                                        </a>
                                       </div>
                                     );
                                   }
