@@ -1682,163 +1682,6 @@ export default function ProjectReportsPage() {
                 </div>
               )}
 
-              {/* Description */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                  <i className="fas fa-align-left text-indigo-500"></i>
-                  Description
-                </h4>
-                <div className="text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl whitespace-pre-wrap text-sm leading-relaxed max-h-64 overflow-y-auto">
-                  {selectedReport.description}
-                </div>
-              </div>
-
-              {/* Voice Notes Section */}
-              {selectedReport.attachments.length > 0 && (() => {
-                // Separate voice notes from other attachments
-                const voiceNotes = selectedReport.attachments.filter((url: string) => {
-                  const lower = url.toLowerCase();
-                  // Voice notes: contain 'voice', 'audio', or are .webm files (recorder uses webm)
-                  return lower.includes('voice') || lower.includes('audio') ||
-                         lower.endsWith('.webm') || lower.endsWith('.mp3') ||
-                         lower.endsWith('.wav') || lower.endsWith('.ogg') || lower.endsWith('.m4a');
-                });
-
-                const otherAttachments = selectedReport.attachments.filter((url: string) => {
-                  const lower = url.toLowerCase();
-                  return !(lower.includes('voice') || lower.includes('audio') ||
-                           lower.endsWith('.webm') || lower.endsWith('.mp3') ||
-                           lower.endsWith('.wav') || lower.endsWith('.ogg') || lower.endsWith('.m4a'));
-                });
-
-                return (
-                  <>
-                    {/* Voice Notes */}
-                    {voiceNotes.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                          <i className="fas fa-microphone text-indigo-500"></i>
-                          Voice Note{voiceNotes.length > 1 ? 's' : ''} ({voiceNotes.length})
-                        </h4>
-                        <div className="space-y-3">
-                          {voiceNotes.map((url: string, index: number) => (
-                            <div key={`voice-${index}`} className="border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 bg-indigo-50 dark:bg-indigo-900/20">
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <i className="fas fa-microphone text-white"></i>
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium text-gray-900 dark:text-white">Voice Note {voiceNotes.length > 1 ? index + 1 : ''}</p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Audio recording</p>
-                                </div>
-                              </div>
-                              <audio controls className="w-full h-10" src={url}>
-                                Your browser does not support the audio element.
-                              </audio>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Other Attachments */}
-                    {otherAttachments.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                          <i className="fas fa-paperclip text-indigo-500"></i>
-                          Attachments ({otherAttachments.length})
-                        </h4>
-                        <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                          {otherAttachments.map((url: string, index: number) => {
-                            const lowerUrl = url.toLowerCase();
-                            const isVideo = lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.mkv');
-                            const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp') || lowerUrl.endsWith('.svg');
-
-                            if (isVideo) {
-                              return (
-                                <div key={`attach-${index}`} className="border border-purple-200 dark:border-purple-800 rounded-xl overflow-hidden bg-purple-50 dark:bg-purple-900/20">
-                                  <div className="flex items-center gap-2 px-3 py-2 border-b border-purple-200 dark:border-purple-800">
-                                    <i className="fas fa-video text-purple-500"></i>
-                                    <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Video</span>
-                                  </div>
-                                  <video
-                                    controls
-                                    playsInline
-                                    preload="metadata"
-                                    className="w-full max-h-72"
-                                  >
-                                    <source src={url} type="video/mp4" />
-                                    <source src={url} type="video/webm" />
-                                    <source src={url} type="video/quicktime" />
-                                    Your browser does not support the video element.
-                                  </video>
-                                  <div className="flex items-center justify-between px-3 py-2 bg-purple-100 dark:bg-purple-900/40">
-                                    <span className="text-xs text-purple-600 dark:text-purple-400">
-                                      <i className="fas fa-info-circle mr-1"></i>
-                                      Video not playing? Download to view (HEVC codec not supported in browser)
-                                    </span>
-                                    <a
-                                      href={url}
-                                      download
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition"
-                                    >
-                                      <i className="fas fa-download"></i>
-                                      Download
-                                    </a>
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            if (isImage) {
-                              return (
-                                <div key={`attach-${index}`} className="border border-green-200 dark:border-green-800 rounded-xl overflow-hidden bg-green-50 dark:bg-green-900/20">
-                                  <div className="flex items-center gap-2 px-3 py-2 border-b border-green-200 dark:border-green-800">
-                                    <i className="fas fa-image text-green-500"></i>
-                                    <span className="text-sm font-medium text-green-700 dark:text-green-300">Image</span>
-                                    <a href={url} target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-green-600 hover:underline flex items-center gap-1">
-                                      Open full size <i className="fas fa-external-link-alt"></i>
-                                    </a>
-                                  </div>
-                                  <a href={url} target="_blank" rel="noopener noreferrer">
-                                    <img src={url} alt={`Attachment ${index + 1}`} className="w-full max-h-56 object-contain bg-white dark:bg-gray-800" />
-                                  </a>
-                                </div>
-                              );
-                            }
-
-                            // Other files
-                            const fileName = decodeURIComponent(url.split('/').pop() || 'Unknown file');
-                            return (
-                              <a
-                                key={`attach-${index}`}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block border border-gray-300 dark:border-gray-600 rounded-xl p-3 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i className="fas fa-file text-gray-500 dark:text-gray-400"></i>
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{fileName}</p>
-                                    <p className="text-xs text-gray-500">File attachment</p>
-                                  </div>
-                                  <i className="fas fa-external-link-alt text-gray-400 flex-shrink-0"></i>
-                                </div>
-                              </a>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-
               {/* Developer Notes */}
               {selectedReport.dev_notes && (
                 <div>
@@ -1857,26 +1700,188 @@ export default function ProjectReportsPage() {
                 <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <i className="fas fa-comments text-indigo-500"></i>
                   Discussion Thread
-                  {replies.length > 0 && (
-                    <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                      ({replies.length} {replies.length === 1 ? 'reply' : 'replies'})
-                    </span>
-                  )}
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                    ({replies.length + 1} {replies.length + 1 === 1 ? 'message' : 'messages'})
+                  </span>
                 </h4>
 
-                {/* Replies List */}
-                <div className="space-y-4 max-h-80 overflow-y-auto mb-4">
+                {/* Thread List - Original Report + Replies */}
+                <div className="space-y-3 max-h-[500px] overflow-y-auto mb-4">
                   {loadingReplies ? (
                     <div className="flex items-center justify-center py-8">
                       <i className="fas fa-spinner animate-spin text-indigo-500 text-2xl"></i>
                     </div>
-                  ) : replies.length === 0 ? (
-                    <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                      <i className="fas fa-comment-slash text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
-                      <p className="text-gray-500 dark:text-gray-400 text-sm">No replies yet</p>
-                      <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Be the first to respond to this report</p>
-                    </div>
                   ) : (
+                    <>
+                      {/* Original Report Card */}
+                      {(() => {
+                        const isExpanded = expandedReplies.has('original-report');
+                        const hasAttachments = selectedReport.attachments && selectedReport.attachments.length > 0;
+
+                        // Count attachment types for summary
+                        const getAttachmentSummary = (attachments: string[]) => {
+                          if (!attachments || attachments.length === 0) return null;
+                          let voiceNotes = 0, videos = 0, images = 0, files = 0;
+                          attachments.forEach((url: string) => {
+                            const lowerUrl = url.toLowerCase();
+                            const isVoiceNote = lowerUrl.includes('voice') || lowerUrl.includes('audio') || lowerUrl.endsWith('.webm');
+                            const isAudio = isVoiceNote || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a');
+                            const isVideo = !isVoiceNote && (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.mkv'));
+                            const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp');
+                            if (isAudio) voiceNotes++;
+                            else if (isVideo) videos++;
+                            else if (isImage) images++;
+                            else files++;
+                          });
+                          const parts = [];
+                          if (voiceNotes > 0) parts.push(`🎤 ${voiceNotes}`);
+                          if (videos > 0) parts.push(`🎬 ${videos}`);
+                          if (images > 0) parts.push(`🖼️ ${images}`);
+                          if (files > 0) parts.push(`📄 ${files}`);
+                          return parts.join('  ');
+                        };
+                        const attachmentSummary = getAttachmentSummary(selectedReport.attachments);
+
+                        return (
+                          <div className="border-2 border-indigo-200 dark:border-indigo-800 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                            {/* Collapsed Header */}
+                            <button
+                              onClick={() => toggleReplyExpanded('original-report')}
+                              className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors ${
+                                isExpanded ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
+                              }`}
+                            >
+                              {/* Expand/Collapse Icon */}
+                              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400">
+                                <i className={`fas ${isExpanded ? 'fa-minus' : 'fa-plus'} text-xs`}></i>
+                              </div>
+
+                              {/* User Avatar */}
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-orange-500">
+                                <span className="text-white font-semibold text-xs">
+                                  {selectedReport.reported_by_user.full_name.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+
+                              {/* Name & Time */}
+                              <div className="flex-1 text-left min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                                    {selectedReport.reported_by_user.full_name}
+                                  </span>
+                                  <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-medium rounded">
+                                    REPORTER
+                                  </span>
+                                  <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                                    {formatRelativeTime(selectedReport.created_at)}
+                                  </span>
+                                </div>
+                                {/* Preview when collapsed */}
+                                {!isExpanded && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                    {selectedReport.description.substring(0, 80)}{selectedReport.description.length > 80 ? '...' : ''}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Attachment Summary */}
+                              {attachmentSummary && (
+                                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                  {attachmentSummary}
+                                </div>
+                              )}
+                            </button>
+
+                            {/* Expanded Content */}
+                            {isExpanded && (
+                              <div className="px-4 pb-4 border-t border-indigo-100 dark:border-indigo-800">
+                                {/* Description */}
+                                <div className="mt-3">
+                                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                    {selectedReport.description}
+                                  </p>
+                                </div>
+
+                                {/* Attachments */}
+                                {hasAttachments && (
+                                  <div className="mt-3 space-y-2">
+                                    {selectedReport.attachments.map((url: string, idx: number) => {
+                                      const lowerUrl = url.toLowerCase();
+                                      const isVoiceNote = lowerUrl.includes('voice') || lowerUrl.includes('audio') || lowerUrl.endsWith('.webm');
+                                      const isAudio = isVoiceNote || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a');
+                                      const isVideo = !isVoiceNote && (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.mkv'));
+                                      const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp');
+
+                                      if (isAudio) {
+                                        return (
+                                          <div key={idx} className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <i className="fas fa-microphone text-indigo-600 dark:text-indigo-400"></i>
+                                              <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Voice Note</span>
+                                            </div>
+                                            <audio controls className="w-full h-10" src={url}>
+                                              Your browser does not support the audio element.
+                                            </audio>
+                                          </div>
+                                        );
+                                      }
+
+                                      if (isVideo) {
+                                        return (
+                                          <div key={idx} className="bg-purple-50 dark:bg-purple-900/20 rounded-lg overflow-hidden">
+                                            <video controls playsInline preload="metadata" className="w-full max-h-64">
+                                              <source src={url} type="video/mp4" />
+                                              <source src={url} type="video/webm" />
+                                              Your browser does not support the video element.
+                                            </video>
+                                            <a
+                                              href={url}
+                                              download
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm"
+                                            >
+                                              <i className="fas fa-download"></i> Download Video
+                                            </a>
+                                          </div>
+                                        );
+                                      }
+
+                                      if (isImage) {
+                                        return (
+                                          <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
+                                            <a href={url} target="_blank" rel="noopener noreferrer">
+                                              <img src={url} alt="Attachment" className="max-w-full max-h-64 rounded-lg mx-auto" />
+                                            </a>
+                                          </div>
+                                        );
+                                      }
+
+                                      const fileName = decodeURIComponent(url.split('/').pop() || 'File');
+                                      return (
+                                        <a
+                                          key={idx}
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600/50 transition-colors"
+                                        >
+                                          <i className="fas fa-file text-gray-500 dark:text-gray-400"></i>
+                                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{fileName}</span>
+                                          <i className="fas fa-external-link-alt text-gray-400 text-xs ml-auto"></i>
+                                        </a>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Replies */}
+                      {replies.length > 0 && (
                     replies.map((reply) => {
                       const isOwnMessage = reply.user.id === currentUser?.id;
                       const hasAttachments = reply.attachments && reply.attachments.length > 0;
@@ -2057,6 +2062,8 @@ export default function ProjectReportsPage() {
                         )}
                       </div>
                     )})
+                      )}
+                    </>
                   )}
                 </div>
 
