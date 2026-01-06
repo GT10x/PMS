@@ -1528,9 +1528,18 @@ export default function ProjectReportsPage() {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <span className="text-2xl flex-shrink-0">{getTypeEmoji(selectedReport.type)}</span>
-                  <h3 className={`text-lg md:text-xl font-bold truncate ${selectedReport.is_deleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>
-                    {selectedReport.title}
-                  </h3>
+                  <div className="flex-1 min-w-0">
+                    <h3 className={`text-lg md:text-xl font-bold truncate ${selectedReport.is_deleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>
+                      {selectedReport.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      <span className="capitalize">{selectedReport.type}</span>
+                      <span className="mx-2">•</span>
+                      <span>by {selectedReport.reported_by_user.full_name}</span>
+                      <span className="mx-2">•</span>
+                      <span>{new Date(selectedReport.created_at).toLocaleDateString()}</span>
+                    </p>
+                  </div>
 
                   {/* Status Dropdown - Inline with title */}
                   {!selectedReport.is_deleted && (
@@ -1681,54 +1690,6 @@ export default function ProjectReportsPage() {
                 </h4>
                 <div className="text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl whitespace-pre-wrap text-sm leading-relaxed max-h-64 overflow-y-auto">
                   {selectedReport.description}
-                </div>
-              </div>
-
-              {/* Metadata Grid */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                  <i className="fas fa-info-circle text-indigo-500"></i>
-                  Details
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Type</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{selectedReport.type}</p>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reported By</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{selectedReport.reported_by_user.full_name}</p>
-                  </div>
-                  {selectedReport.assigned_to_user && (
-                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assigned To</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{selectedReport.assigned_to_user.full_name}</p>
-                    </div>
-                  )}
-                  {selectedReport.version && (
-                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Version</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.version.version_number}</p>
-                    </div>
-                  )}
-                  {selectedReport.browser && (
-                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Browser</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.browser}</p>
-                    </div>
-                  )}
-                  {selectedReport.device && (
-                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Device</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedReport.device}</p>
-                    </div>
-                  )}
-                  <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Created</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {new Date(selectedReport.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
                 </div>
               </div>
 
