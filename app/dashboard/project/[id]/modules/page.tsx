@@ -508,6 +508,11 @@ export default function ProjectModulesPage() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                       {module.name}
+                      {module.created_by_user && (
+                        <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">
+                          by {module.created_by_user.full_name}
+                        </span>
+                      )}
                     </h3>
                     {!isExpanded && descriptionLines.length > 0 && (
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-0.5">
@@ -547,12 +552,7 @@ export default function ProjectModulesPage() {
                           <span>Stakeholders: {module.stakeholders.join(', ')}</span>
                         </div>
                       )}
-                      {module.created_by_user && (
-                        <div className="flex items-center gap-1">
-                          <i className="fas fa-user text-gray-400"></i>
-                          <span>Created by {module.created_by_user.full_name}</span>
-                        </div>
-                      )}
+
                     </div>
 
                     {/* Features List with Inline Editing */}
