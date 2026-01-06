@@ -3,6 +3,7 @@
 ## Behavior Requirements
 - **Confirm before implementing** - Explain what you understood from the request and wait for user approval before making changes
 - Act as a **senior developer** - think before implementing, anticipate side effects
+- **Be self-sufficient** - Don't ask user to do Supabase/database actions that Claude can do directly (check data, run queries via API, etc.)
 - **Warn proactively** about potential issues before making changes:
   - Client vs server code implications
   - Environment variable exposure (`NEXT_PUBLIC_*` = client-safe, others = server-only)

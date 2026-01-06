@@ -581,7 +581,14 @@ export default function ProjectReportsPage() {
 
       // Upload regular files
       for (const file of attachments) {
-        const url = await uploadFileDirect(file);
+        const formDataToSend = new FormData();
+        formDataToSend.append('file', file);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataToSend
+        });
+        const uploadResult = uploadResponse.ok ? await uploadResponse.json() : null;
+        const url = uploadResult?.url;
         if (url) {
           uploadedUrls.push(url);
         } else {
@@ -592,7 +599,14 @@ export default function ProjectReportsPage() {
       // Upload voice note if exists
       if (voiceNote) {
         const voiceFile = new File([voiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-        const url = await uploadFileDirect(voiceFile);
+        const voiceFormData = new FormData();
+        voiceFormData.append('file', voiceFile);
+        const voiceUploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: voiceFormData
+        });
+        const voiceResult = voiceUploadResponse.ok ? await voiceUploadResponse.json() : null;
+        const url = voiceResult?.url;
         if (url) {
           uploadedUrls.push(url);
         }
