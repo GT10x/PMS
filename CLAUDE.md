@@ -26,3 +26,10 @@
 - Using wrong cookie name for auth (must be `user_id`)
 - Forgetting that `SUPABASE_SERVICE_ROLE_KEY` is not available on client
 - Not handling async params in Next.js 15 App Router (`params` is a Promise)
+
+## UI/UX Best Practices - IMPORTANT
+- **Catch redundancies** - If the same control/function exists in multiple places, remove the duplicate. Don't wait to be asked twice.
+- **Question duplicate functionality** - Before implementing, check if similar functionality already exists elsewhere in the same view/modal
+- **Think holistically** - When removing/adding a feature, check ALL places it might appear (header, sidebar, modal, etc.)
+- **Clean up related code** - When removing a feature, also remove related fields, state, API calls that become unused
+- **Don't behave like an intern** - A senior developer catches these issues proactively, not after being told
