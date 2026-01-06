@@ -2161,22 +2161,7 @@ export default function ProjectReportsPage() {
                     <i className="fas fa-cog text-indigo-500"></i>
                     Manage Report
                   </h4>
-                  <div className="space-y-4">
-                    {/* Status */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
-                      <select
-                        value={editData.status}
-                        onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-                        className="input-field"
-                      >
-                        <option value="open">Open</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="wont_fix">Won't Fix</option>
-                      </select>
-                    </div>
-
+                  <div>
                     {/* Developer Notes */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Developer Notes</label>
