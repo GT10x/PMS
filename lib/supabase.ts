@@ -3,13 +3,17 @@ import { Database } from './types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Client for public/anon access
+// Client for public/anon access (works on both client and server)
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // Server-side client with service role key for admin operations
-export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceRoleKey);
+// On client-side, supabaseServiceRoleKey is undefined, so we use a dummy client
+// This is safe because supabaseAdmin should never be called from client-side code
+export const supabaseAdmin = supabaseServiceRoleKey
+  ? createClient<Database>(supabaseUrl, supabaseServiceRoleKey)
+  : createClient<Database>(supabaseUrl, supabaseAnonKey); // Fallback for type safety
 
 // Direct upload to Supabase storage (bypasses Vercel 4.5MB limit)
 export async function uploadFileDirect(file: File): Promise<string | null> {
