@@ -2200,7 +2200,7 @@ export default function ProjectReportsPage() {
                     <i className="fas fa-cog text-indigo-500"></i>
                     Manage Report
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     {/* Status */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
@@ -2216,25 +2216,8 @@ export default function ProjectReportsPage() {
                       </select>
                     </div>
 
-                    {/* Assign To */}
+                    {/* Developer Notes */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assign To</label>
-                      <select
-                        value={editData.assigned_to}
-                        onChange={(e) => setEditData({ ...editData, assigned_to: e.target.value })}
-                        className="input-field"
-                      >
-                        <option value="">Unassigned</option>
-                        {users.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.full_name} ({user.role})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Developer Notes - Full width */}
-                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Developer Notes</label>
                       <textarea
                         value={editData.dev_notes}
