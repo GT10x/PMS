@@ -15,34 +15,44 @@ export const supabaseAdmin = supabaseServiceRoleKey
   ? createClient<Database>(supabaseUrl, supabaseServiceRoleKey)
   : createClient<Database>(supabaseUrl, supabaseAnonKey); // Fallback for type safety
 
-// Direct upload to Supabase storage (bypasses Vercel 4.5MB limit)
-export async function uploadFileDirect(file: File): Promise<string | null> {
+// Upload file using signed URL (bypasses Vercel 4.5MB limit for large files)
+// This is the recommended approach for files of any size
+export async function uploadFileWithSignedUrl(file: File): Promise<string | null> {
   try {
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(7);
-    const fileExt = file.name.split('.').pop();
-    const isVoiceNote = file.name.toLowerCase().includes('voice');
-    const fileName = isVoiceNote
-      ? `voice-${timestamp}-${randomString}.${fileExt}`
-      : `${timestamp}-${randomString}.${fileExt}`;
+    // Step 1: Get signed URL from server
+    const response = await fetch('/api/upload/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type
+      })
+    });
 
-    const { data, error } = await supabase.storage
-      .from('report-attachments')
-      .upload(fileName, file, {
-        contentType: file.type,
-        cacheControl: '3600'
-      });
-
-    if (error) {
-      console.error('Direct upload error:', error);
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Failed to get signed URL:', error);
       return null;
     }
 
-    const { data: urlData } = supabase.storage
-      .from('report-attachments')
-      .getPublicUrl(fileName);
+    const { signedUrl, publicUrl } = await response.json();
 
-    return urlData.publicUrl;
+    // Step 2: Upload directly to Supabase using signed URL
+    const uploadResponse = await fetch(signedUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type,
+      },
+      body: file
+    });
+
+    if (!uploadResponse.ok) {
+      console.error('Failed to upload file:', uploadResponse.statusText);
+      return null;
+    }
+
+    // Step 3: Return the public URL
+    return publicUrl;
   } catch (error) {
     console.error('Upload error:', error);
     return null;

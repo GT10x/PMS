@@ -8,7 +8,7 @@ import { ReportCardSkeleton } from '@/components/LoadingSkeleton';
 import { NoReportsEmptyState } from '@/components/EmptyState';
 import Tooltip from '@/components/Tooltip';
 import Button from '@/components/Button';
-import { uploadFileDirect } from '@/lib/supabase';
+import { uploadFileWithSignedUrl } from '@/lib/supabase';
 
 interface Report {
   id: string;
@@ -282,7 +282,7 @@ export default function ProjectReportsPage() {
 
       // Upload regular files
       for (const file of replyAttachments) {
-        const url = await uploadFileDirect(file);
+        const url = await uploadFileWithSignedUrl(file);
         if (url) {
           uploadedUrls.push(url);
         }
@@ -291,7 +291,7 @@ export default function ProjectReportsPage() {
       // Upload voice note if exists
       if (replyVoiceNote) {
         const voiceFile = new File([replyVoiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-        const url = await uploadFileDirect(voiceFile);
+        const url = await uploadFileWithSignedUrl(voiceFile);
         if (url) {
           uploadedUrls.push(url);
         }
@@ -581,14 +581,7 @@ export default function ProjectReportsPage() {
 
       // Upload regular files
       for (const file of attachments) {
-        const formDataToSend = new FormData();
-        formDataToSend.append('file', file);
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataToSend
-        });
-        const uploadResult = uploadResponse.ok ? await uploadResponse.json() : null;
-        const url = uploadResult?.url;
+        const url = await uploadFileWithSignedUrl(file);
         if (url) {
           uploadedUrls.push(url);
         } else {
@@ -599,14 +592,7 @@ export default function ProjectReportsPage() {
       // Upload voice note if exists
       if (voiceNote) {
         const voiceFile = new File([voiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-        const voiceFormData = new FormData();
-        voiceFormData.append('file', voiceFile);
-        const voiceUploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: voiceFormData
-        });
-        const voiceResult = voiceUploadResponse.ok ? await voiceUploadResponse.json() : null;
-        const url = voiceResult?.url;
+        const url = await uploadFileWithSignedUrl(voiceFile);
         if (url) {
           uploadedUrls.push(url);
         }
@@ -841,29 +827,17 @@ export default function ProjectReportsPage() {
       // Upload new files
       const uploadedUrls: string[] = [];
       for (const file of newEditFiles) {
-        const formDataToSend = new FormData();
-        formDataToSend.append('file', file);
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataToSend
-        });
-        if (uploadResponse.ok) {
-          const { url } = await uploadResponse.json();
+        const url = await uploadFileWithSignedUrl(file);
+        if (url) {
           uploadedUrls.push(url);
         }
       }
 
       // Upload new voice note if exists
       if (editVoiceNote) {
-        const voiceFormData = new FormData();
         const voiceFile = new File([editVoiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-        voiceFormData.append('file', voiceFile);
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: voiceFormData
-        });
-        if (uploadResponse.ok) {
-          const { url } = await uploadResponse.json();
+        const url = await uploadFileWithSignedUrl(voiceFile);
+        if (url) {
           uploadedUrls.push(url);
         }
       }
