@@ -1882,83 +1882,123 @@ export default function ProjectReportsPage() {
                       const hasAttachments = reply.attachments && reply.attachments.length > 0;
                       const isExpanded = expandedReplies.has(reply.id);
 
+                      // Count attachment types for summary
+                      const getAttachmentSummary = (attachments: string[]) => {
+                        if (!attachments || attachments.length === 0) return null;
+                        let voiceNotes = 0, videos = 0, images = 0, files = 0;
+                        attachments.forEach((url: string) => {
+                          const lowerUrl = url.toLowerCase();
+                          const isVoiceNote = lowerUrl.includes('voice') || lowerUrl.includes('audio') || lowerUrl.endsWith('.webm');
+                          const isAudio = isVoiceNote || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a');
+                          const isVideo = !isVoiceNote && (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.mkv'));
+                          const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp');
+                          if (isAudio) voiceNotes++;
+                          else if (isVideo) videos++;
+                          else if (isImage) images++;
+                          else files++;
+                        });
+                        const parts = [];
+                        if (voiceNotes > 0) parts.push(`🎤 ${voiceNotes}`);
+                        if (videos > 0) parts.push(`🎬 ${videos}`);
+                        if (images > 0) parts.push(`🖼️ ${images}`);
+                        if (files > 0) parts.push(`📄 ${files}`);
+                        return parts.join('  ');
+                      };
+                      const attachmentSummary = getAttachmentSummary(reply.attachments);
+                      const hasContent = reply.content && reply.content !== '(Attachment)';
+
                       return (
                       <div
                         key={reply.id}
-                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                        className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm"
                       >
-                        <div className={`max-w-[85%] ${isOwnMessage ? 'order-2' : ''}`}>
-                          {/* Chat Bubble */}
-                          <div className={`relative px-4 py-2 rounded-2xl ${
+                        {/* Collapsed Header - Always visible */}
+                        <button
+                          onClick={() => toggleReplyExpanded(reply.id)}
+                          className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                            isExpanded ? 'bg-gray-50 dark:bg-gray-700/50' : ''
+                          }`}
+                        >
+                          {/* Expand/Collapse Icon */}
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
                             isOwnMessage
-                              ? 'bg-indigo-500 text-white rounded-br-md'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-md'
+                              ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400'
+                              : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                           }`}>
-                            {/* Header: Name & Time */}
-                            <div className={`flex items-center gap-2 mb-1 ${isOwnMessage ? 'justify-end' : ''}`}>
-                              <span className={`font-medium text-xs ${isOwnMessage ? 'text-indigo-100' : 'text-gray-600 dark:text-gray-400'}`}>
+                            <i className={`fas ${isExpanded ? 'fa-minus' : 'fa-plus'} text-xs`}></i>
+                          </div>
+
+                          {/* User Avatar */}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            reply.user.role === 'developer' || reply.user.role === 'react_native_developer'
+                              ? 'bg-blue-500'
+                              : reply.user.role === 'tester'
+                              ? 'bg-orange-500'
+                              : reply.user.role === 'project_manager'
+                              ? 'bg-purple-500'
+                              : 'bg-gray-500'
+                          }`}>
+                            <span className="text-white font-semibold text-xs">
+                              {reply.user.full_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+
+                          {/* Name & Time */}
+                          <div className="flex-1 text-left min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
                                 {reply.user.full_name}
                               </span>
-                              <span className={`text-xs ${isOwnMessage ? 'text-indigo-200' : 'text-gray-400 dark:text-gray-500'}`}>
+                              <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
                                 {formatRelativeTime(reply.created_at)}
                               </span>
                             </div>
-
-                            {/* Message Content */}
-                            {reply.content !== '(Attachment)' && (
-                              <p className="text-sm whitespace-pre-wrap">
-                                {reply.content}
+                            {/* Preview of content when collapsed */}
+                            {!isExpanded && hasContent && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                {reply.content.substring(0, 60)}{reply.content.length > 60 ? '...' : ''}
                               </p>
-                            )}
-
-                            {/* Collapsed Attachments Indicator */}
-                            {hasAttachments && !isExpanded && (
-                              <button
-                                onClick={() => toggleReplyExpanded(reply.id)}
-                                className={`mt-2 flex items-center gap-2 text-xs px-2 py-1 rounded-lg transition-colors ${
-                                  isOwnMessage
-                                    ? 'bg-indigo-400/30 hover:bg-indigo-400/50 text-indigo-100'
-                                    : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300'
-                                }`}
-                              >
-                                <i className="fas fa-paperclip"></i>
-                                <span>{reply.attachments.length} attachment{reply.attachments.length > 1 ? 's' : ''}</span>
-                                <i className="fas fa-chevron-down text-[10px]"></i>
-                              </button>
                             )}
                           </div>
 
-                          {/* Expanded Attachments */}
-                          {hasAttachments && isExpanded && (
-                            <div className={`mt-2 p-3 rounded-xl border ${
-                              isOwnMessage
-                                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800'
-                                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                            }`}>
-                              <button
-                                onClick={() => toggleReplyExpanded(reply.id)}
-                                className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-2 hover:text-gray-700 dark:hover:text-gray-300"
-                              >
-                                <i className="fas fa-paperclip"></i>
-                                <span>{reply.attachments.length} attachment{reply.attachments.length > 1 ? 's' : ''}</span>
-                                <i className="fas fa-chevron-up text-[10px]"></i>
-                              </button>
-                              <div className="space-y-2">
+                          {/* Attachment Summary */}
+                          {attachmentSummary && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                              {attachmentSummary}
+                            </div>
+                          )}
+                        </button>
+
+                        {/* Expanded Content */}
+                        {isExpanded && (
+                          <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700">
+                            {/* Message Content */}
+                            {hasContent && (
+                              <div className="mt-3">
+                                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                  {reply.content}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Attachments */}
+                            {hasAttachments && (
+                              <div className="mt-3 space-y-2">
                                 {reply.attachments.map((url, idx) => {
                                   const lowerUrl = url.toLowerCase();
                                   const isVoiceNote = lowerUrl.includes('voice') || lowerUrl.includes('audio') || lowerUrl.endsWith('.webm');
                                   const isAudio = isVoiceNote || lowerUrl.endsWith('.mp3') || lowerUrl.endsWith('.wav') || lowerUrl.endsWith('.ogg') || lowerUrl.endsWith('.m4a');
-                                  const isVideo = !isVoiceNote && (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi'));
+                                  const isVideo = !isVoiceNote && (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.mov') || lowerUrl.endsWith('.avi') || lowerUrl.endsWith('.mkv'));
                                   const isImage = lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp');
 
                                   if (isAudio) {
                                     return (
-                                      <div key={idx} className="bg-indigo-100 dark:bg-indigo-900/30 rounded-lg p-2">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <i className="fas fa-microphone text-indigo-600 dark:text-indigo-400 text-sm"></i>
-                                          <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Voice Note</span>
+                                      <div key={idx} className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <i className="fas fa-microphone text-indigo-600 dark:text-indigo-400"></i>
+                                          <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Voice Note</span>
                                         </div>
-                                        <audio controls className="w-full h-8" src={url}>
+                                        <audio controls className="w-full h-10" src={url}>
                                           Your browser does not support the audio element.
                                         </audio>
                                       </div>
@@ -1967,8 +2007,8 @@ export default function ProjectReportsPage() {
 
                                   if (isVideo) {
                                     return (
-                                      <div key={idx} className="bg-purple-100 dark:bg-purple-900/30 rounded-lg overflow-hidden">
-                                        <video controls playsInline preload="metadata" className="w-full max-h-40">
+                                      <div key={idx} className="bg-purple-50 dark:bg-purple-900/20 rounded-lg overflow-hidden">
+                                        <video controls playsInline preload="metadata" className="w-full max-h-64">
                                           <source src={url} type="video/mp4" />
                                           <source src={url} type="video/webm" />
                                           Your browser does not support the video element.
@@ -1978,9 +2018,9 @@ export default function ProjectReportsPage() {
                                           download
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="flex items-center justify-center gap-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                                          className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm"
                                         >
-                                          <i className="fas fa-download"></i> Download
+                                          <i className="fas fa-download"></i> Download Video
                                         </a>
                                       </div>
                                     );
@@ -1988,9 +2028,11 @@ export default function ProjectReportsPage() {
 
                                   if (isImage) {
                                     return (
-                                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
-                                        <img src={url} alt="Attachment" className="max-w-full max-h-40 rounded-lg" />
-                                      </a>
+                                      <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
+                                        <a href={url} target="_blank" rel="noopener noreferrer">
+                                          <img src={url} alt="Attachment" className="max-w-full max-h-64 rounded-lg mx-auto" />
+                                        </a>
+                                      </div>
                                     );
                                   }
 
@@ -2001,17 +2043,18 @@ export default function ProjectReportsPage() {
                                       href={url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                                      className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600/50 transition-colors"
                                     >
-                                      <i className="fas fa-file"></i>
-                                      {fileName}
+                                      <i className="fas fa-file text-gray-500 dark:text-gray-400"></i>
+                                      <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{fileName}</span>
+                                      <i className="fas fa-external-link-alt text-gray-400 text-xs ml-auto"></i>
                                     </a>
                                   );
                                 })}
                               </div>
-                            </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )})
                   )}
