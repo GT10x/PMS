@@ -119,6 +119,9 @@ export default function ProjectReportsPage() {
   const [statusLog, setStatusLog] = useState<StatusLog[]>([]);
   const [loadingStatusLog, setLoadingStatusLog] = useState(false);
 
+  // Unread reply counts state
+  const [unreadReplyCounts, setUnreadReplyCounts] = useState<Record<string, number>>({});
+
   // Reply attachments state
   const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
   const [replyIsRecording, setReplyIsRecording] = useState(false);
@@ -136,6 +139,7 @@ export default function ProjectReportsPage() {
     fetchUsers();
     fetchCurrentUser();
     markReportsAsRead();
+    fetchUnreadReplyCounts();
   }, [statusFilter, typeFilter]);
 
   const markReportsAsRead = async () => {
@@ -144,6 +148,24 @@ export default function ProjectReportsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ project_id: projectId, type: 'reports' })
+      });
+    } catch (error) {
+      // Silent fail
+    }
+  };
+
+  const markReportAsRead = async (reportId: string) => {
+    try {
+      await fetch('/api/notifications/report-replies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_id: reportId })
+      });
+      // Update local state to remove the count
+      setUnreadReplyCounts(prev => {
+        const updated = { ...prev };
+        delete updated[reportId];
+        return updated;
       });
     } catch (error) {
       // Silent fail
@@ -196,6 +218,18 @@ export default function ProjectReportsPage() {
       console.error('Error fetching reports:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUnreadReplyCounts = async () => {
+    try {
+      const response = await fetch(`/api/notifications/report-replies?project_id=${projectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadReplyCounts(data.counts || {});
+      }
+    } catch (error) {
+      console.error('Error fetching unread reply counts:', error);
     }
   };
 
@@ -636,6 +670,8 @@ export default function ProjectReportsPage() {
 
   const handleViewReport = (report: Report) => {
     setSelectedReport(report);
+    // Mark this report as read
+    markReportAsRead(report.id);
     setEditData({
       status: report.status,
       assigned_to: report.assigned_to_user?.full_name || '',
@@ -1091,6 +1127,12 @@ export default function ProjectReportsPage() {
                     {report.edited_at && !report.is_deleted && (
                       <span className="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-xs font-medium rounded-full">
                         Edited
+                      </span>
+                    )}
+                    {unreadReplyCounts[report.id] > 0 && (
+                      <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs font-medium rounded-full flex items-center gap-1">
+                        <i className="fas fa-reply"></i>
+                        {unreadReplyCounts[report.id]} new
                       </span>
                     )}
                   </div>
