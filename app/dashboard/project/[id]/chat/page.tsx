@@ -465,6 +465,13 @@ export default function ProjectChatPage() {
             Versions
           </a>
           <a
+            href={`/dashboard/project/${projectId}/modules`}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
+          >
+            <i className="fas fa-cubes"></i>
+            Modules
+          </a>
+          <a
             href={`/dashboard/project/${projectId}/chat`}
             className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm"
           >

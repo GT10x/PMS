@@ -1,0 +1,763 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import DashboardLayout from '@/components/DashboardLayout';
+import Breadcrumb from '@/components/Breadcrumb';
+
+interface Module {
+  id: string;
+  name: string;
+  description: string | null;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'planned' | 'in_progress' | 'completed' | 'on_hold';
+  eta: string | null;
+  stakeholders: string[];
+  created_at: string;
+  updated_at: string;
+  created_by_user?: { id: string; full_name: string };
+}
+
+interface User {
+  id: string;
+  full_name: string;
+  role: string;
+  is_admin?: boolean;
+}
+
+interface Project {
+  id: string;
+  name: string;
+}
+
+export default function ProjectModulesPage() {
+  const router = useRouter();
+  const params = useParams();
+  const projectId = params.id as string;
+
+  const [project, setProject] = useState<Project | null>(null);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+
+  // Modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedModule, setSelectedModule] = useState<Module | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    priority: 'medium',
+    status: 'planned',
+    eta: '',
+    stakeholders: ''
+  });
+
+  useEffect(() => {
+    fetchProject();
+    fetchModules();
+    fetchCurrentUser();
+  }, []);
+
+  const fetchProject = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/view`);
+      if (response.ok) {
+        const data = await response.json();
+        setProject(data);
+      }
+    } catch (error) {
+      console.error('Error fetching project:', error);
+    }
+  };
+
+  const fetchModules = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules`);
+      if (response.ok) {
+        const data = await response.json();
+        setModules(data.modules || []);
+      }
+    } catch (error) {
+      console.error('Error fetching modules:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentUser(data.user);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
+
+  const canManageModules = () => {
+    if (!currentUser) return false;
+    return currentUser.is_admin ||
+           currentUser.role === 'project_manager' ||
+           currentUser.role === 'cto';
+  };
+
+  const toggleExpanded = (moduleId: string) => {
+    setExpandedModules(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(moduleId)) {
+        newSet.delete(moduleId);
+      } else {
+        newSet.add(moduleId);
+      }
+      return newSet;
+    });
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      priority: 'medium',
+      status: 'planned',
+      eta: '',
+      stakeholders: ''
+    });
+  };
+
+  const openAddModal = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (module: Module) => {
+    setSelectedModule(module);
+    setFormData({
+      name: module.name,
+      description: module.description || '',
+      priority: module.priority,
+      status: module.status,
+      eta: module.eta || '',
+      stakeholders: module.stakeholders?.join(', ') || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleAddModule = async () => {
+    if (!formData.name.trim()) {
+      alert('Module name is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          priority: formData.priority,
+          status: formData.status,
+          eta: formData.eta || null,
+          stakeholders: formData.stakeholders
+            ? formData.stakeholders.split(',').map(s => s.trim()).filter(Boolean)
+            : []
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setModules(prev => [...prev, data.module]);
+        setShowAddModal(false);
+        resetForm();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create module');
+      }
+    } catch (error) {
+      console.error('Error creating module:', error);
+      alert('Failed to create module');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateModule = async () => {
+    if (!selectedModule || !formData.name.trim()) {
+      alert('Module name is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module_id: selectedModule.id,
+          name: formData.name,
+          description: formData.description,
+          priority: formData.priority,
+          status: formData.status,
+          eta: formData.eta || null,
+          stakeholders: formData.stakeholders
+            ? formData.stakeholders.split(',').map(s => s.trim()).filter(Boolean)
+            : []
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setModules(prev => prev.map(m => m.id === selectedModule.id ? data.module : m));
+        setShowEditModal(false);
+        setSelectedModule(null);
+        resetForm();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to update module');
+      }
+    } catch (error) {
+      console.error('Error updating module:', error);
+      alert('Failed to update module');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteModule = async (moduleId: string) => {
+    if (!confirm('Are you sure you want to delete this module?')) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules?module_id=${moduleId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        setModules(prev => prev.filter(m => m.id !== moduleId));
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete module');
+      }
+    } catch (error) {
+      console.error('Error deleting module:', error);
+      alert('Failed to delete module');
+    }
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    const badges: Record<string, { bg: string; text: string; label: string }> = {
+      low: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Low' },
+      medium: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Medium' },
+      high: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', label: 'High' },
+      critical: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Critical' }
+    };
+    const badge = badges[priority] || badges.medium;
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${badge.bg} ${badge.text}`}>
+        {badge.label}
+      </span>
+    );
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges: Record<string, { bg: string; text: string; label: string }> = {
+      planned: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', label: 'Planned' },
+      in_progress: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'In Progress' },
+      completed: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Completed' },
+      on_hold: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-700 dark:text-gray-400', label: 'On Hold' }
+    };
+    const badge = badges[status] || badges.planned;
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${badge.bg} ${badge.text}`}>
+        {badge.label}
+      </span>
+    );
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Breadcrumb items={[
+          { label: 'Projects', href: '/dashboard/projects' },
+          { label: 'Loading...' }
+        ]} />
+        <div className="flex items-center justify-center py-12">
+          <i className="fas fa-spinner animate-spin text-indigo-500 text-3xl"></i>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <Breadcrumb items={[
+        { label: 'Projects', href: '/dashboard/projects' },
+        { label: project?.name || 'Project', href: `/dashboard/project/${projectId}` },
+        { label: 'Modules' }
+      ]} />
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Project Modules
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Plan and track modules/features for this project
+          </p>
+        </div>
+        {canManageModules() && (
+          <button
+            onClick={openAddModal}
+            className="btn-primary flex items-center gap-2"
+          >
+            <i className="fas fa-plus"></i>
+            Add Module
+          </button>
+        )}
+      </div>
+
+      {/* Project Navigation Tabs */}
+      <div className="flex gap-2 mb-6 border-b dark:border-gray-700 pb-4 overflow-x-auto">
+        <button
+          onClick={() => router.push(`/dashboard/project/${projectId}`)}
+          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => router.push(`/dashboard/project/${projectId}/reports`)}
+          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
+        >
+          Reports
+        </button>
+        <button
+          onClick={() => router.push(`/dashboard/project/${projectId}/versions`)}
+          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
+        >
+          Versions
+        </button>
+        <button
+          className="px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 whitespace-nowrap"
+        >
+          Modules
+        </button>
+        <button
+          onClick={() => router.push(`/dashboard/project/${projectId}/chat`)}
+          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
+        >
+          Chat
+        </button>
+        <button
+          onClick={() => router.push(`/dashboard/project/${projectId}/settings`)}
+          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
+        >
+          Settings
+        </button>
+      </div>
+
+      {/* Modules List */}
+      <div className="space-y-3">
+        {modules.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl">
+            <i className="fas fa-cubes text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-1">No modules yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+              Start by adding modules to plan your project features
+            </p>
+            {canManageModules() && (
+              <button onClick={openAddModal} className="btn-primary">
+                <i className="fas fa-plus mr-2"></i>Add First Module
+              </button>
+            )}
+          </div>
+        ) : (
+          modules.map((module) => {
+            const isExpanded = expandedModules.has(module.id);
+            const descriptionLines = module.description
+              ? module.description.split('\n').filter(line => line.trim())
+              : [];
+
+            return (
+              <div
+                key={module.id}
+                className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm"
+              >
+                {/* Collapsed Header */}
+                <button
+                  onClick={() => toggleExpanded(module.id)}
+                  className={`w-full px-4 py-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left ${
+                    isExpanded ? 'bg-gray-50 dark:bg-gray-700/50' : ''
+                  }`}
+                >
+                  {/* Expand/Collapse Icon */}
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400">
+                    <i className={`fas ${isExpanded ? 'fa-minus' : 'fa-plus'} text-sm`}></i>
+                  </div>
+
+                  {/* Module Name */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                      {module.name}
+                    </h3>
+                    {!isExpanded && descriptionLines.length > 0 && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                        {descriptionLines[0].replace(/^[•\-\*]\s*/, '')}
+                        {descriptionLines.length > 1 && ` (+${descriptionLines.length - 1} more)`}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Badges */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {module.stakeholders && module.stakeholders.length > 0 && (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                        <i className="fas fa-users mr-1"></i>
+                        {module.stakeholders.length}
+                      </span>
+                    )}
+                    {getStatusBadge(module.status)}
+                    {getPriorityBadge(module.priority)}
+                  </div>
+                </button>
+
+                {/* Expanded Content */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700">
+                    {/* Meta Info */}
+                    <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600 dark:text-gray-400">
+                      {module.eta && (
+                        <div className="flex items-center gap-1">
+                          <i className="fas fa-calendar text-indigo-500"></i>
+                          <span>ETA: {formatDate(module.eta)}</span>
+                        </div>
+                      )}
+                      {module.stakeholders && module.stakeholders.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <i className="fas fa-users text-purple-500"></i>
+                          <span>Stakeholders: {module.stakeholders.join(', ')}</span>
+                        </div>
+                      )}
+                      {module.created_by_user && (
+                        <div className="flex items-center gap-1">
+                          <i className="fas fa-user text-gray-400"></i>
+                          <span>Created by {module.created_by_user.full_name}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    {descriptionLines.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Features / Description:
+                        </h4>
+                        <ul className="space-y-1.5">
+                          {descriptionLines.map((line, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                              <span className="text-indigo-500 mt-1">•</span>
+                              <span>{line.replace(/^[•\-\*]\s*/, '')}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    {canManageModules() && (
+                      <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEditModal(module); }}
+                          className="px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-edit mr-1"></i> Edit
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteModule(module.id); }}
+                          className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-trash mr-1"></i> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Add Module Modal */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-content max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add New Module</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i className="fas fa-times text-lg"></i>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Module Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="input-field"
+                  placeholder="e.g., User Authentication"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description / Features
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="input-field"
+                  rows={5}
+                  placeholder="• Login with email/password&#10;• Social login support&#10;• Password reset flow&#10;• Session management"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Write each feature on a new line. Use bullet points (•) or dashes (-) for clarity.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="planned">Planned</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="on_hold">On Hold</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  ETA (Target Date)
+                </label>
+                <input
+                  type="date"
+                  value={formData.eta}
+                  onChange={(e) => setFormData({ ...formData, eta: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Stakeholders
+                </label>
+                <input
+                  type="text"
+                  value={formData.stakeholders}
+                  onChange={(e) => setFormData({ ...formData, stakeholders: e.target.value })}
+                  className="input-field"
+                  placeholder="e.g., John, Sarah, Marketing Team"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Separate multiple stakeholders with commas
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="btn-secondary flex-1"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddModule}
+                disabled={saving || !formData.name.trim()}
+                className="btn-primary flex-1 disabled:opacity-50"
+              >
+                {saving ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <i className="fas fa-spinner animate-spin"></i> Creating...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <i className="fas fa-plus"></i> Add Module
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Module Modal */}
+      {showEditModal && selectedModule && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Module</h2>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i className="fas fa-times text-lg"></i>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Module Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description / Features
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="input-field"
+                  rows={5}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="planned">Planned</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="on_hold">On Hold</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  ETA (Target Date)
+                </label>
+                <input
+                  type="date"
+                  value={formData.eta}
+                  onChange={(e) => setFormData({ ...formData, eta: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Stakeholders
+                </label>
+                <input
+                  type="text"
+                  value={formData.stakeholders}
+                  onChange={(e) => setFormData({ ...formData, stakeholders: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="btn-secondary flex-1"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateModule}
+                disabled={saving || !formData.name.trim()}
+                className="btn-primary flex-1 disabled:opacity-50"
+              >
+                {saving ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <i className="fas fa-spinner animate-spin"></i> Saving...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <i className="fas fa-save"></i> Save Changes
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}
