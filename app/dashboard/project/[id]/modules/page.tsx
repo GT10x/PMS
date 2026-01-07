@@ -63,6 +63,9 @@ export default function ProjectModulesPage() {
     stakeholders: ''
   });
 
+  // Features as array for numbered inputs
+  const [featuresList, setFeaturesList] = useState<string[]>(['']);
+
   useEffect(() => {
     fetchProject();
     fetchModules();
@@ -222,6 +225,7 @@ export default function ProjectModulesPage() {
       eta: '',
       stakeholders: ''
     });
+    setFeaturesList(['']);
   };
 
   const openAddModal = () => {
@@ -231,6 +235,9 @@ export default function ProjectModulesPage() {
 
   const openEditModal = (module: Module) => {
     setSelectedModule(module);
+    const features = module.description
+      ? module.description.split('\n').filter(line => line.trim()).map(line => line.replace(/^[•\-\*\d\.]+\s*/, ''))
+      : [''];
     setFormData({
       name: module.name,
       description: module.description || '',
@@ -239,6 +246,7 @@ export default function ProjectModulesPage() {
       eta: module.eta || '',
       stakeholders: module.stakeholders?.join(', ') || ''
     });
+    setFeaturesList(features.length > 0 ? features : ['']);
     setShowEditModal(true);
   };
 
@@ -250,12 +258,15 @@ export default function ProjectModulesPage() {
 
     setSaving(true);
     try {
+      // Convert featuresList to newline-separated description
+      const description = featuresList.filter(f => f.trim()).join('\n');
+
       const response = await fetch(`/api/projects/${projectId}/modules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
-          description: formData.description,
+          description: description,
           priority: formData.priority,
           status: formData.status,
           eta: formData.eta || null,
@@ -290,13 +301,16 @@ export default function ProjectModulesPage() {
 
     setSaving(true);
     try {
+      // Convert featuresList to newline-separated description
+      const description = featuresList.filter(f => f.trim()).join('\n');
+
       const response = await fetch(`/api/projects/${projectId}/modules`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           module_id: selectedModule.id,
           name: formData.name,
-          description: formData.description,
+          description: description,
           priority: formData.priority,
           status: formData.status,
           eta: formData.eta || null,
@@ -717,19 +731,50 @@ export default function ProjectModulesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Description / Features
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Features / Functions
                 </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="input-field"
-                  rows={5}
-                  placeholder="• Login with email/password&#10;• Social login support&#10;• Password reset flow&#10;• Session management"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Write each feature on a new line. Use bullet points (•) or dashes (-) for clarity.
-                </p>
+                <div className="space-y-2">
+                  {featuresList.map((feature, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] text-sm">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        value={feature}
+                        onChange={(e) => {
+                          const updated = [...featuresList];
+                          updated[idx] = e.target.value;
+                          setFeaturesList(updated);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            setFeaturesList([...featuresList, '']);
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder={idx === 0 ? "e.g., Login with email/password" : "Add another feature..."}
+                      />
+                      {featuresList.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setFeaturesList(featuresList.filter((_, i) => i !== idx))}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        >
+                          <i className="fas fa-times text-xs"></i>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFeaturesList([...featuresList, ''])}
+                  className="mt-2 flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                >
+                  <i className="fas fa-plus text-xs"></i>
+                  <span>Add Feature</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -848,15 +893,50 @@ export default function ProjectModulesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Description / Features
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Features / Functions
                 </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="input-field"
-                  rows={5}
-                />
+                <div className="space-y-2">
+                  {featuresList.map((feature, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] text-sm">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        value={feature}
+                        onChange={(e) => {
+                          const updated = [...featuresList];
+                          updated[idx] = e.target.value;
+                          setFeaturesList(updated);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            setFeaturesList([...featuresList, '']);
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Feature description..."
+                      />
+                      {featuresList.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setFeaturesList(featuresList.filter((_, i) => i !== idx))}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        >
+                          <i className="fas fa-times text-xs"></i>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFeaturesList([...featuresList, ''])}
+                  className="mt-2 flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                >
+                  <i className="fas fa-plus text-xs"></i>
+                  <span>Add Feature</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
