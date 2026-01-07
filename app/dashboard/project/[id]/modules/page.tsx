@@ -560,14 +560,14 @@ export default function ProjectModulesPage() {
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Features / Functions:
                       </h4>
-                      <ul className="space-y-2">
+                      <ol className="space-y-2">
                         {descriptionLines.map((line, idx) => {
                           const isEditing = editingFeature?.moduleId === module.id && editingFeature?.index === idx;
-                          const cleanLine = line.replace(/^[•\-\*]\s*/, '');
+                          const cleanLine = line.replace(/^[•\-\*\d\.]+\s*/, '');
 
                           return (
                             <li key={idx} className="flex items-start gap-2 group">
-                              <span className="text-indigo-500 mt-2">•</span>
+                              <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] mt-1 text-sm">{idx + 1}.</span>
                               {isEditing ? (
                                 <div className="flex-1 flex items-center gap-2">
                                   <input
@@ -620,14 +620,14 @@ export default function ProjectModulesPage() {
                             </li>
                           );
                         })}
-                      </ul>
+                      </ol>
 
                       {/* Add Feature */}
                       {canManageModules() && (
                         <div className="mt-3">
                           {addingFeature === module.id ? (
                             <div className="flex items-center gap-2">
-                              <span className="text-indigo-500">•</span>
+                              <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] text-sm">{descriptionLines.length + 1}.</span>
                               <input
                                 type="text"
                                 value={newFeatureText}
