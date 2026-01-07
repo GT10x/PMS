@@ -77,7 +77,7 @@ export async function PUT(
     if (description !== undefined) updateData.description = description;
     if (status !== undefined) updateData.status = status;
     if (priority !== undefined) updateData.priority = priority;
-    if (start_date !== undefined) updateData.start_date = start_date;
+    if (start_date !== undefined) updateData.start_date = start_date || null; // Convert empty string to null
     if (webhook_url !== undefined) updateData.webhook_url = webhook_url;
     if (deploy_url !== undefined) updateData.deploy_url = deploy_url;
 
