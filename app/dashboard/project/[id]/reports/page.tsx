@@ -261,9 +261,23 @@ export default function ProjectReportsPage() {
     }
   };
 
+  const MAX_FILE_SIZE_MB = 200; // Supabase storage limit
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
+      const oversizedFiles = newFiles.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+
+      if (oversizedFiles.length > 0) {
+        alert(`File(s) too large: ${oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)`).join(', ')}.\n\nMaximum file size is ${MAX_FILE_SIZE_MB}MB. Please compress the video or use a smaller file.`);
+        // Only add files that are within limit
+        const validFiles = newFiles.filter(f => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
+        if (validFiles.length > 0) {
+          setAttachments(prev => [...prev, ...validFiles]);
+        }
+        return;
+      }
+
       setAttachments(prev => [...prev, ...newFiles]);
     }
   };
@@ -622,6 +636,17 @@ export default function ProjectReportsPage() {
   const handleReplyFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
+      const oversizedFiles = newFiles.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+
+      if (oversizedFiles.length > 0) {
+        alert(`File(s) too large: ${oversizedFiles.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)`).join(', ')}.\n\nMaximum file size is ${MAX_FILE_SIZE_MB}MB. Please compress the video or use a smaller file.`);
+        const validFiles = newFiles.filter(f => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
+        if (validFiles.length > 0) {
+          setReplyAttachments(prev => [...prev, ...validFiles]);
+        }
+        return;
+      }
+
       setReplyAttachments(prev => [...prev, ...newFiles]);
     }
   };
@@ -643,20 +668,32 @@ export default function ProjectReportsPage() {
 
       // Upload regular files
       for (const file of attachments) {
-        const url = await uploadFileWithSignedUrl(file);
-        if (url) {
-          uploadedUrls.push(url);
-        } else {
-          console.error('Failed to upload file:', file.name);
+        try {
+          const url = await uploadFileWithSignedUrl(file);
+          if (url) {
+            uploadedUrls.push(url);
+          }
+        } catch (uploadError) {
+          const errorMsg = uploadError instanceof Error ? uploadError.message : 'Upload failed';
+          alert(`Upload Error: ${errorMsg}`);
+          setUploading(false);
+          return;
         }
       }
 
       // Upload voice note if exists
       if (voiceNote) {
-        const voiceFile = new File([voiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-        const url = await uploadFileWithSignedUrl(voiceFile);
-        if (url) {
-          uploadedUrls.push(url);
+        try {
+          const voiceFile = new File([voiceNote], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
+          const url = await uploadFileWithSignedUrl(voiceFile);
+          if (url) {
+            uploadedUrls.push(url);
+          }
+        } catch (uploadError) {
+          const errorMsg = uploadError instanceof Error ? uploadError.message : 'Voice note upload failed';
+          alert(`Upload Error: ${errorMsg}`);
+          setUploading(false);
+          return;
         }
       }
 

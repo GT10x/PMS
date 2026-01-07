@@ -19,6 +19,9 @@ export const supabaseAdmin = supabaseServiceRoleKey
 // This is the recommended approach for files of any size
 export async function uploadFileWithSignedUrl(file: File): Promise<string | null> {
   try {
+    const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
+    console.log(`Uploading ${file.name} (${fileSizeMB}MB)...`);
+
     // Step 1: Get signed URL from server
     const response = await fetch('/api/upload/signed-url', {
       method: 'POST',
@@ -32,7 +35,7 @@ export async function uploadFileWithSignedUrl(file: File): Promise<string | null
     if (!response.ok) {
       const error = await response.json();
       console.error('Failed to get signed URL:', error);
-      return null;
+      throw new Error(`Failed to prepare upload: ${error.error || 'Unknown error'}`);
     }
 
     const { signedUrl, publicUrl } = await response.json();
@@ -47,14 +50,24 @@ export async function uploadFileWithSignedUrl(file: File): Promise<string | null
     });
 
     if (!uploadResponse.ok) {
-      console.error('Failed to upload file:', uploadResponse.statusText);
-      return null;
+      const errorText = await uploadResponse.text();
+      console.error('Failed to upload file:', uploadResponse.status, errorText);
+
+      // Parse common Supabase storage errors
+      if (uploadResponse.status === 413 || errorText.includes('Payload too large') || errorText.includes('file size')) {
+        throw new Error(`File "${file.name}" (${fileSizeMB}MB) exceeds storage limit. Please compress the video or use a smaller file.`);
+      }
+      throw new Error(`Upload failed for "${file.name}": ${uploadResponse.statusText}`);
     }
 
-    // Step 3: Return the public URL
+    console.log(`✓ Uploaded ${file.name} successfully`);
     return publicUrl;
   } catch (error) {
     console.error('Upload error:', error);
-    return null;
+    // Re-throw with user-friendly message
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`Failed to upload file: ${file.name}`);
   }
 }
