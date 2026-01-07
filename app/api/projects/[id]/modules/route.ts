@@ -143,7 +143,7 @@ export async function PUT(
     if (description !== undefined) updateData.description = description;
     if (priority !== undefined) updateData.priority = priority;
     if (status !== undefined) updateData.status = status;
-    if (eta !== undefined) updateData.eta = eta;
+    if (eta !== undefined) updateData.eta = eta || null; // Convert empty string to null
     if (stakeholders !== undefined) updateData.stakeholders = stakeholders;
 
     const { data: module, error } = await supabaseAdmin
