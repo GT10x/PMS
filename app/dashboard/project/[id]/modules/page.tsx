@@ -68,6 +68,8 @@ export default function ProjectModulesPage() {
 
   // Speech-to-text state
   const [listeningIndex, setListeningIndex] = useState<number | null>(null);
+  const [inlineListening, setInlineListening] = useState<'edit' | 'add' | null>(null);
+  const inlineRecognitionRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
   const shouldRestartRef = useRef<boolean>(false);
   const currentIndexRef = useRef<number | null>(null);
@@ -156,6 +158,65 @@ export default function ProjectModulesPage() {
       recognitionRef.current = null;
     }
     setListeningIndex(null);
+  };
+
+  // Inline speech recognition for edit/add feature in expanded cards
+  const startInlineListening = (type: 'edit' | 'add') => {
+    if (typeof window === 'undefined') return;
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser.');
+      return;
+    }
+
+    if (inlineRecognitionRef.current) {
+      inlineRecognitionRef.current.stop();
+    }
+
+    const recog = new SpeechRecognition();
+    recog.continuous = true;
+    recog.interimResults = false;
+    recog.lang = 'en-US';
+
+    setInlineListening(type);
+
+    recog.onresult = (event: any) => {
+      const lastResultIndex = event.results.length - 1;
+      const transcript = event.results[lastResultIndex][0].transcript;
+
+      if (type === 'edit') {
+        setEditingFeatureText(prev => prev ? prev + ' ' + transcript : transcript);
+      } else {
+        setNewFeatureText(prev => prev ? prev + ' ' + transcript : transcript);
+      }
+    };
+
+    recog.onerror = (event: any) => {
+      if (event.error === 'not-allowed') {
+        alert('Microphone access denied.');
+      }
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        setInlineListening(null);
+      }
+    };
+
+    recog.onend = () => {
+      if (inlineListening) {
+        try { recog.start(); } catch (e) {}
+      }
+    };
+
+    inlineRecognitionRef.current = recog;
+    try { recog.start(); } catch (e) { setInlineListening(null); }
+  };
+
+  const stopInlineListening = () => {
+    if (inlineRecognitionRef.current) {
+      inlineRecognitionRef.current.stop();
+      inlineRecognitionRef.current = null;
+    }
+    setInlineListening(null);
   };
 
   useEffect(() => {
@@ -682,13 +743,25 @@ export default function ProjectModulesPage() {
                                     onChange={(e) => setEditingFeatureText(e.target.value)}
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter') saveEditFeature(module.id);
-                                      if (e.key === 'Escape') { setEditingFeature(null); setEditingFeatureText(''); }
+                                      if (e.key === 'Escape') { setEditingFeature(null); setEditingFeatureText(''); stopInlineListening(); }
                                     }}
                                     className="flex-1 px-2 py-1 text-sm border border-indigo-300 dark:border-indigo-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     autoFocus
                                   />
                                   <button
-                                    onClick={() => saveEditFeature(module.id)}
+                                    type="button"
+                                    onClick={() => inlineListening === 'edit' ? stopInlineListening() : startInlineListening('edit')}
+                                    className={`p-1 rounded transition-colors ${
+                                      inlineListening === 'edit'
+                                        ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
+                                        : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                                    }`}
+                                    title={inlineListening === 'edit' ? 'Stop' : 'Voice input'}
+                                  >
+                                    <i className="fas fa-microphone"></i>
+                                  </button>
+                                  <button
+                                    onClick={() => { saveEditFeature(module.id); stopInlineListening(); }}
                                     className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
                                   >
                                     <i className="fas fa-check"></i>
@@ -739,15 +812,27 @@ export default function ProjectModulesPage() {
                                 value={newFeatureText}
                                 onChange={(e) => setNewFeatureText(e.target.value)}
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter') addFeature(module.id);
-                                  if (e.key === 'Escape') { setAddingFeature(null); setNewFeatureText(''); }
+                                  if (e.key === 'Enter') { addFeature(module.id); stopInlineListening(); }
+                                  if (e.key === 'Escape') { setAddingFeature(null); setNewFeatureText(''); stopInlineListening(); }
                                 }}
                                 placeholder="Type feature and press Enter..."
                                 className="flex-1 px-2 py-1 text-sm border border-indigo-300 dark:border-indigo-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 autoFocus
                               />
                               <button
-                                onClick={() => addFeature(module.id)}
+                                type="button"
+                                onClick={() => inlineListening === 'add' ? stopInlineListening() : startInlineListening('add')}
+                                className={`p-1 rounded transition-colors ${
+                                  inlineListening === 'add'
+                                    ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
+                                    : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                                }`}
+                                title={inlineListening === 'add' ? 'Stop' : 'Voice input'}
+                              >
+                                <i className="fas fa-microphone"></i>
+                              </button>
+                              <button
+                                onClick={() => { addFeature(module.id); stopInlineListening(); }}
                                 className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
                               >
                                 <i className="fas fa-check"></i>
