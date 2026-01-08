@@ -27,8 +27,6 @@ export default function ProjectSettingsPage() {
   const [message, setMessage] = useState({ type: '', text: '' });
 
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [stakeholders, setStakeholders] = useState<string[]>([]);
-  const [newStakeholder, setNewStakeholder] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
@@ -42,7 +40,6 @@ export default function ProjectSettingsPage() {
         const data = await response.json();
         setProject(data.project);
         setWebhookUrl(data.project.webhook_url || '');
-        setStakeholders(data.project.stakeholders || []);
       }
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -59,7 +56,7 @@ export default function ProjectSettingsPage() {
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webhook_url: webhookUrl, stakeholders })
+        body: JSON.stringify({ webhook_url: webhookUrl })
       });
 
       if (response.ok) {
