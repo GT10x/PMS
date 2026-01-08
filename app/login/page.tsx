@@ -61,7 +61,10 @@ export default function LoginPage() {
 
         {/* Content */}
         <div className="relative z-10">
-          <h1 className="text-4xl font-bold text-white mb-4">
+          <h2 className="text-2xl font-semibold text-indigo-200 mb-2">
+            Global Techtrums
+          </h2>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             Project Management System
           </h1>
           <p className="text-lg text-indigo-100 mb-8">
