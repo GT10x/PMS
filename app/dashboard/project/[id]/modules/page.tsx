@@ -750,6 +750,12 @@ export default function ProjectModulesPage() {
                           if (e.key === 'Enter') {
                             e.preventDefault();
                             setFeaturesList([...featuresList, '']);
+                            // Focus on new input after React re-renders
+                            setTimeout(() => {
+                              const inputs = document.querySelectorAll('input[placeholder*="feature"], input[placeholder*="Feature"]');
+                              const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
+                              if (lastInput) lastInput.focus();
+                            }, 50);
                           }
                         }}
                         className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -912,6 +918,12 @@ export default function ProjectModulesPage() {
                           if (e.key === 'Enter') {
                             e.preventDefault();
                             setFeaturesList([...featuresList, '']);
+                            // Focus on new input after React re-renders
+                            setTimeout(() => {
+                              const inputs = document.querySelectorAll('input[placeholder*="feature"], input[placeholder*="Feature"]');
+                              const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
+                              if (lastInput) lastInput.focus();
+                            }, 50);
                           }
                         }}
                         className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
