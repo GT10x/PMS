@@ -66,6 +66,68 @@ export default function ProjectModulesPage() {
   // Features as array for numbered inputs
   const [featuresList, setFeaturesList] = useState<string[]>(['']);
 
+  // Speech-to-text state
+  const [listeningIndex, setListeningIndex] = useState<number | null>(null);
+  const [recognition, setRecognition] = useState<any>(null);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recog = new SpeechRecognition();
+        recog.continuous = false;
+        recog.interimResults = false;
+        recog.lang = 'en-US';
+        setRecognition(recog);
+      }
+    }
+  }, []);
+
+  const startListening = (index: number) => {
+    if (!recognition) {
+      alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
+      return;
+    }
+
+    setListeningIndex(index);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      const updated = [...featuresList];
+      // Append to existing text or set new text
+      updated[index] = updated[index] ? updated[index] + ' ' + transcript : transcript;
+      setFeaturesList(updated);
+      setListeningIndex(null);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setListeningIndex(null);
+      if (event.error === 'not-allowed') {
+        alert('Microphone access denied. Please allow microphone access and try again.');
+      }
+    };
+
+    recognition.onend = () => {
+      setListeningIndex(null);
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error('Error starting recognition:', e);
+      setListeningIndex(null);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognition) {
+      recognition.stop();
+    }
+    setListeningIndex(null);
+  };
+
   useEffect(() => {
     fetchProject();
     fetchModules();
@@ -761,6 +823,18 @@ export default function ProjectModulesPage() {
                         className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder={idx === 0 ? "e.g., Login with email/password" : "Add another feature..."}
                       />
+                      <button
+                        type="button"
+                        onClick={() => listeningIndex === idx ? stopListening() : startListening(idx)}
+                        className={`p-2 rounded transition-colors ${
+                          listeningIndex === idx
+                            ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
+                            : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                        }`}
+                        title={listeningIndex === idx ? 'Stop listening' : 'Voice input'}
+                      >
+                        <i className={`fas fa-microphone ${listeningIndex === idx ? 'text-red-500' : ''}`}></i>
+                      </button>
                       {featuresList.length > 1 && (
                         <button
                           type="button"
