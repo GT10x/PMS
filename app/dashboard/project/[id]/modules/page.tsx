@@ -70,6 +70,8 @@ export default function ProjectModulesPage() {
   const [listeningIndex, setListeningIndex] = useState<number | null>(null);
   const [inlineListening, setInlineListening] = useState<'edit' | 'add' | null>(null);
   const inlineRecognitionRef = useRef<any>(null);
+  const inlineShouldRestartRef = useRef<boolean>(false);
+  const inlineTypeRef = useRef<'edit' | 'add' | null>(null);
   const recognitionRef = useRef<any>(null);
   const shouldRestartRef = useRef<boolean>(false);
   const currentIndexRef = useRef<number | null>(null);
@@ -170,7 +172,9 @@ export default function ProjectModulesPage() {
       return;
     }
 
+    // Stop any existing recognition
     if (inlineRecognitionRef.current) {
+      inlineShouldRestartRef.current = false;
       inlineRecognitionRef.current.stop();
     }
 
@@ -179,15 +183,19 @@ export default function ProjectModulesPage() {
     recog.interimResults = false;
     recog.lang = 'en-US';
 
+    // Use refs to track state for callbacks
+    inlineShouldRestartRef.current = true;
+    inlineTypeRef.current = type;
     setInlineListening(type);
 
     recog.onresult = (event: any) => {
       const lastResultIndex = event.results.length - 1;
       const transcript = event.results[lastResultIndex][0].transcript;
 
-      if (type === 'edit') {
+      // Use ref to check current type
+      if (inlineTypeRef.current === 'edit') {
         setEditingFeatureText(prev => prev ? prev + ' ' + transcript : transcript);
-      } else {
+      } else if (inlineTypeRef.current === 'add') {
         setNewFeatureText(prev => prev ? prev + ' ' + transcript : transcript);
       }
     };
@@ -195,23 +203,41 @@ export default function ProjectModulesPage() {
     recog.onerror = (event: any) => {
       if (event.error === 'not-allowed') {
         alert('Microphone access denied.');
+        inlineShouldRestartRef.current = false;
+        setInlineListening(null);
       }
+      // Don't stop on no-speech, just continue
       if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        inlineShouldRestartRef.current = false;
         setInlineListening(null);
       }
     };
 
     recog.onend = () => {
-      if (inlineListening) {
-        try { recog.start(); } catch (e) {}
+      // Use ref to check if we should restart (not stale state)
+      if (inlineShouldRestartRef.current) {
+        try {
+          recog.start();
+        } catch (e) {
+          // Ignore restart errors
+        }
+      } else {
+        setInlineListening(null);
       }
     };
 
     inlineRecognitionRef.current = recog;
-    try { recog.start(); } catch (e) { setInlineListening(null); }
+    try {
+      recog.start();
+    } catch (e) {
+      inlineShouldRestartRef.current = false;
+      setInlineListening(null);
+    }
   };
 
   const stopInlineListening = () => {
+    inlineShouldRestartRef.current = false;
+    inlineTypeRef.current = null;
     if (inlineRecognitionRef.current) {
       inlineRecognitionRef.current.stop();
       inlineRecognitionRef.current = null;
