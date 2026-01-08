@@ -13,6 +13,7 @@ interface Project {
   webhook_url: string;
   webhook_secret: string;
   deploy_url: string;
+  stakeholders: string[];
 }
 
 export default function ProjectSettingsPage() {
@@ -26,6 +27,8 @@ export default function ProjectSettingsPage() {
   const [message, setMessage] = useState({ type: '', text: '' });
 
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [stakeholders, setStakeholders] = useState<string[]>([]);
+  const [newStakeholder, setNewStakeholder] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export default function ProjectSettingsPage() {
         const data = await response.json();
         setProject(data.project);
         setWebhookUrl(data.project.webhook_url || '');
+        setStakeholders(data.project.stakeholders || []);
       }
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -55,7 +59,7 @@ export default function ProjectSettingsPage() {
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webhook_url: webhookUrl })
+        body: JSON.stringify({ webhook_url: webhookUrl, stakeholders })
       });
 
       if (response.ok) {
@@ -355,6 +359,74 @@ export default function ProjectSettingsPage() {
             </button>
           </div>
         </div>
+
+        {/* Stakeholders Section */}
+        <div className="card p-6">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+            <i className="fas fa-users mr-2 text-indigo-500"></i>
+            Stakeholders
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Add key stakeholders for this project (clients, managers, decision makers).
+          </p>
+
+          {/* Stakeholder List */}
+          <div className="space-y-2 mb-4">
+            {stakeholders.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">No stakeholders added yet</p>
+            ) : (
+              stakeholders.map((stakeholder, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-4 py-3 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center">
+                      <i className="fas fa-user text-indigo-600 dark:text-indigo-400 text-sm"></i>
+                    </div>
+                    <span className="text-gray-900 dark:text-white">{stakeholder}</span>
+                  </div>
+                  <button
+                    onClick={() => setStakeholders(stakeholders.filter((_, i) => i !== idx))}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  >
+                    <i className="fas fa-trash text-sm"></i>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Add Stakeholder Input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newStakeholder}
+              onChange={(e) => setNewStakeholder(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newStakeholder.trim()) {
+                  setStakeholders([...stakeholders, newStakeholder.trim()]);
+                  setNewStakeholder('');
+                }
+              }}
+              placeholder="Enter stakeholder name..."
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <button
+              onClick={() => {
+                if (newStakeholder.trim()) {
+                  setStakeholders([...stakeholders, newStakeholder.trim()]);
+                  setNewStakeholder('');
+                }
+              }}
+              className="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition"
+            >
+              <i className="fas fa-plus mr-2"></i>
+              Add
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Press Enter or click Add to add a stakeholder. Don't forget to save settings.
+          </p>
+        </div>
+
       </div>
     </DashboardLayout>
   );

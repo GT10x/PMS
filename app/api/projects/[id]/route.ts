@@ -66,7 +66,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { name, description, status, priority, start_date, team_members, webhook_url, deploy_url } = body;
+    const { name, description, status, priority, start_date, team_members, webhook_url, deploy_url, stakeholders } = body;
 
     // Update project (only include fields that are provided)
     const updateData: any = {
@@ -80,6 +80,7 @@ export async function PUT(
     if (start_date !== undefined) updateData.start_date = start_date || null; // Convert empty string to null
     if (webhook_url !== undefined) updateData.webhook_url = webhook_url;
     if (deploy_url !== undefined) updateData.deploy_url = deploy_url;
+    if (stakeholders !== undefined) updateData.stakeholders = stakeholders;
 
     // @ts-ignore - Supabase types are too strict
     const { data: project, error: projectError } = await supabaseAdmin
