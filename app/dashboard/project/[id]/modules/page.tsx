@@ -645,7 +645,7 @@ export default function ProjectModulesPage() {
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700">
                     {/* Meta Info */}
-                    <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3 text-sm text-gray-600 dark:text-gray-400">
                       {module.eta && (
                         <div className="flex items-center gap-1">
                           <i className="fas fa-calendar text-indigo-500"></i>
@@ -887,7 +887,7 @@ export default function ProjectModulesPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Priority
@@ -1055,7 +1055,7 @@ export default function ProjectModulesPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Priority

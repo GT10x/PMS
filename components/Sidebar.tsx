@@ -84,7 +84,7 @@ export default function Sidebar({
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onMobileClose}
         />
       )}
@@ -92,7 +92,7 @@ export default function Sidebar({
       <aside
         className={`fixed top-0 left-0 h-full bg-white dark:bg-gray-800 shadow-xl transition-all duration-300 z-50 ${
           collapsed ? 'w-20' : 'w-64'
-        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
       {/* Logo Section */}
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">

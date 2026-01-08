@@ -106,7 +106,7 @@ export default function DashboardPage() {
           <div className="h-8 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
           <div className="h-4 w-96 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
           <StatsCardSkeleton />
           <StatsCardSkeleton />
           <StatsCardSkeleton />
@@ -132,7 +132,7 @@ export default function DashboardPage() {
 
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
           Welcome back, {user.full_name.split(' ')[0]}!
         </h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -142,13 +142,13 @@ export default function DashboardPage() {
 
       {/* Stats Cards for Admin/PM */}
       {isAdminOrPM && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
           {/* Total Projects */}
           <div className="stats-card">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Projects</p>
-                <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mt-1">
                   {stats.totalProjects}
                 </p>
               </div>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Active Projects</p>
-                <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mt-1">
                   {stats.activeProjects}
                 </p>
               </div>
@@ -192,7 +192,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
-                <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mt-1">
                   {stats.completedProjects}
                 </p>
               </div>
@@ -215,7 +215,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Team Members</p>
-                <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mt-1">
                   {stats.teamMembers}
                 </p>
               </div>
@@ -239,7 +239,7 @@ export default function DashboardPage() {
 
       {/* Quick Actions for Admin/PM */}
       {isAdminOrPM && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
           <Tooltip content="View and create projects">
             <a
               href="/dashboard/projects"
@@ -300,7 +300,7 @@ export default function DashboardPage() {
             <i className="fas fa-folder-open mr-2 text-indigo-500"></i>
             All Projects
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {allProjects.map((project) => {
               const counts = notificationCounts[project.id];
               const totalUnread = counts?.total || 0;

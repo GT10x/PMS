@@ -28,7 +28,7 @@ export default function Header({ user, onLogout, darkMode, onMenuToggle }: Heade
         {/* Mobile Menu Button */}
         <button
           onClick={onMenuToggle}
-          className="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mr-2"
+          className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mr-2"
           aria-label="Toggle menu"
         >
           <i className="fas fa-bars text-xl"></i>
@@ -49,7 +49,7 @@ export default function Header({ user, onLogout, darkMode, onMenuToggle }: Heade
         </div>
 
         {/* Mobile Logo */}
-        <div className="lg:hidden flex items-center gap-2 sm:hidden">
+        <div className="md:hidden flex items-center gap-2 sm:hidden">
           <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">P</span>
           </div>
@@ -88,7 +88,7 @@ export default function Header({ user, onLogout, darkMode, onMenuToggle }: Heade
 
             {/* Dropdown Menu */}
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+              <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                   <p className="text-sm font-medium text-gray-800 dark:text-white">
                     {user.full_name}

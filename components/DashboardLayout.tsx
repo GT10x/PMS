@@ -104,7 +104,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       />
 
       {/* Main Content */}
-      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         {/* Header */}
         <Header
           user={user}

@@ -1360,7 +1360,7 @@ export default function ProjectReportsPage() {
 
                 {!voiceNote ? (
                   // Recording Controls
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 sm:gap-4">
                     {!isRecording ? (
                       <button
                         type="button"
@@ -1371,7 +1371,7 @@ export default function ProjectReportsPage() {
                         Start Recording
                       </button>
                     ) : (
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 sm:gap-4">
                         <div className="flex items-center gap-3 px-4 py-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
                           <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
                           <span className="text-red-600 dark:text-red-400 font-medium">
@@ -1420,7 +1420,7 @@ export default function ProjectReportsPage() {
               </div>
 
               {/* Type and Priority */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
                   <select
@@ -1451,7 +1451,7 @@ export default function ProjectReportsPage() {
               </div>
 
               {/* Browser and Device */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Browser (auto-detected)
@@ -2356,7 +2356,7 @@ export default function ProjectReportsPage() {
               </div>
 
               {/* Type and Priority */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
                   <select
@@ -2488,7 +2488,7 @@ export default function ProjectReportsPage() {
                 </label>
 
                 {!editVoiceNote ? (
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 sm:gap-4">
                     {!editIsRecording ? (
                       <button
                         type="button"
@@ -2499,7 +2499,7 @@ export default function ProjectReportsPage() {
                         Start Recording
                       </button>
                     ) : (
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 sm:gap-4">
                         <div className="flex items-center gap-3 px-4 py-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
                           <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
                           <span className="text-red-600 dark:text-red-400 font-medium">
