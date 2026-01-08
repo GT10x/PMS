@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
@@ -68,53 +68,80 @@ export default function ProjectModulesPage() {
 
   // Speech-to-text state
   const [listeningIndex, setListeningIndex] = useState<number | null>(null);
-  const [recognition, setRecognition] = useState<any>(null);
-
-  // Initialize speech recognition
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recog = new SpeechRecognition();
-        recog.continuous = false;
-        recog.interimResults = false;
-        recog.lang = 'en-US';
-        setRecognition(recog);
-      }
-    }
-  }, []);
+  const recognitionRef = useRef<any>(null);
+  const shouldRestartRef = useRef<boolean>(false);
+  const currentIndexRef = useRef<number | null>(null);
 
   const startListening = (index: number) => {
-    if (!recognition) {
+    if (typeof window === 'undefined') return;
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
       alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
       return;
     }
 
+    // Stop any existing recognition
+    if (recognitionRef.current) {
+      shouldRestartRef.current = false;
+      recognitionRef.current.stop();
+    }
+
+    const recog = new SpeechRecognition();
+    recog.continuous = true;
+    recog.interimResults = false;
+    recog.lang = 'en-US';
+
+    currentIndexRef.current = index;
+    shouldRestartRef.current = true;
     setListeningIndex(index);
 
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      const updated = [...featuresList];
-      // Append to existing text or set new text
-      updated[index] = updated[index] ? updated[index] + ' ' + transcript : transcript;
-      setFeaturesList(updated);
-      setListeningIndex(null);
+    recog.onresult = (event: any) => {
+      // Get only the latest result
+      const lastResultIndex = event.results.length - 1;
+      const transcript = event.results[lastResultIndex][0].transcript;
+
+      setFeaturesList(prev => {
+        const updated = [...prev];
+        const idx = currentIndexRef.current;
+        if (idx !== null) {
+          updated[idx] = updated[idx] ? updated[idx] + ' ' + transcript : transcript;
+        }
+        return updated;
+      });
     };
 
-    recognition.onerror = (event: any) => {
+    recog.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
-      setListeningIndex(null);
       if (event.error === 'not-allowed') {
         alert('Microphone access denied. Please allow microphone access and try again.');
+        shouldRestartRef.current = false;
+        setListeningIndex(null);
+      }
+      // Don't stop on no-speech error, just continue
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        shouldRestartRef.current = false;
+        setListeningIndex(null);
       }
     };
 
-    recognition.onend = () => {
-      setListeningIndex(null);
+    recog.onend = () => {
+      // Auto-restart if we should still be listening
+      if (shouldRestartRef.current && currentIndexRef.current !== null) {
+        try {
+          recog.start();
+        } catch (e) {
+          // Ignore errors on restart
+        }
+      } else {
+        setListeningIndex(null);
+      }
     };
 
+    recognitionRef.current = recog;
+
     try {
-      recognition.start();
+      recog.start();
     } catch (e) {
       console.error('Error starting recognition:', e);
       setListeningIndex(null);
@@ -122,8 +149,11 @@ export default function ProjectModulesPage() {
   };
 
   const stopListening = () => {
-    if (recognition) {
-      recognition.stop();
+    shouldRestartRef.current = false;
+    currentIndexRef.current = null;
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
     }
     setListeningIndex(null);
   };
