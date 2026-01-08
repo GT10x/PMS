@@ -18,11 +18,11 @@ export async function GET() {
     // Try different connection methods
     const connectionAttempts = [
       // Attempt 1: Using pooler with IPv6
-      'postgresql://postgres.loihxoyrutbzmqscdknk:Piush%402029@aws-0-ap-south-1.pooler.supabase.com:5432/postgres',
+      'postgresql://postgres.loihxoyrutbzmqscdknk:sAAEJaHStl8UTvCo@aws-0-ap-south-1.pooler.supabase.com:5432/postgres',
       // Attempt 2: Direct connection
-      'postgresql://postgres:Piush%402029@db.loihxoyrutbzmqscdknk.supabase.co:5432/postgres',
+      'postgresql://postgres:sAAEJaHStl8UTvCo@db.loihxoyrutbzmqscdknk.supabase.co:5432/postgres',
       // Attempt 3: Transaction pooler
-      'postgresql://postgres.loihxoyrutbzmqscdknk:Piush%402029@aws-0-ap-south-1.pooler.supabase.com:6543/postgres',
+      'postgresql://postgres.loihxoyrutbzmqscdknk:sAAEJaHStl8UTvCo@aws-0-ap-south-1.pooler.supabase.com:6543/postgres',
     ];
 
     let client: Client | null = null;
