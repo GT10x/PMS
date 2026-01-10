@@ -248,6 +248,7 @@ export default function ProjectModulesPage() {
 
   useEffect(() => {
     fetchProject();
+    fetchProjectStakeholders();
     fetchModules();
     fetchCurrentUser();
   }, []);
@@ -261,6 +262,18 @@ export default function ProjectModulesPage() {
       }
     } catch (error) {
       console.error('Error fetching project:', error);
+    }
+  };
+
+  const fetchProjectStakeholders = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProjectStakeholders(data.project.stakeholders || []);
+      }
+    } catch (error) {
+      console.error('Error fetching stakeholders:', error);
     }
   };
 
