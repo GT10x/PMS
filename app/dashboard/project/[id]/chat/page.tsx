@@ -7,6 +7,7 @@ import Breadcrumb from '@/components/Breadcrumb';
 import { ChatMessageSkeleton } from '@/components/LoadingSkeleton';
 import { NoMessagesEmptyState } from '@/components/EmptyState';
 import Tooltip from '@/components/Tooltip';
+import { notify, preloadNotificationSound, requestNotificationPermission } from '@/lib/notifications';
 
 interface User {
   id: string;
@@ -87,6 +88,10 @@ export default function ProjectChatPage() {
     fetchMessages();
     markChatAsRead();
 
+    // Preload notification sound and request permission
+    preloadNotificationSound();
+    requestNotificationPermission();
+
     // Poll for new messages every 3 seconds
     const pollInterval = setInterval(pollNewMessages, 3000);
     return () => clearInterval(pollInterval);
@@ -152,8 +157,21 @@ export default function ProjectChatPage() {
         const newMessages = data.messages || [];
 
         if (newMessages.length > 0) {
-          const latestTime = newMessages[newMessages.length - 1].created_at;
+          const latestMessage = newMessages[newMessages.length - 1];
+          const latestTime = latestMessage.created_at;
+
           if (latestTime !== lastMessageRef.current) {
+            // Check if the new message is from someone else (not current user)
+            const isFromOther = currentUser && latestMessage.sender.id !== currentUser.id;
+
+            if (isFromOther) {
+              // Play notification sound and show browser notification
+              notify(
+                `New message from ${latestMessage.sender.full_name}`,
+                latestMessage.content || 'Sent an attachment'
+              );
+            }
+
             setMessages(newMessages);
             lastMessageRef.current = latestTime;
           }

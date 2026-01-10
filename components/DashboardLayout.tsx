@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import NotificationProvider from './NotificationProvider';
 
 interface User {
   id: string;
@@ -89,35 +90,37 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const isAdminOrPM = user.is_admin || user.role === 'project_manager';
 
   return (
-    <div className={`min-h-screen bg-gray-100 dark:bg-gray-900 ${darkMode ? 'dark' : ''}`}>
-      {/* Sidebar */}
-      <Sidebar
-        user={user}
-        isAdminOrPM={isAdminOrPM}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        currentPath={pathname}
-        darkMode={darkMode}
-        onDarkModeToggle={toggleDarkMode}
-        mobileOpen={mobileMenuOpen}
-        onMobileClose={() => setMobileMenuOpen(false)}
-      />
-
-      {/* Main Content */}
-      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
-        {/* Header */}
-        <Header
+    <NotificationProvider>
+      <div className={`min-h-screen bg-gray-100 dark:bg-gray-900 ${darkMode ? 'dark' : ''}`}>
+        {/* Sidebar */}
+        <Sidebar
           user={user}
-          onLogout={handleLogout}
+          isAdminOrPM={isAdminOrPM}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          currentPath={pathname}
           darkMode={darkMode}
-          onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+          onDarkModeToggle={toggleDarkMode}
+          mobileOpen={mobileMenuOpen}
+          onMobileClose={() => setMobileMenuOpen(false)}
         />
 
-        {/* Page Content */}
-        <main className="p-4 sm:p-6">
-          {children}
-        </main>
+        {/* Main Content */}
+        <div className={`transition-all duration-300 ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+          {/* Header */}
+          <Header
+            user={user}
+            onLogout={handleLogout}
+            darkMode={darkMode}
+            onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+          />
+
+          {/* Page Content */}
+          <main className="p-4 sm:p-6">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </NotificationProvider>
   );
 }
