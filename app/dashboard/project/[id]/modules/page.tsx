@@ -1088,6 +1088,14 @@ export default function ProjectModulesPage() {
                     Selected: {formData.stakeholders.join(', ')}
                   </p>
                 )}
+                <a
+                  href={`/dashboard/project/${projectId}/stakeholders`}
+                  target="_blank"
+                  className="text-xs text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 mt-2 inline-flex items-center gap-1"
+                >
+                  <i className="fas fa-plus-circle"></i>
+                  Add a missing stakeholder
+                </a>
               </div>
             </div>
 
@@ -1276,6 +1284,14 @@ export default function ProjectModulesPage() {
                     Selected: {formData.stakeholders.join(', ')}
                   </p>
                 )}
+                <a
+                  href={`/dashboard/project/${projectId}/stakeholders`}
+                  target="_blank"
+                  className="text-xs text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 mt-2 inline-flex items-center gap-1"
+                >
+                  <i className="fas fa-plus-circle"></i>
+                  Add a missing stakeholder
+                </a>
               </div>
             </div>
 
