@@ -19,12 +19,13 @@ async function getCurrentUser() {
   return data;
 }
 
-// Check if user can manage modules (PM, Admin, CTO)
+// Check if user can manage modules (PM, Admin, CTO, Consultant)
 function canManageModules(user: any) {
   if (!user) return false;
   return user.is_admin ||
          user.role === 'project_manager' ||
-         user.role === 'cto';
+         user.role === 'cto' ||
+         user.role === 'consultant';
 }
 
 // GET /api/projects/[id]/modules - Get all modules for a project

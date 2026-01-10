@@ -394,7 +394,8 @@ export default function ProjectModulesPage() {
     if (!currentUser) return false;
     return currentUser.is_admin ||
            currentUser.role === 'project_manager' ||
-           currentUser.role === 'cto';
+           currentUser.role === 'cto' ||
+           currentUser.role === 'consultant';
   };
 
   const toggleExpanded = (moduleId: string) => {
