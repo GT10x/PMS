@@ -36,6 +36,7 @@ export default function ProjectModulesPage() {
   const projectId = params.id as string;
 
   const [project, setProject] = useState<Project | null>(null);
+  const [projectStakeholders, setProjectStakeholders] = useState<string[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -60,7 +61,7 @@ export default function ProjectModulesPage() {
     priority: 'medium',
     status: 'planned',
     eta: '',
-    stakeholders: ''
+    stakeholders: [] as string[]
   });
 
   // Features as array for numbered inputs
@@ -402,7 +403,7 @@ export default function ProjectModulesPage() {
       priority: 'medium',
       status: 'planned',
       eta: '',
-      stakeholders: ''
+      stakeholders: [] as string[]
     });
     setFeaturesList(['']);
   };
@@ -423,7 +424,7 @@ export default function ProjectModulesPage() {
       priority: module.priority,
       status: module.status,
       eta: module.eta || '',
-      stakeholders: module.stakeholders?.join(', ') || ''
+      stakeholders: module.stakeholders || []
     });
     setFeaturesList(features.length > 0 ? features : ['']);
     setShowEditModal(true);
@@ -450,8 +451,6 @@ export default function ProjectModulesPage() {
           status: formData.status,
           eta: formData.eta || null,
           stakeholders: formData.stakeholders
-            ? formData.stakeholders.split(',').map(s => s.trim()).filter(Boolean)
-            : []
         })
       });
 
@@ -494,8 +493,6 @@ export default function ProjectModulesPage() {
           status: formData.status,
           eta: formData.eta || null,
           stakeholders: formData.stakeholders
-            ? formData.stakeholders.split(',').map(s => s.trim()).filter(Boolean)
-            : []
         })
       });
 
@@ -1048,16 +1045,36 @@ export default function ProjectModulesPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Stakeholders
                 </label>
-                <input
-                  type="text"
-                  value={formData.stakeholders}
-                  onChange={(e) => setFormData({ ...formData, stakeholders: e.target.value })}
-                  className="input-field"
-                  placeholder="e.g., John, Sarah, Marketing Team"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Separate multiple stakeholders with commas
-                </p>
+                {projectStakeholders.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic py-2">
+                    No stakeholders added. <a href={`/dashboard/project/${projectId}/stakeholders`} className="text-indigo-600 hover:underline">Add stakeholders</a>
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-xl p-3 bg-white dark:bg-gray-700">
+                    {projectStakeholders.map((stakeholder, idx) => (
+                      <label key={idx} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 p-2 rounded-lg">
+                        <input
+                          type="checkbox"
+                          checked={formData.stakeholders.includes(stakeholder)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, stakeholders: [...formData.stakeholders, stakeholder] });
+                            } else {
+                              setFormData({ ...formData, stakeholders: formData.stakeholders.filter((s) => s !== stakeholder) });
+                            }
+                          }}
+                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                        />
+                        <span className="text-gray-900 dark:text-white">{stakeholder}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {formData.stakeholders.length > 0 && (
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+                    Selected: {formData.stakeholders.join(', ')}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1216,12 +1233,36 @@ export default function ProjectModulesPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Stakeholders
                 </label>
-                <input
-                  type="text"
-                  value={formData.stakeholders}
-                  onChange={(e) => setFormData({ ...formData, stakeholders: e.target.value })}
-                  className="input-field"
-                />
+                {projectStakeholders.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic py-2">
+                    No stakeholders added. <a href={`/dashboard/project/${projectId}/stakeholders`} className="text-indigo-600 hover:underline">Add stakeholders</a>
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-xl p-3 bg-white dark:bg-gray-700">
+                    {projectStakeholders.map((stakeholder, idx) => (
+                      <label key={idx} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 p-2 rounded-lg">
+                        <input
+                          type="checkbox"
+                          checked={formData.stakeholders.includes(stakeholder)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, stakeholders: [...formData.stakeholders, stakeholder] });
+                            } else {
+                              setFormData({ ...formData, stakeholders: formData.stakeholders.filter((s) => s !== stakeholder) });
+                            }
+                          }}
+                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                        />
+                        <span className="text-gray-900 dark:text-white">{stakeholder}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {formData.stakeholders.length > 0 && (
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+                    Selected: {formData.stakeholders.join(', ')}
+                  </p>
+                )}
               </div>
             </div>
 
