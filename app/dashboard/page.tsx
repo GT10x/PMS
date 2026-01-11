@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
 import { StatsCardSkeleton, ProjectCardSkeleton } from '@/components/LoadingSkeleton';
 import { NoProjectsEmptyState } from '@/components/EmptyState';
 import Tooltip from '@/components/Tooltip';
+import { getCache, setCache } from '@/lib/cache';
 
 interface User {
   id: string;
@@ -48,6 +50,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Load cached data immediately for instant display
+    const cachedUser = getCache<User>('user');
+    const cachedProjects = getCache<Project[]>('allProjects');
+    const cachedAssigned = getCache<Project[]>('assignedProjects');
+    const cachedCounts = getCache<NotificationCounts>('notificationCounts');
+
+    if (cachedUser) {
+      setUser(cachedUser);
+      if (cachedProjects) {
+        setAllProjects(cachedProjects);
+        setStats({
+          totalProjects: cachedProjects.length,
+          activeProjects: cachedProjects.filter((p) => p.status === 'in_progress').length,
+          completedProjects: cachedProjects.filter((p) => p.status === 'completed').length,
+          teamMembers: 4,
+        });
+      }
+      if (cachedAssigned) setAssignedProjects(cachedAssigned);
+      if (cachedCounts) setNotificationCounts(cachedCounts);
+      setLoading(false);
+    }
+
+    // Fetch fresh data in background
     fetchData();
   }, []);
 
@@ -60,6 +85,7 @@ export default function DashboardPage() {
       }
       const data = await response.json();
       setUser(data.user);
+      setCache('user', data.user);
 
       // Fetch projects based on role
       if (data.user.is_admin || data.user.role === 'project_manager') {
@@ -68,11 +94,12 @@ export default function DashboardPage() {
           const projectsData = await projectsRes.json();
           const projects = projectsData.projects || [];
           setAllProjects(projects);
+          setCache('allProjects', projects);
           setStats({
             totalProjects: projects.length,
             activeProjects: projects.filter((p: Project) => p.status === 'in_progress').length,
             completedProjects: projects.filter((p: Project) => p.status === 'completed').length,
-            teamMembers: 4, // You can fetch actual count
+            teamMembers: 4,
           });
         }
       } else {
@@ -81,6 +108,7 @@ export default function DashboardPage() {
         if (projectsRes.ok) {
           const projectsData = await projectsRes.json();
           setAssignedProjects(projectsData.projects || []);
+          setCache('assignedProjects', projectsData.projects || []);
         }
       }
 
@@ -89,12 +117,13 @@ export default function DashboardPage() {
       if (countsRes.ok) {
         const countsData = await countsRes.json();
         setNotificationCounts(countsData.counts || {});
+        setCache('notificationCounts', countsData.counts || {});
       }
 
       setLoading(false);
     } catch (error) {
       console.error('Error:', error);
-      router.push('/login');
+      if (!user) router.push('/login');
     }
   };
 
@@ -305,9 +334,10 @@ export default function DashboardPage() {
               const counts = notificationCounts[project.id];
               const totalUnread = counts?.total || 0;
               return (
-                <button
+                <Link
                   key={project.id}
-                  onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                  href={`/dashboard/project/${project.id}`}
+                  prefetch={true}
                   className="relative p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-left group border-2 border-transparent hover:border-indigo-500"
                 >
                   {/* Notification Badge */}
@@ -345,7 +375,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -365,9 +395,10 @@ export default function DashboardPage() {
                 const counts = notificationCounts[project.id];
                 const totalUnread = counts?.total || 0;
                 return (
-                  <button
+                  <Link
                     key={project.id}
-                    onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                    href={`/dashboard/project/${project.id}`}
+                    prefetch={true}
                     className="relative p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-left group border-2 border-transparent hover:border-indigo-500"
                   >
                     {/* Notification Badge */}
@@ -405,7 +436,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                  </button>
+                  </Link>
                 );
               })}
             </div>
