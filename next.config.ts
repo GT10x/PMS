@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 import withPWA from 'next-pwa';
 
 const nextConfig: NextConfig = {
+  output: process.env.BUILD_MODE === 'capacitor' ? 'export' : undefined,
+  trailingSlash: true,
+  images: {
+    unoptimized: true,
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '250mb',
