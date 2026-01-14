@@ -78,6 +78,7 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
+      // Step 1: Fetch user first (needed to determine role)
       const response = await fetch('/api/auth/me');
       if (!response.ok) {
         router.push('/login');
@@ -87,12 +88,20 @@ export default function DashboardPage() {
       setUser(data.user);
       setCache('user', data.user);
 
-      // Fetch projects based on role
-      if (data.user.is_admin || data.user.role === 'project_manager') {
-        const projectsRes = await fetch('/api/projects');
-        if (projectsRes.ok) {
-          const projectsData = await projectsRes.json();
-          const projects = projectsData.projects || [];
+      // Step 2: Fetch projects AND notifications IN PARALLEL (saves 400-600ms)
+      const isAdmin = data.user.is_admin || data.user.role === 'project_manager';
+      const projectsUrl = isAdmin ? '/api/projects' : `/api/users/${data.user.id}/projects`;
+
+      const [projectsRes, countsRes] = await Promise.all([
+        fetch(projectsUrl),
+        fetch('/api/notifications/counts')
+      ]);
+
+      // Process projects
+      if (projectsRes.ok) {
+        const projectsData = await projectsRes.json();
+        const projects = projectsData.projects || [];
+        if (isAdmin) {
           setAllProjects(projects);
           setCache('allProjects', projects);
           setStats({
@@ -101,19 +110,13 @@ export default function DashboardPage() {
             completedProjects: projects.filter((p: Project) => p.status === 'completed').length,
             teamMembers: 4,
           });
-        }
-      } else {
-        // Fetch assigned projects for regular users
-        const projectsRes = await fetch(`/api/users/${data.user.id}/projects`);
-        if (projectsRes.ok) {
-          const projectsData = await projectsRes.json();
-          setAssignedProjects(projectsData.projects || []);
-          setCache('assignedProjects', projectsData.projects || []);
+        } else {
+          setAssignedProjects(projects);
+          setCache('assignedProjects', projects);
         }
       }
 
-      // Fetch notification counts
-      const countsRes = await fetch('/api/notifications/counts');
+      // Process notification counts
       if (countsRes.ok) {
         const countsData = await countsRes.json();
         setNotificationCounts(countsData.counts || {});

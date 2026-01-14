@@ -64,7 +64,9 @@ export async function GET(
       .filter(m => m.projects)
       .map(m => m.projects);
 
-    return NextResponse.json({ projects });
+    return NextResponse.json({ projects }, {
+      headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' }
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

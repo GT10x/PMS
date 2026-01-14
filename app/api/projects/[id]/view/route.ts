@@ -64,7 +64,9 @@ export async function GET(
       return NextResponse.json({ error: projectError.message }, { status: 500 });
     }
 
-    return NextResponse.json(project);
+    return NextResponse.json(project, {
+      headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' }
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
