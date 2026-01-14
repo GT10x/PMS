@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { sendPushToUsers } from '@/lib/firebase';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,6 +117,60 @@ export async function POST(
           .eq('id', reportId);
       }
     }
+
+    // Send push notification to report creator and other participants
+    (async () => {
+      try {
+        // Get report details including project info
+        const { data: report } = await supabase
+          .from('project_reports')
+          .select('title, reported_by, project_id')
+          .eq('id', reportId)
+          .single();
+
+        if (report) {
+          // Get project name
+          const { data: project } = await supabase
+            .from('projects')
+            .select('name')
+            .eq('id', report.project_id)
+            .single();
+
+          // Get all users who have replied to this report
+          const { data: allReplies } = await supabase
+            .from('report_replies')
+            .select('user_id')
+            .eq('report_id', reportId);
+
+          // Collect unique user IDs (reporter + all repliers)
+          const userIds = new Set<string>();
+          if (report.reported_by) userIds.add(report.reported_by);
+          allReplies?.forEach(r => userIds.add(r.user_id));
+
+          // Get replier's name
+          const { data: replier } = await supabase
+            .from('user_profiles')
+            .select('full_name')
+            .eq('id', userId)
+            .single();
+
+          const replierName = replier?.full_name || 'Someone';
+          const projectName = project?.name || 'a project';
+
+          await sendPushToUsers(supabase, Array.from(userIds), {
+            title: `Reply in ${projectName}`,
+            body: `${replierName} replied to: ${report.title?.substring(0, 30)}`,
+            data: {
+              type: 'report_reply',
+              reportId: reportId,
+              projectId: report.project_id
+            }
+          }, userId);
+        }
+      } catch (e) {
+        console.error('Push notification error:', e);
+      }
+    })();
 
     return NextResponse.json(reply);
   } catch (error) {

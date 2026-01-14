@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import NotificationProvider from './NotificationProvider';
+import PushNotificationInit from './PushNotificationInit';
 
 interface User {
   id: string;
@@ -40,7 +41,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await fetch('/api/auth/me');
+      // Try to get user_id from localStorage for Capacitor persistence
+      const storedUserId = localStorage.getItem('pms_user_id');
+      const headers: HeadersInit = {};
+      if (storedUserId) {
+        headers['x-user-id'] = storedUserId;
+      }
+      const response = await fetch('/api/auth/me', { headers });
       if (!response.ok) {
         router.push('/login');
         return;
@@ -57,6 +64,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      localStorage.removeItem('pms_user_id');
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -91,6 +99,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <NotificationProvider>
+      <PushNotificationInit />
       <div className={`min-h-screen bg-gray-100 dark:bg-gray-900 ${darkMode ? 'dark' : ''}`}>
         {/* Sidebar */}
         <Sidebar

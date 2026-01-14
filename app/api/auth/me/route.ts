@@ -2,10 +2,15 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getUserById, getUserModulePermissions } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
-    const userId = cookieStore.get('user_id')?.value;
+    let userId = cookieStore.get('user_id')?.value;
+
+    // Fallback to header for Capacitor apps where cookies may not persist
+    if (!userId) {
+      userId = request.headers.get('x-user-id') || undefined;
+    }
 
     if (!userId) {
       return NextResponse.json(

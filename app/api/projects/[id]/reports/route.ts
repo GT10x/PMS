@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import { sendPushToUsers } from '@/lib/firebase';
 import { User } from '@/lib/types';
 
 // Get current user from cookie
@@ -171,6 +172,42 @@ export async function POST(
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Send push notifications to project members (async, don't wait)
+    (async () => {
+      try {
+        // Get project name
+        const { data: project } = await supabaseAdmin
+          .from('projects')
+          .select('name')
+          .eq('id', projectId)
+          .single();
+
+        // Get project member IDs
+        const { data: members } = await supabaseAdmin
+          .from('project_members')
+          .select('user_id')
+          .eq('project_id', projectId);
+
+        const memberIds = members?.map(m => m.user_id) || [];
+
+        // Send notification
+        const reporterName = currentUser.full_name || 'Someone';
+        const projectName = project?.name || 'a project';
+
+        await sendPushToUsers(supabaseAdmin, memberIds, {
+          title: `New ${type} in ${projectName}`,
+          body: `${reporterName}: ${title.substring(0, 50)}`,
+          data: {
+            type: 'report',
+            projectId: projectId,
+            reportId: report.id
+          }
+        }, currentUser.id);
+      } catch (e) {
+        console.error('Push notification error:', e);
+      }
+    })();
 
     return NextResponse.json({ report }, { status: 201 });
   } catch (error) {

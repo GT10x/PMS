@@ -32,6 +32,10 @@ export default function LoginPage() {
         return;
       }
 
+      // Save user_id to localStorage for Capacitor session persistence
+      if (data.user?.id) {
+        localStorage.setItem('pms_user_id', data.user.id);
+      }
       router.push('/dashboard');
     } catch (err) {
       setError('An error occurred. Please try again.');
