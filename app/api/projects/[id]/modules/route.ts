@@ -3,6 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 
+// Master Admin ID - only this user can delete modules and features
+const MASTER_ADMIN_ID = 'd60a4c5e-aa9f-4cdb-999a-41f0bd23d09e';
+
+// Check if user is the master admin
+function isMasterAdmin(user: any) {
+  return user?.id === MASTER_ADMIN_ID;
+}
+
 // Get current user from cookie
 async function getCurrentUser() {
   const cookieStore = await cookies();
@@ -139,6 +147,28 @@ export async function PUT(
       return NextResponse.json({ error: 'module_id is required' }, { status: 400 });
     }
 
+    // Check if features are being deleted (description lines reduced)
+    // Only master admin can delete features
+    if (description !== undefined) {
+      const { data: existingModule } = await supabaseAdmin
+        .from('project_modules')
+        .select('description')
+        .eq('id', module_id)
+        .single();
+
+      if (existingModule?.description) {
+        const existingLines = existingModule.description.split('\n').filter((line: string) => line.trim()).length;
+        const newLines = description ? description.split('\n').filter((line: string) => line.trim()).length : 0;
+
+        // If lines decreased, a feature was deleted - only master admin can do this
+        if (newLines < existingLines && !isMasterAdmin(currentUser)) {
+          return NextResponse.json({
+            error: 'Only the master admin can delete features. Contact Piyush to remove features.'
+          }, { status: 403 });
+        }
+      }
+    }
+
     const updateData: any = { updated_at: new Date().toISOString() };
     if (name !== undefined) updateData.name = name.trim();
     if (description !== undefined) updateData.description = description;
@@ -169,7 +199,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/projects/[id]/modules - Delete a module
+// DELETE /api/projects/[id]/modules - Delete a module (Master Admin only)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -181,8 +211,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!canManageModules(currentUser)) {
-      return NextResponse.json({ error: 'Only Project Managers and Admins can delete modules' }, { status: 403 });
+    // Only master admin can delete modules
+    if (!isMasterAdmin(currentUser)) {
+      return NextResponse.json({
+        error: 'Only the master admin can delete modules. Contact Piyush to delete modules.'
+      }, { status: 403 });
     }
 
     const url = new URL(req.url);

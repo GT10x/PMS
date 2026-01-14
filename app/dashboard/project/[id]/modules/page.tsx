@@ -30,6 +30,9 @@ interface Project {
   name: string;
 }
 
+// Master Admin ID - only this user can delete modules and features
+const MASTER_ADMIN_ID = 'd60a4c5e-aa9f-4cdb-999a-41f0bd23d09e';
+
 export default function ProjectModulesPage() {
   const router = useRouter();
   const params = useParams();
@@ -396,6 +399,11 @@ export default function ProjectModulesPage() {
            currentUser.role === 'project_manager' ||
            currentUser.role === 'cto' ||
            currentUser.role === 'consultant';
+  };
+
+  // Check if current user is the master admin (only they can delete)
+  const isMasterAdmin = () => {
+    return currentUser?.id === MASTER_ADMIN_ID;
   };
 
   const toggleExpanded = (moduleId: string) => {
@@ -822,13 +830,15 @@ export default function ProjectModulesPage() {
                                       >
                                         <i className="fas fa-pen text-xs"></i>
                                       </button>
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); deleteFeature(module.id, idx); }}
-                                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                                        title="Delete"
-                                      >
-                                        <i className="fas fa-trash text-xs"></i>
-                                      </button>
+                                      {isMasterAdmin() && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); deleteFeature(module.id, idx); }}
+                                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                          title="Delete"
+                                        >
+                                          <i className="fas fa-trash text-xs"></i>
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -903,12 +913,14 @@ export default function ProjectModulesPage() {
                         >
                           <i className="fas fa-cog mr-1"></i> Edit Details
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteModule(module.id); }}
-                          className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        >
-                          <i className="fas fa-trash mr-1"></i> Delete
-                        </button>
+                        {isMasterAdmin() && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteModule(module.id); }}
+                            className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          >
+                            <i className="fas fa-trash mr-1"></i> Delete
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
