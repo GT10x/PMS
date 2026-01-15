@@ -14,6 +14,8 @@ import {
   useNodesState,
   useEdgesState,
   MarkerType,
+  Handle,
+  Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -48,7 +50,13 @@ function ModuleNode({ data }: { data: any }) {
   };
 
   return (
-    <div className={`px-4 py-3 rounded-xl border-2 shadow-lg min-w-[180px] max-w-[220px] ${statusColors[data.status] || statusColors.planned}`}>
+    <div className={`px-4 py-3 rounded-xl border-2 shadow-lg min-w-[180px] max-w-[220px] relative ${statusColors[data.status] || statusColors.planned}`}>
+      {/* Handles for edge connections */}
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-indigo-500" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-indigo-500" />
+      <Handle type="target" position={Position.Left} id="left" className="!w-2 !h-2 !bg-indigo-500" />
+      <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 !bg-indigo-500" />
+
       <div className="flex items-center gap-2 mb-1">
         <div className={`w-2 h-2 rounded-full ${priorityDots[data.priority] || priorityDots.medium}`} />
         <h3 className="font-semibold text-gray-800 dark:text-white text-sm truncate">{data.label}</h3>
