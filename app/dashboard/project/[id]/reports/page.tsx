@@ -75,6 +75,7 @@ export default function ProjectReportsPage() {
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
 
   // Create form state
   const [formData, setFormData] = useState({
@@ -1005,6 +1006,25 @@ export default function ProjectReportsPage() {
     }
   };
 
+  // Filter reports based on status, type, and date
+  const filteredReports = reports.filter(report => {
+    // Status filter
+    if (statusFilter !== 'all' && report.status !== statusFilter) return false;
+    // Type filter
+    if (typeFilter !== 'all' && report.type !== typeFilter) return false;
+    // Date filter
+    if (dateFilter !== 'all') {
+      const reportDate = new Date(report.created_at);
+      const now = new Date();
+      const diffDays = Math.floor((now.getTime() - reportDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (dateFilter === 'today' && diffDays > 0) return false;
+      if (dateFilter === '7days' && diffDays > 7) return false;
+      if (dateFilter === '15days' && diffDays > 15) return false;
+      if (dateFilter === 'older' && diffDays <= 15) return false;
+    }
+    return true;
+  });
+
   const getStatusBadge = (status: string) => {
     const badges: Record<string, string> = {
       open: 'badge-info',
@@ -1147,57 +1167,71 @@ export default function ProjectReportsPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="card p-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2">
-            <i className="fas fa-filter text-gray-500"></i>
-            <span className="font-medium text-gray-700 dark:text-gray-300">Filters:</span>
-          </div>
+      {/* Compact Filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <i className="fas fa-filter text-gray-400 text-sm"></i>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input-field w-auto"
-          >
-            <option value="all">All Status</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="do_qc">Do QC</option>
-            <option value="resolved">Resolved</option>
-            <option value="wont_fix">Won't Fix</option>
-          </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+        >
+          <option value="all">All Status</option>
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="do_qc">Do QC</option>
+          <option value="resolved">Resolved</option>
+          <option value="wont_fix">Won't Fix</option>
+        </select>
 
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="input-field w-auto"
-          >
-            <option value="all">All Types</option>
-            <option value="bug">Bugs</option>
-            <option value="feature">Features</option>
-            <option value="improvement">Improvements</option>
-            <option value="task">Tasks</option>
-          </select>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+        >
+          <option value="all">All Types</option>
+          <option value="bug">🐛 Bugs</option>
+          <option value="feature">✨ Features</option>
+          <option value="improvement">🔧 Improvements</option>
+          <option value="task">📋 Tasks</option>
+        </select>
 
+        <select
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+        >
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="7days">Last 7 Days</option>
+          <option value="15days">Last 15 Days</option>
+          <option value="older">Older</option>
+        </select>
+
+        {(statusFilter !== 'all' || typeFilter !== 'all' || dateFilter !== 'all') && (
           <button
             onClick={() => {
               setStatusFilter('all');
               setTypeFilter('all');
+              setDateFilter('all');
             }}
-            className="btn-secondary"
+            className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           >
-            <i className="fas fa-redo mr-1"></i> Reset
+            <i className="fas fa-times"></i> Clear
           </button>
-        </div>
+        )}
+
+        <span className="text-sm text-gray-500 dark:text-gray-400 ml-auto">
+          {filteredReports.length}/{reports.length}
+        </span>
       </div>
 
       {/* Reports List */}
       <div className="space-y-4">
-        {reports.length === 0 ? (
+        {filteredReports.length === 0 ? (
           <NoReportsEmptyState onCreateReport={() => setShowCreateModal(true)} />
         ) : (
-          reports.map((report) => (
+          filteredReports.map((report) => (
             <div
               key={report.id}
               onClick={() => handleViewReport(report)}
