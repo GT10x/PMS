@@ -12,6 +12,7 @@ import { uploadFileWithSignedUrl } from '@/lib/supabase';
 
 interface Report {
   id: string;
+  report_number?: number;
   title: string;
   description: string;
   type: 'bug' | 'feature' | 'improvement' | 'task';
@@ -1241,7 +1242,7 @@ export default function ProjectReportsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <span className="text-2xl">{getTypeEmoji(report.type)}</span>
-                    <h3 className={`text-xl font-bold ${report.is_deleted ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>{report.title}</h3>
+                    <h3 className={`text-xl font-bold ${report.is_deleted ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>{report.report_number ? `#${report.report_number} ` : ''}{report.title}</h3>
                     {getStatusBadge(report.status)}
                     {getPriorityBadge(report.priority)}
                     {report.is_deleted && (
@@ -1627,7 +1628,7 @@ export default function ProjectReportsPage() {
                   <span className="text-2xl flex-shrink-0">{getTypeEmoji(selectedReport.type)}</span>
                   <div className="flex-1 min-w-0">
                     <h3 className={`text-lg md:text-xl font-bold truncate ${selectedReport.is_deleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>
-                      {selectedReport.title}
+                      {selectedReport.report_number && <span className="text-indigo-600 dark:text-indigo-400">#{selectedReport.report_number}</span>} {selectedReport.title}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                       <span className="capitalize">{selectedReport.type}</span>

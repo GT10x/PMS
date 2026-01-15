@@ -147,11 +147,23 @@ export async function POST(
       );
     }
 
+    // Get next report number for this project
+    const { data: maxReport } = await supabaseAdmin
+      .from('project_reports')
+      .select('report_number')
+      .eq('project_id', projectId)
+      .order('report_number', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextReportNumber = (maxReport?.report_number || 0) + 1;
+
     // Create report
     const { data: report, error } = await supabaseAdmin
       .from('project_reports')
       .insert({
         project_id: projectId,
+        report_number: nextReportNumber,
         title,
         description,
         type,
