@@ -144,17 +144,10 @@ export default function ModuleFlowPage() {
               : relevant.join(', ');
 
             newEdges.push({
-              id: `${modules[i].id}-${modules[j].id}`,
+              id: `e-${i}-${j}`,
               source: modules[i].id,
               target: modules[j].id,
-              type: 'smoothstep',
-              label: edgeLabel,
-              labelStyle: { fontSize: 9, fontWeight: 500, fill: '#374151' },
-              labelBgStyle: { fill: '#ffffff', fillOpacity: 0.85 },
-              labelBgPadding: [4, 2] as [number, number],
-              style: { stroke: colors[colorIdx], strokeWidth: Math.min(relevant.length + 1, 4) },
-              markerEnd: { type: MarkerType.ArrowClosed, color: colors[colorIdx], width: 15, height: 15 },
-              animated: relevant.length > 2,
+              style: { stroke: colors[colorIdx], strokeWidth: 2 },
             });
           }
         }
@@ -237,7 +230,22 @@ export default function ModuleFlowPage() {
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ height: '600px' }}>
-          <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} fitView attributionPosition="bottom-left">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            nodeTypes={nodeTypes}
+            fitView
+            attributionPosition="bottom-left"
+            defaultEdgeOptions={{
+              style: { strokeWidth: 2, stroke: '#6366f1' },
+              type: 'smoothstep',
+              animated: true,
+            }}
+            minZoom={0.1}
+            maxZoom={2}
+          >
             <Background color="#94a3b8" gap={20} />
             <Controls />
             <MiniMap nodeColor={(n) => { const s = n.data?.status; return s === 'completed' ? '#22c55e' : s === 'in_progress' ? '#eab308' : s === 'on_hold' ? '#6b7280' : '#3b82f6'; }} maskColor="rgba(0,0,0,0.1)" />
