@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
@@ -13,7 +13,6 @@ import {
   MiniMap,
   useNodesState,
   useEdgesState,
-  MarkerType,
   Handle,
   Position,
 } from '@xyflow/react';
@@ -33,8 +32,14 @@ interface Project {
   name: string;
 }
 
+interface ConnectionInfo {
+  moduleId: string;
+  moduleName: string;
+  sharedStakeholders: string[];
+}
+
 // Custom node component for modules
-function ModuleNode({ data }: { data: any }) {
+function ModuleNode({ data, selected }: { data: any; selected?: boolean }) {
   const statusColors: Record<string, string> = {
     planned: 'border-blue-500 bg-blue-50 dark:bg-blue-900/30',
     in_progress: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30',
@@ -49,8 +54,13 @@ function ModuleNode({ data }: { data: any }) {
     critical: 'bg-red-500',
   };
 
+  const isHighlighted = data.isHighlighted !== false;
+  const isSelected = data.isSelected;
+
   return (
-    <div className={`px-4 py-3 rounded-xl border-2 shadow-lg min-w-[180px] max-w-[220px] relative ${statusColors[data.status] || statusColors.planned}`}>
+    <div
+      className={`px-4 py-3 rounded-xl border-2 shadow-lg min-w-[180px] max-w-[220px] relative transition-all duration-200 ${statusColors[data.status] || statusColors.planned} ${!isHighlighted ? 'opacity-20' : ''} ${isSelected ? 'ring-4 ring-indigo-500 ring-offset-2' : ''}`}
+    >
       {/* Handles for edge connections */}
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-indigo-500" />
       <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-indigo-500" />
@@ -89,6 +99,9 @@ export default function ModuleFlowPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedStakeholder, setSelectedStakeholder] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [minSharedStakeholders, setMinSharedStakeholders] = useState<number>(1);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     fetchData();
@@ -118,53 +131,161 @@ export default function ModuleFlowPage() {
     return Array.from(set).sort();
   }, [modules]);
 
-  useEffect(() => {
-    if (modules.length === 0) return;
-
-    const nodeCount = modules.length;
-    const radius = Math.max(250, nodeCount * 40);
-    const centerX = 400;
-    const centerY = 300;
-
-    const newNodes: Node[] = modules.map((module, index) => {
-      const angle = (2 * Math.PI * index) / nodeCount - Math.PI / 2;
-      return {
-        id: module.id,
-        type: 'moduleNode',
-        position: { x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) },
-        data: { label: module.name, status: module.status, priority: module.priority, stakeholders: module.stakeholders || [] },
-      };
-    });
-
-    const newEdges: Edge[] = [];
-    const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'];
-
+  // Calculate all edges with their shared stakeholder info
+  const allEdgesData = useMemo(() => {
+    const edgesData: { sourceId: string; targetId: string; shared: string[] }[] = [];
     for (let i = 0; i < modules.length; i++) {
       for (let j = i + 1; j < modules.length; j++) {
         const shared = modules[i].stakeholders?.filter((s) => modules[j].stakeholders?.includes(s)) || [];
         if (shared.length > 0) {
-          const relevant = selectedStakeholder ? shared.filter((s) => s === selectedStakeholder) : shared;
-          if (relevant.length > 0) {
-            const colorIdx = allStakeholders.indexOf(relevant[0]) % colors.length;
-            // Simplify label - show count if more than 2 stakeholders
-            const edgeLabel = relevant.length > 2
-              ? `${relevant.length} shared`
-              : relevant.join(', ');
-
-            newEdges.push({
-              id: `e-${i}-${j}`,
-              source: modules[i].id,
-              target: modules[j].id,
-              style: { stroke: colors[colorIdx], strokeWidth: 2 },
-            });
-          }
+          edgesData.push({
+            sourceId: modules[i].id,
+            targetId: modules[j].id,
+            shared,
+          });
         }
       }
     }
+    return edgesData;
+  }, [modules]);
+
+  // Get connections for selected node
+  const selectedNodeConnections = useMemo((): ConnectionInfo[] => {
+    if (!selectedNodeId) return [];
+
+    const connections: ConnectionInfo[] = [];
+    allEdgesData.forEach((edge) => {
+      if (edge.sourceId === selectedNodeId) {
+        const targetModule = modules.find((m) => m.id === edge.targetId);
+        if (targetModule) {
+          connections.push({
+            moduleId: edge.targetId,
+            moduleName: targetModule.name,
+            sharedStakeholders: edge.shared,
+          });
+        }
+      } else if (edge.targetId === selectedNodeId) {
+        const sourceModule = modules.find((m) => m.id === edge.sourceId);
+        if (sourceModule) {
+          connections.push({
+            moduleId: edge.sourceId,
+            moduleName: sourceModule.name,
+            sharedStakeholders: edge.shared,
+          });
+        }
+      }
+    });
+    return connections.sort((a, b) => b.sharedStakeholders.length - a.sharedStakeholders.length);
+  }, [selectedNodeId, allEdgesData, modules]);
+
+  // Get connected node IDs for highlighting
+  const connectedNodeIds = useMemo(() => {
+    if (!selectedNodeId) return new Set<string>();
+    const ids = new Set<string>([selectedNodeId]);
+    selectedNodeConnections.forEach((c) => ids.add(c.moduleId));
+    return ids;
+  }, [selectedNodeId, selectedNodeConnections]);
+
+  // Filter modules by search
+  const filteredModuleIds = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const query = searchQuery.toLowerCase();
+    return new Set(
+      modules
+        .filter((m) => m.name.toLowerCase().includes(query))
+        .map((m) => m.id)
+    );
+  }, [searchQuery, modules]);
+
+  useEffect(() => {
+    if (modules.length === 0) return;
+
+    const nodeCount = modules.length;
+    const radius = Math.max(300, nodeCount * 45);
+    const centerX = 500;
+    const centerY = 400;
+
+    const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'];
+
+    const newNodes: Node[] = modules.map((module, index) => {
+      const angle = (2 * Math.PI * index) / nodeCount - Math.PI / 2;
+
+      // Determine if node should be highlighted
+      let isHighlighted = true;
+      if (selectedNodeId) {
+        isHighlighted = connectedNodeIds.has(module.id);
+      }
+      if (filteredModuleIds && !filteredModuleIds.has(module.id)) {
+        isHighlighted = false;
+      }
+
+      return {
+        id: module.id,
+        type: 'moduleNode',
+        position: { x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) },
+        data: {
+          label: module.name,
+          status: module.status,
+          priority: module.priority,
+          stakeholders: module.stakeholders || [],
+          isHighlighted,
+          isSelected: module.id === selectedNodeId,
+        },
+      };
+    });
+
+    const newEdges: Edge[] = [];
+
+    allEdgesData.forEach((edgeData, idx) => {
+      const shared = edgeData.shared;
+
+      // Apply stakeholder filter
+      const relevant = selectedStakeholder
+        ? shared.filter((s) => s === selectedStakeholder)
+        : shared;
+
+      if (relevant.length < minSharedStakeholders) return;
+      if (relevant.length === 0) return;
+
+      // Determine if edge should be highlighted
+      let isHighlighted = true;
+      if (selectedNodeId) {
+        isHighlighted = edgeData.sourceId === selectedNodeId || edgeData.targetId === selectedNodeId;
+      }
+
+      const colorIdx = allStakeholders.indexOf(relevant[0]) % colors.length;
+      const strokeWidth = Math.min(relevant.length, 6);
+
+      newEdges.push({
+        id: `e-${edgeData.sourceId}-${edgeData.targetId}`,
+        source: edgeData.sourceId,
+        target: edgeData.targetId,
+        label: relevant.length > 2 ? `${relevant.length} shared` : relevant.slice(0, 2).join(', '),
+        labelStyle: { fontSize: 9, fill: '#374151', fontWeight: 500 },
+        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.9 },
+        labelBgPadding: [4, 2] as [number, number],
+        style: {
+          stroke: colors[colorIdx],
+          strokeWidth: isHighlighted ? strokeWidth : 1,
+          opacity: isHighlighted ? 1 : 0.15,
+        },
+        animated: isHighlighted && relevant.length >= 3,
+      });
+    });
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [modules, selectedStakeholder, allStakeholders]);
+  }, [modules, selectedStakeholder, allStakeholders, selectedNodeId, connectedNodeIds, filteredModuleIds, minSharedStakeholders, allEdgesData]);
+
+  const onNodeClick = useCallback((_: any, node: Node) => {
+    setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+  }, []);
+
+  const selectedModule = modules.find((m) => m.id === selectedNodeId);
 
   if (loading) {
     return (
@@ -184,7 +305,7 @@ export default function ModuleFlowPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Module Connectivity Flow</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Visual representation of how modules connect through shared stakeholders</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Click a module to see only its connections • Click empty space to reset</p>
         </div>
       </div>
 
@@ -199,19 +320,178 @@ export default function ModuleFlowPage() {
         <button onClick={() => router.push(`/dashboard/project/${projectId}/settings`)} className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 whitespace-nowrap">Settings</button>
       </div>
 
+      {/* Filters Row */}
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        {/* Search */}
+        <div className="relative">
+          <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input
+            type="text"
+            placeholder="Search modules..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
+
+        {/* Min Shared Stakeholders */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600 dark:text-gray-400">Min shared:</span>
+          <select
+            value={minSharedStakeholders}
+            onChange={(e) => setMinSharedStakeholders(Number(e.target.value))}
+            className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          >
+            <option value={1}>1+ stakeholder</option>
+            <option value={2}>2+ stakeholders</option>
+            <option value={3}>3+ stakeholders</option>
+            <option value={5}>5+ stakeholders</option>
+            <option value={10}>10+ stakeholders</option>
+          </select>
+        </div>
+
+        {/* Reset button */}
+        {(selectedNodeId || searchQuery || minSharedStakeholders > 1 || selectedStakeholder) && (
+          <button
+            onClick={() => {
+              setSelectedNodeId(null);
+              setSearchQuery('');
+              setMinSharedStakeholders(1);
+              setSelectedStakeholder(null);
+            }}
+            className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+          >
+            <i className="fas fa-times mr-1"></i> Reset Filters
+          </button>
+        )}
+      </div>
+
       {/* Stakeholder Filter */}
       {allStakeholders.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Stakeholder:</span>
           <button onClick={() => setSelectedStakeholder(null)} className={`px-3 py-1 text-sm rounded-full transition-colors ${selectedStakeholder === null ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300'}`}>All</button>
-          {allStakeholders.map((s) => (
+          {allStakeholders.slice(0, 15).map((s) => (
             <button key={s} onClick={() => setSelectedStakeholder(s)} className={`px-3 py-1 text-sm rounded-full transition-colors ${selectedStakeholder === s ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300'}`}>{s}</button>
           ))}
+          {allStakeholders.length > 15 && (
+            <span className="text-sm text-gray-500">+{allStakeholders.length - 15} more</span>
+          )}
         </div>
       )}
 
+      {/* Main Content - Flow + Info Panel */}
+      <div className="flex gap-4">
+        {/* Flow Diagram */}
+        <div className={`flex-1 ${selectedNodeId ? 'w-2/3' : 'w-full'}`}>
+          {modules.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <i className="fas fa-project-diagram text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+              <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-1">No modules yet</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Add modules with stakeholders to see the connectivity flow</p>
+              <button onClick={() => router.push(`/dashboard/project/${projectId}/modules`)} className="btn-primary"><i className="fas fa-plus mr-2"></i>Add Modules</button>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ height: '600px' }}>
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeClick={onNodeClick}
+                onPaneClick={onPaneClick}
+                nodeTypes={nodeTypes}
+                fitView
+                attributionPosition="bottom-left"
+                defaultEdgeOptions={{
+                  type: 'smoothstep',
+                }}
+                minZoom={0.1}
+                maxZoom={2}
+              >
+                <Background color="#94a3b8" gap={20} />
+                <Controls />
+                <MiniMap nodeColor={(n) => { const s = n.data?.status; return s === 'completed' ? '#22c55e' : s === 'in_progress' ? '#eab308' : s === 'on_hold' ? '#6b7280' : '#3b82f6'; }} maskColor="rgba(0,0,0,0.1)" />
+              </ReactFlow>
+            </div>
+          )}
+        </div>
+
+        {/* Selected Node Info Panel */}
+        {selectedNodeId && selectedModule && (
+          <div className="w-80 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 h-[600px] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900 dark:text-white">Selected Module</h3>
+              <button onClick={() => setSelectedNodeId(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            {/* Module Info */}
+            <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+              <h4 className="font-semibold text-indigo-900 dark:text-indigo-100">{selectedModule.name}</h4>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className={`px-2 py-0.5 text-xs rounded-full ${
+                  selectedModule.status === 'completed' ? 'bg-green-100 text-green-700' :
+                  selectedModule.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
+                  selectedModule.status === 'on_hold' ? 'bg-gray-100 text-gray-700' :
+                  'bg-blue-100 text-blue-700'
+                }`}>
+                  {selectedModule.status.replace('_', ' ')}
+                </span>
+                <span className={`px-2 py-0.5 text-xs rounded-full ${
+                  selectedModule.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                  selectedModule.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                  selectedModule.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-green-100 text-green-700'
+                }`}>
+                  {selectedModule.priority} priority
+                </span>
+              </div>
+            </div>
+
+            {/* Stakeholders */}
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Stakeholders ({selectedModule.stakeholders?.length || 0})
+              </h4>
+              <div className="flex flex-wrap gap-1">
+                {selectedModule.stakeholders?.map((s, i) => (
+                  <span key={i} className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">{s}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Connections */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Connections ({selectedNodeConnections.length})
+              </h4>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {selectedNodeConnections.map((conn) => (
+                  <div
+                    key={conn.moduleId}
+                    className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => setSelectedNodeId(conn.moduleId)}
+                  >
+                    <div className="font-medium text-sm text-gray-900 dark:text-white">{conn.moduleName}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <span className="font-medium text-indigo-600 dark:text-indigo-400">{conn.sharedStakeholders.length}</span> shared: {conn.sharedStakeholders.slice(0, 3).join(', ')}
+                      {conn.sharedStakeholders.length > 3 && ` +${conn.sharedStakeholders.length - 3} more`}
+                    </div>
+                  </div>
+                ))}
+                {selectedNodeConnections.length === 0 && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">No connections with current filters</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Legend */}
-      <div className="mb-4 flex flex-wrap items-center gap-4 text-sm">
+      <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
         <div className="flex items-center gap-2">
           <span className="text-gray-600 dark:text-gray-400">Status:</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-blue-500 bg-blue-50"></span> Planned</span>
@@ -220,50 +500,13 @@ export default function ModuleFlowPage() {
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-gray-500 bg-gray-50"></span> On Hold</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-gray-600 dark:text-gray-400">Priority:</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500"></span> Low</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500"></span> Medium</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500"></span> High</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Critical</span>
+          <span className="text-gray-600 dark:text-gray-400">Line thickness = more shared stakeholders</span>
         </div>
       </div>
 
-      {/* Flow Diagram */}
-      {modules.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl">
-          <i className="fas fa-project-diagram text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
-          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-1">No modules yet</h3>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Add modules with stakeholders to see the connectivity flow</p>
-          <button onClick={() => router.push(`/dashboard/project/${projectId}/modules`)} className="btn-primary"><i className="fas fa-plus mr-2"></i>Add Modules</button>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ height: '600px' }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            fitView
-            attributionPosition="bottom-left"
-            defaultEdgeOptions={{
-              style: { strokeWidth: 2, stroke: '#6366f1' },
-              type: 'smoothstep',
-              animated: true,
-            }}
-            minZoom={0.1}
-            maxZoom={2}
-          >
-            <Background color="#94a3b8" gap={20} />
-            <Controls />
-            <MiniMap nodeColor={(n) => { const s = n.data?.status; return s === 'completed' ? '#22c55e' : s === 'in_progress' ? '#eab308' : s === 'on_hold' ? '#6b7280' : '#3b82f6'; }} maskColor="rgba(0,0,0,0.1)" />
-          </ReactFlow>
-        </div>
-      )}
-
       {/* Stats */}
       {modules.length > 0 && (
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{modules.length}</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Total Modules</div>
@@ -274,7 +517,7 @@ export default function ModuleFlowPage() {
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">{edges.length}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Connections</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Visible Connections</div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{modules.filter((m) => m.status === 'in_progress').length}</div>
