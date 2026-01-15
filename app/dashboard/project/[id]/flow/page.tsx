@@ -138,16 +138,23 @@ export default function ModuleFlowPage() {
           const relevant = selectedStakeholder ? shared.filter((s) => s === selectedStakeholder) : shared;
           if (relevant.length > 0) {
             const colorIdx = allStakeholders.indexOf(relevant[0]) % colors.length;
+            // Simplify label - show count if more than 2 stakeholders
+            const edgeLabel = relevant.length > 2
+              ? `${relevant.length} shared`
+              : relevant.join(', ');
+
             newEdges.push({
               id: `${modules[i].id}-${modules[j].id}`,
               source: modules[i].id,
               target: modules[j].id,
-              label: relevant.join(', '),
-              labelStyle: { fontSize: 10, fontWeight: 500 },
-              labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
+              type: 'smoothstep',
+              label: edgeLabel,
+              labelStyle: { fontSize: 9, fontWeight: 500, fill: '#374151' },
+              labelBgStyle: { fill: '#ffffff', fillOpacity: 0.85 },
+              labelBgPadding: [4, 2] as [number, number],
               style: { stroke: colors[colorIdx], strokeWidth: Math.min(relevant.length + 1, 4) },
-              markerEnd: { type: MarkerType.ArrowClosed, color: colors[colorIdx] },
-              animated: relevant.length > 1,
+              markerEnd: { type: MarkerType.ArrowClosed, color: colors[colorIdx], width: 15, height: 15 },
+              animated: relevant.length > 2,
             });
           }
         }
