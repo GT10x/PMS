@@ -664,6 +664,12 @@ export default function ProjectModulesPage() {
           Modules
         </button>
         <button
+          onClick={() => router.push(`/dashboard/project/${projectId}/flow`)}
+          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
+        >
+          Flow
+        </button>
+        <button
           onClick={() => router.push(`/dashboard/project/${projectId}/chat`)}
           className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
         >

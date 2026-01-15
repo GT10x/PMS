@@ -150,6 +150,14 @@ export default function ProjectDashboardPage() {
           </a>
 
           <a
+            href={`/dashboard/project/${projectId}/flow`}
+            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
+          >
+            <i className="fas fa-project-diagram"></i>
+            Flow
+          </a>
+
+          <a
             href={`/dashboard/project/${projectId}/chat`}
             className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
           >
