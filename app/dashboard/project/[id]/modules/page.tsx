@@ -627,15 +627,24 @@ export default function ProjectModulesPage() {
             Plan and track modules/features for this project
           </p>
         </div>
-        {canManageModules() && (
+        <div className="flex items-center gap-3">
           <button
-            onClick={openAddModal}
-            className="btn-primary flex items-center gap-2"
+            onClick={() => router.push(`/dashboard/project/${projectId}/flow`)}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
           >
-            <i className="fas fa-plus"></i>
-            Add Module
+            <i className="fas fa-project-diagram"></i>
+            View Flow
           </button>
-        )}
+          {canManageModules() && (
+            <button
+              onClick={openAddModal}
+              className="btn-primary flex items-center gap-2"
+            >
+              <i className="fas fa-plus"></i>
+              Add Module
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Project Navigation Tabs */}
