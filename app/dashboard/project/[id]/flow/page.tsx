@@ -108,6 +108,7 @@ export default function ModuleFlowPage() {
   const [minSharedStakeholders, setMinSharedStakeholders] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [layoutMode, setLayoutMode] = useState<'circle' | 'status' | 'priority'>('circle');
+  const [showOnlyDirect, setShowOnlyDirect] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const flowRef = useRef<HTMLDivElement>(null);
 
@@ -308,32 +309,40 @@ export default function ModuleFlowPage() {
     });
     const modulesByGroup = layoutMode === 'status' ? modulesByStatus : modulesByPriority;
 
-    const newNodes: Node[] = modules.map((module, index) => {
-      const position = getNodePosition(module, index, modulesByGroup);
+    const newNodes: Node[] = modules
+      .filter((module) => {
+        // When showOnlyDirect is on and a node is selected, hide non-connected nodes
+        if (showOnlyDirect && selectedNodeId && !connectedNodeIds.has(module.id)) {
+          return false;
+        }
+        return true;
+      })
+      .map((module, index) => {
+        const position = getNodePosition(module, index, modulesByGroup);
 
-      // Determine if node should be highlighted
-      let isHighlighted = true;
-      if (selectedNodeId) {
-        isHighlighted = connectedNodeIds.has(module.id);
-      }
-      if (filteredModuleIds && !filteredModuleIds.has(module.id)) {
-        isHighlighted = false;
-      }
+        // Determine if node should be highlighted
+        let isHighlighted = true;
+        if (selectedNodeId) {
+          isHighlighted = connectedNodeIds.has(module.id);
+        }
+        if (filteredModuleIds && !filteredModuleIds.has(module.id)) {
+          isHighlighted = false;
+        }
 
-      return {
-        id: module.id,
-        type: 'moduleNode',
-        position,
-        data: {
-          label: module.name,
-          status: module.status,
-          priority: module.priority,
-          stakeholders: module.stakeholders || [],
-          isHighlighted,
-          isSelected: module.id === selectedNodeId,
-        },
-      };
-    });
+        return {
+          id: module.id,
+          type: 'moduleNode',
+          position,
+          data: {
+            label: module.name,
+            status: module.status,
+            priority: module.priority,
+            stakeholders: module.stakeholders || [],
+            isHighlighted,
+            isSelected: module.id === selectedNodeId,
+          },
+        };
+      });
 
     const newEdges: Edge[] = [];
 
@@ -352,6 +361,11 @@ export default function ModuleFlowPage() {
       let isHighlighted = true;
       if (selectedNodeId) {
         isHighlighted = edgeData.sourceId === selectedNodeId || edgeData.targetId === selectedNodeId;
+      }
+
+      // When showOnlyDirect is on, skip non-connected edges entirely
+      if (showOnlyDirect && selectedNodeId && !isHighlighted) {
+        return;
       }
 
       const colorIdx = allStakeholders.indexOf(relevant[0]) % colors.length;
@@ -376,7 +390,7 @@ export default function ModuleFlowPage() {
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [modules, selectedStakeholder, allStakeholders, selectedNodeId, connectedNodeIds, filteredModuleIds, minSharedStakeholders, allEdgesData, layoutMode, getNodePosition]);
+  }, [modules, selectedStakeholder, allStakeholders, selectedNodeId, connectedNodeIds, filteredModuleIds, minSharedStakeholders, allEdgesData, layoutMode, getNodePosition, showOnlyDirect]);
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
@@ -464,6 +478,17 @@ export default function ModuleFlowPage() {
             <option value="priority">Group by Priority</option>
           </select>
         </div>
+
+        {/* Direct Connections Toggle */}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showOnlyDirect}
+            onChange={(e) => setShowOnlyDirect(e.target.checked)}
+            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">Direct only</span>
+        </label>
 
         {/* Export Button */}
         <button
