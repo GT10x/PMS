@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
@@ -15,8 +15,13 @@ import {
   useEdgesState,
   Handle,
   Position,
+  useReactFlow,
+  ReactFlowProvider,
+  getNodesBounds,
+  getViewportForBounds,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { toPng } from 'html-to-image';
 
 interface Module {
   id: string;
@@ -102,6 +107,8 @@ export default function ModuleFlowPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [minSharedStakeholders, setMinSharedStakeholders] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [layoutMode, setLayoutMode] = useState<'circle' | 'status' | 'priority'>('circle');
+  const flowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -197,18 +204,87 @@ export default function ModuleFlowPage() {
     );
   }, [searchQuery, modules]);
 
+  // Export function
+  const exportToImage = useCallback(() => {
+    if (!flowRef.current) return;
+
+    const flowElement = flowRef.current.querySelector('.react-flow') as HTMLElement;
+    if (!flowElement) return;
+
+    toPng(flowElement, {
+      backgroundColor: '#ffffff',
+      width: 1920,
+      height: 1080,
+      style: {
+        width: '1920px',
+        height: '1080px',
+      },
+    }).then((dataUrl) => {
+      const link = document.createElement('a');
+      link.download = `${project?.name || 'module'}-flow-${new Date().toISOString().split('T')[0]}.png`;
+      link.href = dataUrl;
+      link.click();
+    }).catch((err) => {
+      console.error('Export failed:', err);
+      alert('Failed to export image. Please try again.');
+    });
+  }, [project?.name]);
+
+  // Calculate node positions based on layout mode
+  const getNodePosition = useCallback((module: Module, index: number, modulesByGroup: Map<string, Module[]>) => {
+    const nodeCount = modules.length;
+
+    if (layoutMode === 'circle') {
+      const radius = Math.max(300, nodeCount * 45);
+      const centerX = 500;
+      const centerY = 400;
+      const angle = (2 * Math.PI * index) / nodeCount - Math.PI / 2;
+      return { x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) };
+    }
+
+    // Clustered layouts (status or priority)
+    const groupKey = layoutMode === 'status' ? module.status : module.priority;
+    const groups = layoutMode === 'status'
+      ? ['planned', 'in_progress', 'completed', 'on_hold']
+      : ['critical', 'high', 'medium', 'low'];
+
+    const groupIndex = groups.indexOf(groupKey);
+    const groupModules = modulesByGroup.get(groupKey) || [];
+    const indexInGroup = groupModules.findIndex((m) => m.id === module.id);
+
+    const groupWidth = 300;
+    const groupSpacing = 350;
+    const startX = 100;
+    const startY = 100;
+
+    const nodesPerRow = 3;
+    const row = Math.floor(indexInGroup / nodesPerRow);
+    const col = indexInGroup % nodesPerRow;
+
+    return {
+      x: startX + groupIndex * groupSpacing + col * 120,
+      y: startY + row * 150,
+    };
+  }, [layoutMode, modules.length]);
+
   useEffect(() => {
     if (modules.length === 0) return;
 
-    const nodeCount = modules.length;
-    const radius = Math.max(300, nodeCount * 45);
-    const centerX = 500;
-    const centerY = 400;
-
     const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'];
 
+    // Group modules for clustered layouts
+    const modulesByStatus = new Map<string, Module[]>();
+    const modulesByPriority = new Map<string, Module[]>();
+    modules.forEach((m) => {
+      if (!modulesByStatus.has(m.status)) modulesByStatus.set(m.status, []);
+      modulesByStatus.get(m.status)!.push(m);
+      if (!modulesByPriority.has(m.priority)) modulesByPriority.set(m.priority, []);
+      modulesByPriority.get(m.priority)!.push(m);
+    });
+    const modulesByGroup = layoutMode === 'status' ? modulesByStatus : modulesByPriority;
+
     const newNodes: Node[] = modules.map((module, index) => {
-      const angle = (2 * Math.PI * index) / nodeCount - Math.PI / 2;
+      const position = getNodePosition(module, index, modulesByGroup);
 
       // Determine if node should be highlighted
       let isHighlighted = true;
@@ -222,7 +298,7 @@ export default function ModuleFlowPage() {
       return {
         id: module.id,
         type: 'moduleNode',
-        position: { x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) },
+        position,
         data: {
           label: module.name,
           status: module.status,
@@ -275,7 +351,7 @@ export default function ModuleFlowPage() {
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [modules, selectedStakeholder, allStakeholders, selectedNodeId, connectedNodeIds, filteredModuleIds, minSharedStakeholders, allEdgesData]);
+  }, [modules, selectedStakeholder, allStakeholders, selectedNodeId, connectedNodeIds, filteredModuleIds, minSharedStakeholders, allEdgesData, layoutMode, getNodePosition]);
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
@@ -350,6 +426,28 @@ export default function ModuleFlowPage() {
           </select>
         </div>
 
+        {/* Layout Mode */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600 dark:text-gray-400">Layout:</span>
+          <select
+            value={layoutMode}
+            onChange={(e) => setLayoutMode(e.target.value as 'circle' | 'status' | 'priority')}
+            className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          >
+            <option value="circle">Circle</option>
+            <option value="status">Group by Status</option>
+            <option value="priority">Group by Priority</option>
+          </select>
+        </div>
+
+        {/* Export Button */}
+        <button
+          onClick={exportToImage}
+          className="px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <i className="fas fa-download"></i> Export PNG
+        </button>
+
         {/* Reset button */}
         {(selectedNodeId || searchQuery || minSharedStakeholders > 1 || selectedStakeholder) && (
           <button
@@ -392,7 +490,7 @@ export default function ModuleFlowPage() {
               <button onClick={() => router.push(`/dashboard/project/${projectId}/modules`)} className="btn-primary"><i className="fas fa-plus mr-2"></i>Add Modules</button>
             </div>
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ height: '600px' }}>
+            <div ref={flowRef} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ height: '600px' }}>
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
