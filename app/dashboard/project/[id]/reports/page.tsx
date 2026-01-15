@@ -16,7 +16,7 @@ interface Report {
   description: string;
   type: 'bug' | 'feature' | 'improvement' | 'task';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'in_progress' | 'resolved' | 'wont_fix';
+  status: 'open' | 'in_progress' | 'do_qc' | 'resolved' | 'wont_fix';
   browser?: string;
   device?: string;
   attachments: string[];
@@ -1009,12 +1009,14 @@ export default function ProjectReportsPage() {
     const badges: Record<string, string> = {
       open: 'badge-info',
       in_progress: 'badge-warning',
+      do_qc: 'badge-orange',
       resolved: 'badge-success',
       wont_fix: 'badge-purple',
     };
     const labels: Record<string, string> = {
       open: 'Open',
       in_progress: 'In Progress',
+      do_qc: 'Do QC',
       resolved: 'Resolved',
       wont_fix: "Won't Fix"
     };
@@ -1161,6 +1163,7 @@ export default function ProjectReportsPage() {
             <option value="all">All Status</option>
             <option value="open">Open</option>
             <option value="in_progress">In Progress</option>
+            <option value="do_qc">Do QC</option>
             <option value="resolved">Resolved</option>
             <option value="wont_fix">Won't Fix</option>
           </select>
@@ -1206,7 +1209,7 @@ export default function ProjectReportsPage() {
                     <span className="text-2xl">{getTypeEmoji(report.type)}</span>
                     <h3 className={`text-xl font-bold ${report.is_deleted ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>{report.title}</h3>
                     {getStatusBadge(report.status)}
-                    {report.priority !== 'medium' && getPriorityBadge(report.priority)}
+                    {getPriorityBadge(report.priority)}
                     {report.is_deleted && (
                       <span className="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs font-medium rounded-full">
                         Deleted
@@ -1619,6 +1622,8 @@ export default function ProjectReportsPage() {
                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                             : selectedReport.status === 'in_progress'
                             ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            : selectedReport.status === 'do_qc'
+                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
                             : selectedReport.status === 'resolved'
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                             : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
@@ -1626,6 +1631,7 @@ export default function ProjectReportsPage() {
                       >
                         <option value="open">Open</option>
                         <option value="in_progress">In Progress</option>
+                        <option value="do_qc">Do QC</option>
                         <option value="resolved">Resolved</option>
                       </select>
                       {updatingStatus && (

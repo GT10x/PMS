@@ -233,6 +233,11 @@ body {
   color: #92400e;
 }
 
+.badge-orange {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
 .badge-danger {
   background: #fee2e2;
   color: #991b1b;
@@ -256,6 +261,11 @@ body {
 .dark .badge-warning {
   background: #78350f;
   color: #fcd34d;
+}
+
+.dark .badge-orange {
+  background: #7c2d12;
+  color: #fdba74;
 }
 
 .dark .badge-danger {
