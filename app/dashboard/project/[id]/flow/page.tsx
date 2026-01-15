@@ -108,7 +108,32 @@ export default function ModuleFlowPage() {
   const [minSharedStakeholders, setMinSharedStakeholders] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [layoutMode, setLayoutMode] = useState<'circle' | 'status' | 'priority'>('circle');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const flowRef = useRef<HTMLDivElement>(null);
+
+  // Toggle fullscreen
+  const toggleFullscreen = useCallback(() => {
+    if (!flowRef.current) return;
+
+    if (!isFullscreen) {
+      if (flowRef.current.requestFullscreen) {
+        flowRef.current.requestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }, [isFullscreen]);
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -448,6 +473,14 @@ export default function ModuleFlowPage() {
           <i className="fas fa-download"></i> Export PNG
         </button>
 
+        {/* Fullscreen Button */}
+        <button
+          onClick={toggleFullscreen}
+          className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+        >
+          <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i> {isFullscreen ? 'Exit' : 'Fullscreen'}
+        </button>
+
         {/* Reset button */}
         {(selectedNodeId || searchQuery || minSharedStakeholders > 1 || selectedStakeholder) && (
           <button
@@ -499,6 +532,7 @@ export default function ModuleFlowPage() {
                 onNodeClick={onNodeClick}
                 onPaneClick={onPaneClick}
                 nodeTypes={nodeTypes}
+                nodesDraggable={true}
                 fitView
                 attributionPosition="bottom-left"
                 defaultEdgeOptions={{
