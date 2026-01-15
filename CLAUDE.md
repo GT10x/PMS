@@ -57,6 +57,15 @@
 - **Remember your own work** - If you stored credentials/passwords in a file, use them. Don't ask the user again.
 - **Run the migration yourself** - If you create SQL migrations, execute them. Don't ask user to copy-paste into Supabase.
 
+## Third-Party Libraries - RESEARCH FIRST
+- **Don't assume, verify** - Before using any third-party library, research its specific requirements. Don't guess based on similar libraries.
+- **Read the docs for your exact use case** - Generic examples may not cover your needs (e.g., custom components often have extra requirements)
+- **React Flow specific:**
+  - Custom nodes MUST have `<Handle>` components for edges to connect - without handles, edges won't render even if they exist in state
+  - Import `Handle` and `Position` from `@xyflow/react`
+  - Add handles for all directions: `<Handle type="target" position={Position.Top} />` etc.
+- **General rule:** If a feature doesn't work after implementation, check the library docs for "custom component" or "advanced usage" requirements before debugging blindly
+
 ## Pre-Delivery Checklist
 Before saying "done" on any feature:
 1. Did I implement ALL parts (client + server)?
@@ -66,3 +75,4 @@ Before saying "done" on any feature:
 5. Did I test the mental flow end-to-end?
 6. Would this work on first install by a new user?
 7. Did I handle edge cases (app killed, network issues, permissions denied)?
+8. If using a third-party library, did I verify ALL requirements for my specific use case?
