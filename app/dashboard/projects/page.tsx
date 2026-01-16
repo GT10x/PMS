@@ -27,7 +27,17 @@ interface ProjectMember {
   user_id: string;
   full_name: string;
   role: string;
+  project_roles?: string[];
 }
+
+const AVAILABLE_PROJECT_ROLES = [
+  { value: 'developer', label: 'Developer' },
+  { value: 'tester', label: 'Tester' },
+  { value: 'consultant', label: 'Consultant' },
+  { value: 'project_manager', label: 'Project Manager' },
+  { value: 'designer', label: 'Designer' },
+  { value: 'qa', label: 'QA' },
+];
 
 interface User {
   id: string;
@@ -54,6 +64,7 @@ export default function ProjectsPage() {
     start_date: '',
     member_ids: [] as string[],
   });
+  const [memberRoles, setMemberRoles] = useState<Record<string, string[]>>({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -127,7 +138,10 @@ export default function ProjectsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          team_members: formData.member_ids,
+          team_members: formData.member_ids.map(userId => ({
+            user_id: userId,
+            project_roles: memberRoles[userId] || []
+          })),
         }),
       });
 
@@ -164,7 +178,10 @@ export default function ProjectsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          team_members: formData.member_ids,
+          team_members: formData.member_ids.map(userId => ({
+            user_id: userId,
+            project_roles: memberRoles[userId] || []
+          })),
         }),
       });
 
@@ -217,6 +234,12 @@ export default function ProjectsPage() {
       start_date: project.start_date || '',
       member_ids: project.members?.map(m => m.user_id) || [],
     });
+    // Load existing project roles for each member
+    const existingRoles: Record<string, string[]> = {};
+    project.members?.forEach(m => {
+      existingRoles[m.user_id] = m.project_roles || [];
+    });
+    setMemberRoles(existingRoles);
     setShowEditModal(true);
   };
 
@@ -229,6 +252,7 @@ export default function ProjectsPage() {
       start_date: '',
       member_ids: [],
     });
+    setMemberRoles({});
     setError('');
   };
 
@@ -239,6 +263,24 @@ export default function ProjectsPage() {
         ? prev.member_ids.filter(id => id !== userId)
         : [...prev.member_ids, userId]
     }));
+    // Clear roles when member is removed
+    if (formData.member_ids.includes(userId)) {
+      setMemberRoles(prev => {
+        const newRoles = { ...prev };
+        delete newRoles[userId];
+        return newRoles;
+      });
+    }
+  };
+
+  const toggleRole = (userId: string, role: string) => {
+    setMemberRoles(prev => {
+      const currentRoles = prev[userId] || [];
+      const newRoles = currentRoles.includes(role)
+        ? currentRoles.filter(r => r !== role)
+        : [...currentRoles, role];
+      return { ...prev, [userId]: newRoles };
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -533,33 +575,58 @@ export default function ProjectsPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Assign Team Members
                 </label>
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                <div className="space-y-2 max-h-64 overflow-y-auto p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                   {users.map((user) => (
-                    <label
-                      key={user.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                        formData.member_ids.includes(user.id)
-                          ? 'bg-indigo-50 dark:bg-indigo-900/30 border-2 border-indigo-500'
-                          : 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-600'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.member_ids.includes(user.id)}
-                        onChange={() => toggleMember(user.id)}
-                        className="sr-only"
-                      />
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-semibold">
-                        {user.full_name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800 dark:text-white">{user.full_name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
-                      </div>
+                    <div key={user.id} className="bg-white dark:bg-gray-800 rounded-lg border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-600 overflow-hidden">
+                      <label
+                        className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                          formData.member_ids.includes(user.id)
+                            ? 'bg-indigo-50 dark:bg-indigo-900/30'
+                            : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.member_ids.includes(user.id)}
+                          onChange={() => toggleMember(user.id)}
+                          className="sr-only"
+                        />
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                          {user.full_name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 dark:text-white">{user.full_name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
+                        </div>
+                        {formData.member_ids.includes(user.id) ? (
+                          <i className="fas fa-check-circle text-indigo-500 flex-shrink-0"></i>
+                        ) : (
+                          <i className="far fa-circle text-gray-300 flex-shrink-0"></i>
+                        )}
+                      </label>
+                      {/* Role selection - only show when member is selected */}
                       {formData.member_ids.includes(user.id) && (
-                        <i className="fas fa-check-circle text-indigo-500 ml-auto"></i>
+                        <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-700">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Project roles:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {AVAILABLE_PROJECT_ROLES.map((role) => (
+                              <button
+                                key={role.value}
+                                type="button"
+                                onClick={() => toggleRole(user.id, role.value)}
+                                className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                  (memberRoles[user.id] || []).includes(role.value)
+                                    ? 'bg-indigo-500 text-white'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                }`}
+                              >
+                                {role.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                    </label>
+                    </div>
                   ))}
                 </div>
               </div>

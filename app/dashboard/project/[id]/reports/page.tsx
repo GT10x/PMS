@@ -1659,7 +1659,9 @@ export default function ProjectReportsPage() {
                           currentUser?.role === 'project_manager' ||
                           currentUser?.role === 'cto' ||
                           (selectedReport.status === 'open' && (currentUser?.role === 'developer' || currentUser?.role === 'react_native_developer')) ||
-                          (selectedReport.status === 'in_progress')
+                          (selectedReport.status === 'in_progress' && (currentUser?.role === 'developer' || currentUser?.role === 'react_native_developer')) ||
+                          (selectedReport.status === 'do_qc' && (currentUser?.role === 'tester' || currentUser?.role === 'qa' || currentUser?.role === 'developer' || currentUser?.role === 'react_native_developer')) ||
+                          (selectedReport.status === 'still_issue' && (currentUser?.role === 'developer' || currentUser?.role === 'react_native_developer'))
                         )}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium border-0 cursor-pointer transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
                           selectedReport.status === 'open'
@@ -1668,6 +1670,8 @@ export default function ProjectReportsPage() {
                             ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                             : selectedReport.status === 'do_qc'
                             ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                            : selectedReport.status === 'still_issue'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                             : selectedReport.status === 'resolved'
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                             : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'

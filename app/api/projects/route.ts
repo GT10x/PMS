@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         project_id,
         user_id,
         role,
+        project_roles,
         user_profiles (
           id,
           full_name,
@@ -67,7 +68,8 @@ export async function GET(req: NextRequest) {
         .map(pm => ({
           user_id: pm.user_id,
           full_name: pm.user_profiles?.full_name || 'Unknown',
-          role: pm.user_profiles?.role || 'Unknown'
+          role: pm.user_profiles?.role || 'Unknown',
+          project_roles: pm.project_roles || []
         }))
     }));
 
@@ -118,12 +120,27 @@ export async function POST(req: NextRequest) {
     }
 
     // Assign team members
+    // team_members can be either:
+    // - Array of user IDs (legacy): ["user1", "user2"]
+    // - Array of objects with roles: [{user_id: "user1", project_roles: ["tester", "developer"]}]
     if (team_members && team_members.length > 0) {
-      const memberInserts = team_members.map((userId: string) => ({
-        project_id: project.id,
-        user_id: userId,
-        role: null
-      }));
+      const memberInserts = team_members.map((member: string | { user_id: string; project_roles?: string[] }) => {
+        if (typeof member === 'string') {
+          return {
+            project_id: project.id,
+            user_id: member,
+            role: null,
+            project_roles: []
+          };
+        } else {
+          return {
+            project_id: project.id,
+            user_id: member.user_id,
+            role: null,
+            project_roles: member.project_roles || []
+          };
+        }
+      });
 
       const { error: membersError } = await supabaseAdmin
         .from('project_members')

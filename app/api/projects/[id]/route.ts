@@ -95,6 +95,9 @@ export async function PUT(
     }
 
     // Update team members only if team_members array is provided in the request
+    // team_members can be either:
+    // - Array of user IDs (legacy): ["user1", "user2"]
+    // - Array of objects with roles: [{user_id: "user1", project_roles: ["tester", "developer"]}]
     if (team_members !== undefined) {
       // Delete all existing members for this project
       const { error: deleteError } = await supabaseAdmin
@@ -108,11 +111,24 @@ export async function PUT(
 
       // Insert new members if any are provided
       if (Array.isArray(team_members) && team_members.length > 0) {
-        const memberInserts = team_members.map((userId: string) => ({
-          project_id: id,
-          user_id: userId,
-          role: null
-        }));
+        const memberInserts = team_members.map((member: string | { user_id: string; project_roles?: string[] }) => {
+          // Support both legacy format (just user_id string) and new format (object with roles)
+          if (typeof member === 'string') {
+            return {
+              project_id: id,
+              user_id: member,
+              role: null,
+              project_roles: []
+            };
+          } else {
+            return {
+              project_id: id,
+              user_id: member.user_id,
+              role: null,
+              project_roles: member.project_roles || []
+            };
+          }
+        });
 
         const { error: membersError } = await supabaseAdmin
           .from('project_members')
