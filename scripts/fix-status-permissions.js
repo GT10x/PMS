@@ -1,4 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+const fs = require('fs');
+const filePath = 'C:/Users/PCS/pms/app/api/reports/[reportId]/status/route.ts';
+
+const content = `import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
@@ -163,14 +166,14 @@ export async function GET(
 
     const { data: logs, error } = await supabase
       .from('report_status_log')
-      .select(`
+      .select(\`
         *,
         user:user_profiles!changed_by (
           id,
           full_name,
           role
         )
-      `)
+      \`)
       .eq('report_id', reportId)
       .order('changed_at', { ascending: true });
 
@@ -185,3 +188,7 @@ export async function GET(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+`;
+
+fs.writeFileSync(filePath, content);
+console.log('Updated status API with new permissions');

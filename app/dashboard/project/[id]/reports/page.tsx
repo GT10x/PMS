@@ -17,7 +17,7 @@ interface Report {
   description: string;
   type: 'bug' | 'feature' | 'improvement' | 'task';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'in_progress' | 'do_qc' | 'resolved' | 'wont_fix';
+  status: 'open' | 'in_progress' | 'do_qc' | 'resolved' | 'still_issue' | 'wont_fix';
   browser?: string;
   device?: string;
   attachments: string[];
@@ -444,17 +444,23 @@ export default function ProjectReportsPage() {
     const isAdmin = currentUser.is_admin;
     const isPM = currentUser.role === 'project_manager' || currentUser.role === 'cto';
     const isDeveloper = currentUser.role === 'developer' || currentUser.role === 'react_native_developer';
-    const isTester = currentUser.role === 'tester';
-    const isReporter = selectedReport.reported_by === currentUser.id;
+    const isTester = currentUser.role === 'tester' || currentUser.role === 'qa' || currentUser.role === 'quality_assurance';
+    const currentStatus = selectedReport.status;
 
-    // Admins and PMs can do anything
-    if (isAdmin || isPM) return true;
+    // Super admin can do anything - no restrictions
+    if (isAdmin) return true;
 
-    // Developers can mark as in_progress
-    if (isDeveloper && toStatus === 'in_progress') return true;
+    // PMs can do anything
+    if (isPM) return true;
 
-    // Testers or reporters can mark as resolved (approve)
-    if ((isTester || isReporter) && toStatus === 'resolved') return true;
+    // Developers can mark as in_progress, do_qc, resolved
+    if (isDeveloper && ['in_progress', 'do_qc', 'resolved'].includes(toStatus)) return true;
+
+    // Testers can change from do_qc to resolved or still_issue
+    if (isTester && currentStatus === 'do_qc' && ['resolved', 'still_issue'].includes(toStatus)) return true;
+
+    // Testers can also send back to in_progress from do_qc
+    if (isTester && currentStatus === 'do_qc' && toStatus === 'in_progress') return true;
 
     return false;
   };
@@ -1032,6 +1038,7 @@ export default function ProjectReportsPage() {
       in_progress: 'badge-warning',
       do_qc: 'badge-orange',
       resolved: 'badge-success',
+      still_issue: 'badge-danger',
       wont_fix: 'badge-purple',
     };
     const labels: Record<string, string> = {
@@ -1039,6 +1046,7 @@ export default function ProjectReportsPage() {
       in_progress: 'In Progress',
       do_qc: 'Do QC',
       resolved: 'Resolved',
+      still_issue: 'Still Issue',
       wont_fix: "Won't Fix"
     };
     return (
@@ -1182,6 +1190,7 @@ export default function ProjectReportsPage() {
           <option value="in_progress">In Progress</option>
           <option value="do_qc">Do QC</option>
           <option value="resolved">Resolved</option>
+          <option value="still_issue">Still Issue</option>
           <option value="wont_fix">Won't Fix</option>
         </select>
 
@@ -1668,6 +1677,7 @@ export default function ProjectReportsPage() {
                         <option value="in_progress">In Progress</option>
                         <option value="do_qc">Do QC</option>
                         <option value="resolved">Resolved</option>
+                        <option value="still_issue">Still Issue</option>
                       </select>
                       {updatingStatus && (
                         <i className="fas fa-spinner animate-spin text-indigo-500"></i>
