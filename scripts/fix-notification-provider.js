@@ -1,4 +1,7 @@
-'use client';
+const fs = require('fs');
+const filePath = 'C:/Users/PCS/pms/components/NotificationProvider.tsx';
+
+const content = `'use client';
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
@@ -45,7 +48,7 @@ export default function NotificationProvider({ children }: { children: React.Rea
             if (current.chat > (last?.chat || 0)) {
               const newCount = current.chat - (last?.chat || 0);
               notify(
-                `${newCount} new message${newCount > 1 ? 's' : ''} in ${current.projectName}`,
+                \`\${newCount} new message\${newCount > 1 ? 's' : ''} in \${current.projectName}\`,
                 'You have new chat messages',
                 { showNotification: true }
               );
@@ -55,7 +58,7 @@ export default function NotificationProvider({ children }: { children: React.Rea
             if (current.reports > (last?.reports || 0)) {
               const newCount = current.reports - (last?.reports || 0);
               notify(
-                `${newCount} new report${newCount > 1 ? 's' : ''} in ${current.projectName}`,
+                \`\${newCount} new report\${newCount > 1 ? 's' : ''} in \${current.projectName}\`,
                 'You have new bug reports',
                 { showNotification: true }
               );
@@ -80,3 +83,7 @@ export default function NotificationProvider({ children }: { children: React.Rea
 
   return <>{children}</>;
 }
+`;
+
+fs.writeFileSync(filePath, content);
+console.log('Fixed NotificationProvider.tsx');

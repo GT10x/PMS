@@ -69,8 +69,8 @@ export async function PATCH(
       // Only dev/pm/cto can change from open to in_progress
       canChangeStatus = canChangeToInProgress;
     } else if (status === 'do_qc' && oldStatus === 'in_progress') {
-      // Developer marks as ready for QC
-      canChangeStatus = canChangeToInProgress;
+      // Only admin or developer can mark as ready for QC
+      canChangeStatus = user.is_admin || user.role === 'developer' || user.role === 'react_native_developer';
     } else if (status === 'resolved' && (oldStatus === 'in_progress' || oldStatus === 'do_qc')) {
       // Anyone can mark as resolved after QC
       canChangeStatus = true;

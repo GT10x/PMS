@@ -23,7 +23,7 @@ export default function Header({ user, onLogout, darkMode, onMenuToggle }: Heade
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+    <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <div className="flex items-center justify-between h-16 px-4 sm:px-6">
         {/* Mobile Menu Button */}
         <button
