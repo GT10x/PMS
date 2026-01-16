@@ -148,7 +148,7 @@ export default function ProjectSettingsPage() {
 
       {/* Navigation Tabs */}
       <div className="card mb-6 p-1">
-        <div className="flex gap-1">
+        <div className="flex gap-1 min-w-max">
           <a
             href={`/dashboard/project/${projectId}`}
             className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
