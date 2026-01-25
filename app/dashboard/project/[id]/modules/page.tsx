@@ -13,6 +13,7 @@ interface Module {
   status: 'planned' | 'in_progress' | 'completed' | 'on_hold';
   eta: string | null;
   stakeholders: string[];
+  phase: number;
   created_at: string;
   updated_at: string;
   created_by_user?: { id: string; full_name: string };
@@ -94,7 +95,8 @@ export default function ProjectModulesPage() {
     priority: 'medium',
     status: 'planned',
     eta: '',
-    stakeholders: [] as string[]
+    stakeholders: [] as string[],
+    phase: 1
   });
 
   // Features as array for numbered inputs
@@ -556,6 +558,23 @@ export default function ProjectModulesPage() {
     }
   };
 
+  // Update module phase
+  const updateModulePhase = async (moduleId: string, phase: number) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ module_id: moduleId, phase })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setModules(prev => prev.map(m => m.id === moduleId ? data.module : m));
+      }
+    } catch (error) {
+      console.error('Error updating module phase:', error);
+    }
+  };
+
   // Reorder features after drag and drop
   const reorderFeatures = async (moduleId: string, fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
@@ -963,7 +982,8 @@ export default function ProjectModulesPage() {
       priority: 'medium',
       status: 'planned',
       eta: '',
-      stakeholders: [] as string[]
+      stakeholders: [] as string[],
+      phase: 1
     });
     setFeaturesList(['']);
     setModalFeatureRemarks(new Map());
@@ -989,7 +1009,8 @@ export default function ProjectModulesPage() {
       priority: module.priority,
       status: module.status,
       eta: module.eta || '',
-      stakeholders: module.stakeholders || []
+      stakeholders: module.stakeholders || [],
+      phase: module.phase || 1
     });
     setFeaturesList(features.length > 0 ? features : ['']);
     setShowEditModal(true);
@@ -1015,7 +1036,8 @@ export default function ProjectModulesPage() {
           priority: formData.priority,
           status: formData.status,
           eta: formData.eta || null,
-          stakeholders: formData.stakeholders
+          stakeholders: formData.stakeholders,
+          phase: formData.phase
         })
       });
 
@@ -1110,7 +1132,8 @@ export default function ProjectModulesPage() {
           priority: formData.priority,
           status: formData.status,
           eta: formData.eta || null,
-          stakeholders: formData.stakeholders
+          stakeholders: formData.stakeholders,
+          phase: formData.phase
         })
       });
 
@@ -1402,6 +1425,23 @@ export default function ProjectModulesPage() {
 
                   {/* Badges */}
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Phase Badge/Selector */}
+                    <select
+                      value={module.phase || 1}
+                      onChange={(e) => { e.stopPropagation(); updateModulePhase(module.id, parseInt(e.target.value)); }}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`text-xs px-2 py-0.5 rounded font-medium border-0 cursor-pointer ${
+                        module.phase === 1 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                        module.phase === 2 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                        module.phase === 3 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      }`}
+                      disabled={!canManageModules()}
+                    >
+                      <option value={1}>Ph 1</option>
+                      <option value={2}>Ph 2</option>
+                      <option value={3}>Ph 3</option>
+                    </select>
                     {module.stakeholders && module.stakeholders.length > 0 && (
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
                         <i className="fas fa-users mr-1"></i>
@@ -2088,7 +2128,22 @@ export default function ProjectModulesPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Phase
+                  </label>
+                  <select
+                    value={formData.phase}
+                    onChange={(e) => setFormData({ ...formData, phase: parseInt(e.target.value) })}
+                    className="input-field"
+                  >
+                    <option value={1}>Phase 1</option>
+                    <option value={2}>Phase 2</option>
+                    <option value={3}>Phase 3</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Priority
@@ -2284,7 +2339,22 @@ export default function ProjectModulesPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Phase
+                  </label>
+                  <select
+                    value={formData.phase}
+                    onChange={(e) => setFormData({ ...formData, phase: parseInt(e.target.value) })}
+                    className="input-field"
+                  >
+                    <option value={1}>Phase 1</option>
+                    <option value={2}>Phase 2</option>
+                    <option value={3}>Phase 3</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Priority

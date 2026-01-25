@@ -89,7 +89,7 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { name, description, priority, status, eta, stakeholders } = body;
+    const { name, description, priority, status, eta, stakeholders, phase } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Module name is required' }, { status: 400 });
@@ -117,6 +117,7 @@ export async function POST(
         eta: eta || null,
         stakeholders: stakeholders || [],
         sort_order: nextOrder,
+        phase: phase || 1,
         created_by: currentUser.id
       })
       .select(`
@@ -154,7 +155,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { module_id, name, description, priority, status, eta, stakeholders } = body;
+    const { module_id, name, description, priority, status, eta, stakeholders, phase } = body;
 
     if (!module_id) {
       return NextResponse.json({ error: 'module_id is required' }, { status: 400 });
@@ -189,6 +190,7 @@ export async function PUT(
     if (status !== undefined) updateData.status = status;
     if (eta !== undefined) updateData.eta = eta || null; // Convert empty string to null
     if (stakeholders !== undefined) updateData.stakeholders = stakeholders;
+    if (phase !== undefined) updateData.phase = phase;
 
     const { data: module, error } = await supabaseAdmin
       .from('project_modules')
