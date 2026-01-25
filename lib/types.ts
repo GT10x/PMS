@@ -320,3 +320,37 @@ export type Comment = Database['public']['Tables']['comments']['Row'];
 
 // Module Permission type
 export type ModulePermission = Database['public']['Tables']['user_module_permissions']['Row'];
+
+// Module Feature type (individual features within a module)
+export interface ModuleFeature {
+  id: string;
+  module_id: string;
+  name: string;
+  phase: number;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  remarks?: FeatureRemark[];
+  created_by_user?: {
+    id: string;
+    full_name: string;
+  };
+}
+
+// Feature Remark type (remarks/notes for a feature)
+export interface FeatureRemark {
+  id: string;
+  feature_id: string;
+  content: string | null;
+  image_url: string | null;
+  voice_url: string | null;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by_user?: {
+    id: string;
+    full_name: string;
+  };
+}

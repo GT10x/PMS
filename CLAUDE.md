@@ -21,6 +21,14 @@
 - **Domain:** pms.globaltechtrums.com
 - **File uploads:** Direct to Supabase storage to bypass Vercel limit
 
+## Database Access - ALWAYS DO IT YOURSELF
+- **Database credentials are in `.env.local`** - Use `DATABASE_URL` or `DATABASE_PASSWORD` for direct PostgreSQL access
+- **Run migrations yourself** - Never ask user to run SQL. Use Node.js pg client with credentials from .env.local
+- **Supabase project ref:** `loihxoyrutbzmqscdknk`
+- **Direct connection:** `postgresql://postgres:[PASSWORD]@db.loihxoyrutbzmqscdknk.supabase.co:5432/postgres`
+- **For DDL operations (CREATE TABLE, etc.):** Use pg client directly, NOT supabaseAdmin (it can't do DDL)
+- **Migration script template:** See `run-feature-remarks-migration.js` for example
+
 ## Common Pitfalls to Avoid
 - Importing server-only code (like `supabaseAdmin`) in client components
 - Using wrong cookie name for auth (must be `user_id`)

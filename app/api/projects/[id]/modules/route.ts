@@ -56,6 +56,7 @@ export async function GET(
         created_by_user:user_profiles!project_modules_created_by_fkey(id, full_name)
       `)
       .eq('project_id', projectId)
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -94,6 +95,17 @@ export async function POST(
       return NextResponse.json({ error: 'Module name is required' }, { status: 400 });
     }
 
+    // Get max sort_order for this project
+    const { data: maxOrderResult } = await supabaseAdmin
+      .from('project_modules')
+      .select('sort_order')
+      .eq('project_id', projectId)
+      .order('sort_order', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .single();
+
+    const nextOrder = (maxOrderResult?.sort_order ?? -1) + 1;
+
     const { data: module, error } = await supabaseAdmin
       .from('project_modules')
       .insert({
@@ -104,6 +116,7 @@ export async function POST(
         status: status || 'planned',
         eta: eta || null,
         stakeholders: stakeholders || [],
+        sort_order: nextOrder,
         created_by: currentUser.id
       })
       .select(`
@@ -193,6 +206,44 @@ export async function PUT(
     }
 
     return NextResponse.json({ module });
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// PATCH /api/projects/[id]/modules - Bulk update module order
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!canManageModules(currentUser)) {
+      return NextResponse.json({ error: 'Only Project Managers and Admins can reorder modules' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { modules } = body; // Array of { id, sort_order }
+
+    if (!Array.isArray(modules)) {
+      return NextResponse.json({ error: 'Modules array is required' }, { status: 400 });
+    }
+
+    // Update each module's sort_order
+    for (const m of modules) {
+      await supabaseAdmin
+        .from('project_modules')
+        .update({ sort_order: m.sort_order, updated_at: new Date().toISOString() })
+        .eq('id', m.id);
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

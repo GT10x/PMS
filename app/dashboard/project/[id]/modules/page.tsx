@@ -30,6 +30,32 @@ interface Project {
   name: string;
 }
 
+interface FeatureRemark {
+  id: string;
+  feature_id: string;
+  content: string | null;
+  image_url: string | null;
+  voice_url: string | null;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by_user?: { id: string; full_name: string };
+}
+
+interface ModuleFeature {
+  id: string;
+  module_id: string;
+  name: string;
+  phase: number;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  remarks: FeatureRemark[];
+  created_by_user?: { id: string; full_name: string };
+}
+
 // Master Admin ID - only this user can delete modules and features
 const MASTER_ADMIN_ID = 'd60a4c5e-aa9f-4cdb-999a-41f0bd23d09e';
 
@@ -51,6 +77,10 @@ export default function ProjectModulesPage() {
   const [addingFeature, setAddingFeature] = useState<string | null>(null);
   const [newFeatureText, setNewFeatureText] = useState('');
 
+  // Drag and drop state
+  const [draggedFeature, setDraggedFeature] = useState<{ moduleId: string; index: number } | null>(null);
+  const [draggedModule, setDraggedModule] = useState<number | null>(null);
+
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -69,6 +99,37 @@ export default function ProjectModulesPage() {
 
   // Features as array for numbered inputs
   const [featuresList, setFeaturesList] = useState<string[]>(['']);
+
+  // Remarks for features in the Add/Edit modal (indexed by feature index)
+  interface ModalRemark {
+    content: string;
+    image_url: string | null;
+    voice_url: string | null;
+  }
+  const [modalFeatureRemarks, setModalFeatureRemarks] = useState<Map<number, ModalRemark[]>>(new Map());
+  const [addingModalRemark, setAddingModalRemark] = useState<number | null>(null);
+  const [modalRemarkContent, setModalRemarkContent] = useState('');
+  const [modalRemarkImage, setModalRemarkImage] = useState<string | null>(null);
+  const [modalRemarkVoice, setModalRemarkVoice] = useState<string | null>(null);
+
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingFor, setRecordingFor] = useState<'modal' | 'inline' | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // New: Features from database (per module)
+  const [moduleFeatures, setModuleFeatures] = useState<Map<string, ModuleFeature[]>>(new Map());
+  const [loadingFeatures, setLoadingFeatures] = useState<Set<string>>(new Set());
+
+  // Remark states
+  const [addingRemarkToFeature, setAddingRemarkToFeature] = useState<string | null>(null);
+  const [newRemarkContent, setNewRemarkContent] = useState('');
+  const [newRemarkImage, setNewRemarkImage] = useState<string | null>(null);
+  const [newRemarkVoice, setNewRemarkVoice] = useState<string | null>(null);
+  const [editingRemark, setEditingRemark] = useState<{ id: string; featureId: string; content: string; imageUrl: string | null; voiceUrl: string | null } | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [savingRemark, setSavingRemark] = useState(false);
 
   // Speech-to-text state
   const [listeningIndex, setListeningIndex] = useState<number | null>(null);
@@ -393,6 +454,479 @@ export default function ProjectModulesPage() {
     setNewFeatureText('');
   };
 
+  // Fetch features for a module (from new module_features table)
+  const fetchFeaturesForModule = async (moduleId: string) => {
+    if (loadingFeatures.has(moduleId)) return;
+
+    setLoadingFeatures(prev => new Set(prev).add(moduleId));
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules/${moduleId}/features`);
+      if (response.ok) {
+        const data = await response.json();
+        setModuleFeatures(prev => new Map(prev).set(moduleId, data.features || []));
+      }
+    } catch (error) {
+      console.error('Error fetching features:', error);
+    } finally {
+      setLoadingFeatures(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(moduleId);
+        return newSet;
+      });
+    }
+  };
+
+  // Add a new feature using the new API
+  const addFeatureNew = async (moduleId: string, name: string) => {
+    if (!name.trim()) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules/${moduleId}/features`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setModuleFeatures(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(moduleId) || [];
+          newMap.set(moduleId, [...existing, data.feature]);
+          return newMap;
+        });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to add feature');
+      }
+    } catch (error) {
+      console.error('Error adding feature:', error);
+      alert('Failed to add feature');
+    }
+  };
+
+  // Update a feature using the new API
+  const updateFeatureNew = async (featureId: string, moduleId: string, name: string, phase?: number) => {
+    if (!name.trim()) return;
+
+    try {
+      const body: any = { name: name.trim() };
+      if (phase !== undefined) body.phase = phase;
+
+      const response = await fetch(`/api/projects/${projectId}/modules/${moduleId}/features/${featureId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setModuleFeatures(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(moduleId) || [];
+          newMap.set(moduleId, existing.map(f => f.id === featureId ? data.feature : f));
+          return newMap;
+        });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to update feature');
+      }
+    } catch (error) {
+      console.error('Error updating feature:', error);
+    }
+  };
+
+  // Update feature phase
+  const updateFeaturePhase = async (featureId: string, moduleId: string, phase: number) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules/${moduleId}/features/${featureId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phase })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setModuleFeatures(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(moduleId) || [];
+          newMap.set(moduleId, existing.map(f => f.id === featureId ? data.feature : f));
+          return newMap;
+        });
+      }
+    } catch (error) {
+      console.error('Error updating phase:', error);
+    }
+  };
+
+  // Reorder features after drag and drop
+  const reorderFeatures = async (moduleId: string, fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    const features = moduleFeatures.get(moduleId) || [];
+    const newFeatures = [...features];
+    const [moved] = newFeatures.splice(fromIndex, 1);
+    newFeatures.splice(toIndex, 0, moved);
+
+    // Update sort_order for all features
+    const updatedFeatures = newFeatures.map((f, idx) => ({ ...f, sort_order: idx }));
+
+    // Optimistically update UI
+    setModuleFeatures(prev => {
+      const newMap = new Map(prev);
+      newMap.set(moduleId, updatedFeatures);
+      return newMap;
+    });
+
+    // Send to server
+    try {
+      await fetch(`/api/projects/${projectId}/modules/${moduleId}/features`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ features: updatedFeatures.map(f => ({ id: f.id, sort_order: f.sort_order })) })
+      });
+    } catch (error) {
+      console.error('Error reordering:', error);
+      // Revert on error
+      setModuleFeatures(prev => {
+        const newMap = new Map(prev);
+        newMap.set(moduleId, features);
+        return newMap;
+      });
+    }
+  };
+
+  // Reorder modules after drag and drop
+  const reorderModules = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    const newModules = [...modules];
+    const [moved] = newModules.splice(fromIndex, 1);
+    newModules.splice(toIndex, 0, moved);
+
+    // Optimistically update UI
+    setModules(newModules);
+
+    // Send to server
+    try {
+      await fetch(`/api/projects/${projectId}/modules`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modules: newModules.map((m, idx) => ({ id: m.id, sort_order: idx })) })
+      });
+    } catch (error) {
+      console.error('Error reordering modules:', error);
+      setModules(modules); // Revert on error
+    }
+  };
+
+  // Delete a feature using the new API
+  const deleteFeatureNew = async (featureId: string, moduleId: string) => {
+    if (!confirm('Delete this feature and all its remarks?')) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules/${moduleId}/features/${featureId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setModuleFeatures(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(moduleId) || [];
+          newMap.set(moduleId, existing.filter(f => f.id !== featureId));
+          return newMap;
+        });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete feature');
+      }
+    } catch (error) {
+      console.error('Error deleting feature:', error);
+    }
+  };
+
+  // Add a remark to a feature
+  const addRemark = async (featureId: string, moduleId: string) => {
+    if (!newRemarkContent.trim() && !newRemarkImage && !newRemarkVoice) {
+      alert('Please add some content or upload a file');
+      return;
+    }
+
+    setSavingRemark(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules/${moduleId}/features/${featureId}/remarks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: newRemarkContent.trim() || null,
+          image_url: newRemarkImage || null,
+          voice_url: newRemarkVoice || null
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Update the feature's remarks
+        setModuleFeatures(prev => {
+          const newMap = new Map(prev);
+          const features = newMap.get(moduleId) || [];
+          newMap.set(moduleId, features.map(f =>
+            f.id === featureId
+              ? { ...f, remarks: [...(f.remarks || []), data.remark] }
+              : f
+          ));
+          return newMap;
+        });
+        // Reset form
+        setAddingRemarkToFeature(null);
+        setNewRemarkContent('');
+        setNewRemarkImage(null);
+        setNewRemarkVoice(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to add remark');
+      }
+    } catch (error) {
+      console.error('Error adding remark:', error);
+      alert('Failed to add remark');
+    } finally {
+      setSavingRemark(false);
+    }
+  };
+
+  // Update a remark
+  const updateRemark = async (remarkId: string, featureId: string, moduleId: string) => {
+    if (!editingRemark) return;
+    if (!editingRemark.content?.trim() && !editingRemark.imageUrl && !editingRemark.voiceUrl) {
+      alert('Please add some content or upload a file');
+      return;
+    }
+
+    setSavingRemark(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules/${moduleId}/features/${featureId}/remarks/${remarkId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: editingRemark.content?.trim() || null,
+          image_url: editingRemark.imageUrl || null,
+          voice_url: editingRemark.voiceUrl || null
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Update the feature's remarks
+        setModuleFeatures(prev => {
+          const newMap = new Map(prev);
+          const features = newMap.get(moduleId) || [];
+          newMap.set(moduleId, features.map(f =>
+            f.id === featureId
+              ? { ...f, remarks: (f.remarks || []).map(r => r.id === remarkId ? data.remark : r) }
+              : f
+          ));
+          return newMap;
+        });
+        setEditingRemark(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to update remark');
+      }
+    } catch (error) {
+      console.error('Error updating remark:', error);
+      alert('Failed to update remark');
+    } finally {
+      setSavingRemark(false);
+    }
+  };
+
+  // Delete a remark
+  const deleteRemark = async (remarkId: string, featureId: string, moduleId: string) => {
+    if (!confirm('Delete this remark?')) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/modules/${moduleId}/features/${featureId}/remarks/${remarkId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        // Remove the remark from state
+        setModuleFeatures(prev => {
+          const newMap = new Map(prev);
+          const features = newMap.get(moduleId) || [];
+          newMap.set(moduleId, features.map(f =>
+            f.id === featureId
+              ? { ...f, remarks: (f.remarks || []).filter(r => r.id !== remarkId) }
+              : f
+          ));
+          return newMap;
+        });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete remark');
+      }
+    } catch (error) {
+      console.error('Error deleting remark:', error);
+    }
+  };
+
+  // Upload file for remark (image or voice)
+  const uploadRemarkFile = async (file: File, type: 'image' | 'voice') => {
+    setUploadingFile(true);
+    try {
+      // Get signed URL
+      const signedUrlRes = await fetch('/api/upload/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type
+        })
+      });
+
+      if (!signedUrlRes.ok) {
+        throw new Error('Failed to get upload URL');
+      }
+
+      const { signedUrl, token, publicUrl } = await signedUrlRes.json();
+
+      // Upload directly to Supabase
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type,
+          'x-upsert': 'true'
+        },
+        body: file
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file');
+      return null;
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  // Handle file selection for new remark (image only - voice uses recording)
+  const handleNewRemarkFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadRemarkFile(file, 'image');
+    if (url) {
+      setNewRemarkImage(url);
+    }
+  };
+
+  // Handle file selection for editing remark (image only - voice uses recording)
+  const handleEditRemarkFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadRemarkFile(file, 'image');
+    if (url && editingRemark) {
+      setEditingRemark({ ...editingRemark, imageUrl: url });
+    }
+  };
+
+  // Voice recording functions
+  const startVoiceRecording = async (target: 'modal' | 'inline' | 'newRemark' | 'editRemark') => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const file = new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+
+        // Upload the recorded audio
+        const url = await uploadRemarkFile(file, 'voice');
+        if (url) {
+          if (target === 'modal') {
+            setModalRemarkVoice(url);
+          } else if (target === 'newRemark') {
+            setNewRemarkVoice(url);
+          } else if (target === 'editRemark' && editingRemark) {
+            setEditingRemark({ ...editingRemark, voiceUrl: url });
+          }
+        }
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+        setIsRecording(false);
+        setRecordingFor(null);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingFor(target === 'modal' ? 'modal' : 'inline');
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Could not access microphone. Please allow microphone access.');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  // Handle file selection for modal remarks
+  const handleModalRemarkFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadRemarkFile(file, 'image');
+    if (url) {
+      setModalRemarkImage(url);
+    }
+  };
+
+  // Add a remark to a feature in the modal (before saving)
+  const addModalRemark = (featureIndex: number) => {
+    if (!modalRemarkContent.trim() && !modalRemarkImage && !modalRemarkVoice) {
+      alert('Please add content or a file');
+      return;
+    }
+
+    const newRemark: ModalRemark = {
+      content: modalRemarkContent.trim(),
+      image_url: modalRemarkImage || null,
+      voice_url: modalRemarkVoice || null
+    };
+
+    setModalFeatureRemarks(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(featureIndex) || [];
+      newMap.set(featureIndex, [...existing, newRemark]);
+      return newMap;
+    });
+
+    setAddingModalRemark(null);
+    setModalRemarkContent('');
+    setModalRemarkImage(null);
+    setModalRemarkVoice(null);
+  };
+
+  // Remove a remark from a feature in the modal
+  const removeModalRemark = (featureIndex: number, remarkIndex: number) => {
+    setModalFeatureRemarks(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(featureIndex) || [];
+      newMap.set(featureIndex, existing.filter((_, i) => i !== remarkIndex));
+      return newMap;
+    });
+  };
+
   const canManageModules = () => {
     if (!currentUser) return false;
     return currentUser.is_admin ||
@@ -413,6 +947,10 @@ export default function ProjectModulesPage() {
         newSet.delete(moduleId);
       } else {
         newSet.add(moduleId);
+        // Fetch features when expanding
+        if (!moduleFeatures.has(moduleId)) {
+          fetchFeaturesForModule(moduleId);
+        }
       }
       return newSet;
     });
@@ -428,6 +966,11 @@ export default function ProjectModulesPage() {
       stakeholders: [] as string[]
     });
     setFeaturesList(['']);
+    setModalFeatureRemarks(new Map());
+    setAddingModalRemark(null);
+    setModalRemarkContent('');
+    setModalRemarkImage(null);
+    setModalRemarkVoice(null);
   };
 
   const openAddModal = () => {
@@ -460,7 +1003,7 @@ export default function ProjectModulesPage() {
 
     setSaving(true);
     try {
-      // Convert featuresList to newline-separated description
+      // Convert featuresList to newline-separated description (for backward compatibility)
       const description = featuresList.filter(f => f.trim()).join('\n');
 
       const response = await fetch(`/api/projects/${projectId}/modules`, {
@@ -478,7 +1021,60 @@ export default function ProjectModulesPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setModules(prev => [...prev, data.module]);
+        const newModule = data.module;
+        setModules(prev => [...prev, newModule]);
+
+        // Also create features in the new module_features table
+        const featuresToCreate = featuresList.map((f, idx) => ({ name: f.trim(), originalIndex: idx })).filter(f => f.name);
+        const createdFeatures: ModuleFeature[] = [];
+
+        for (const { name: featureName, originalIndex } of featuresToCreate) {
+          try {
+            const featureRes = await fetch(`/api/projects/${projectId}/modules/${newModule.id}/features`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: featureName })
+            });
+            if (featureRes.ok) {
+              const featureData = await featureRes.json();
+              const createdFeature = featureData.feature;
+
+              // Create remarks for this feature if any were added in the modal
+              const remarksForFeature = modalFeatureRemarks.get(originalIndex) || [];
+              const createdRemarks: FeatureRemark[] = [];
+
+              for (const remark of remarksForFeature) {
+                try {
+                  const remarkRes = await fetch(`/api/projects/${projectId}/modules/${newModule.id}/features/${createdFeature.id}/remarks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      content: remark.content || null,
+                      image_url: remark.image_url || null,
+                      voice_url: remark.voice_url || null
+                    })
+                  });
+                  if (remarkRes.ok) {
+                    const remarkData = await remarkRes.json();
+                    createdRemarks.push(remarkData.remark);
+                  }
+                } catch (err) {
+                  console.error('Error creating remark:', err);
+                }
+              }
+
+              createdFeatures.push({ ...createdFeature, remarks: createdRemarks });
+            }
+          } catch (err) {
+            console.error('Error creating feature:', err);
+          }
+        }
+
+        // Update moduleFeatures state with the new features
+        if (createdFeatures.length > 0) {
+          setModuleFeatures(prev => new Map(prev).set(newModule.id, createdFeatures));
+        }
+
         setShowAddModal(false);
         resetForm();
       } else {
@@ -501,7 +1097,7 @@ export default function ProjectModulesPage() {
 
     setSaving(true);
     try {
-      // Convert featuresList to newline-separated description
+      // Convert featuresList to newline-separated description (for backward compatibility)
       const description = featuresList.filter(f => f.trim()).join('\n');
 
       const response = await fetch(`/api/projects/${projectId}/modules`, {
@@ -521,6 +1117,43 @@ export default function ProjectModulesPage() {
       if (response.ok) {
         const data = await response.json();
         setModules(prev => prev.map(m => m.id === selectedModule.id ? data.module : m));
+
+        // Sync features with module_features table
+        const newFeatureNames = featuresList.filter(f => f.trim()).map(f => f.trim());
+        const existingFeatures = moduleFeatures.get(selectedModule.id) || [];
+        const existingFeatureNames = existingFeatures.map(f => f.name);
+
+        // Find features to add (in newFeatureNames but not in existingFeatureNames)
+        const featuresToAdd = newFeatureNames.filter(name => !existingFeatureNames.includes(name));
+
+        // Add new features
+        const addedFeatures: ModuleFeature[] = [];
+        for (const featureName of featuresToAdd) {
+          try {
+            const featureRes = await fetch(`/api/projects/${projectId}/modules/${selectedModule.id}/features`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: featureName })
+            });
+            if (featureRes.ok) {
+              const featureData = await featureRes.json();
+              addedFeatures.push(featureData.feature);
+            }
+          } catch (err) {
+            console.error('Error creating feature:', err);
+          }
+        }
+
+        // Update moduleFeatures state
+        if (addedFeatures.length > 0) {
+          setModuleFeatures(prev => {
+            const newMap = new Map(prev);
+            const existing = newMap.get(selectedModule.id) || [];
+            newMap.set(selectedModule.id, [...existing, ...addedFeatures]);
+            return newMap;
+          });
+        }
+
         setShowEditModal(false);
         setSelectedModule(null);
         resetForm();
@@ -708,7 +1341,7 @@ export default function ProjectModulesPage() {
             )}
           </div>
         ) : (
-          modules.map((module) => {
+          modules.map((module, moduleIdx) => {
             const isExpanded = expandedModules.has(module.id);
             const descriptionLines = module.description
               ? module.description.split('\n').filter(line => line.trim())
@@ -717,19 +1350,37 @@ export default function ProjectModulesPage() {
             return (
               <div
                 key={module.id}
-                className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm"
+                className={`border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm ${draggedModule === moduleIdx ? 'opacity-50' : ''}`}
+                draggable={canManageModules()}
+                onDragStart={() => setDraggedModule(moduleIdx)}
+                onDragEnd={() => setDraggedModule(null)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (draggedModule !== null && draggedModule !== moduleIdx) {
+                    reorderModules(draggedModule, moduleIdx);
+                  }
+                  setDraggedModule(null);
+                }}
               >
                 {/* Collapsed Header */}
-                <button
-                  onClick={() => toggleExpanded(module.id)}
+                <div
                   className={`w-full px-4 py-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left ${
                     isExpanded ? 'bg-gray-50 dark:bg-gray-700/50' : ''
                   }`}
                 >
+                  {/* Drag Handle */}
+                  {canManageModules() && (
+                    <div className="cursor-grab text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Drag to reorder">
+                      <i className="fas fa-grip-vertical"></i>
+                    </div>
+                  )}
                   {/* Expand/Collapse Icon */}
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400">
+                  <button
+                    onClick={() => toggleExpanded(module.id)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
+                  >
                     <i className={`fas ${isExpanded ? 'fa-minus' : 'fa-plus'} text-sm`}></i>
-                  </div>
+                  </button>
 
                   {/* Module Name */}
                   <div className="flex-1 min-w-0">
@@ -760,7 +1411,7 @@ export default function ProjectModulesPage() {
                     {getStatusBadge(module.status)}
                     {getPriorityBadge(module.priority)}
                   </div>
-                </button>
+                </div>
 
                 {/* Expanded Content */}
                 {isExpanded && (
@@ -782,119 +1433,397 @@ export default function ProjectModulesPage() {
 
                     </div>
 
-                    {/* Features List with Inline Editing */}
+                    {/* Features List with Remarks */}
                     <div className="mt-4">
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Features / Functions:
                       </h4>
-                      <ol className="space-y-2">
-                        {descriptionLines.map((line, idx) => {
-                          const isEditing = editingFeature?.moduleId === module.id && editingFeature?.index === idx;
-                          const cleanLine = line.replace(/^[•\-\*\d\.]+\s*/, '');
 
-                          return (
-                            <li key={idx} className="flex items-start gap-2 group">
-                              <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] mt-1 text-sm">{idx + 1}.</span>
-                              {isEditing ? (
-                                <div className="flex-1 flex items-center gap-2">
-                                  <input
-                                    type="text"
-                                    value={editingFeatureText}
-                                    onChange={(e) => setEditingFeatureText(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') saveEditFeature(module.id);
-                                      if (e.key === 'Escape') { setEditingFeature(null); setEditingFeatureText(''); stopInlineListening(); }
-                                    }}
-                                    className="flex-1 px-2 py-1 text-sm border border-indigo-300 dark:border-indigo-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    autoFocus
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => inlineListening === 'edit' ? stopInlineListening() : startInlineListening('edit')}
-                                    className={`p-1 rounded transition-colors ${
-                                      inlineListening === 'edit'
-                                        ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
-                                        : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
-                                    }`}
-                                    title={inlineListening === 'edit' ? 'Stop' : 'Voice input'}
-                                  >
-                                    <i className="fas fa-microphone"></i>
-                                  </button>
-                                  <button
-                                    onClick={() => { saveEditFeature(module.id); stopInlineListening(); }}
-                                    className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                                  >
-                                    <i className="fas fa-check"></i>
-                                  </button>
-                                  <button
-                                    onClick={() => { setEditingFeature(null); setEditingFeatureText(''); }}
-                                    className="p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                                  >
-                                    <i className="fas fa-times"></i>
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex-1 flex items-center justify-between">
-                                  <span className="text-sm text-gray-600 dark:text-gray-400">{cleanLine}</span>
+                      {/* Loading state */}
+                      {loadingFeatures.has(module.id) && (
+                        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 py-2">
+                          <i className="fas fa-spinner animate-spin"></i>
+                          <span className="text-sm">Loading features...</span>
+                        </div>
+                      )}
+
+                      {/* Features from new API */}
+                      {!loadingFeatures.has(module.id) && moduleFeatures.has(module.id) && (
+                        <ol className="space-y-4">
+                          {(moduleFeatures.get(module.id) || []).map((feature, idx) => {
+                            const isEditingFeature = editingFeature?.moduleId === module.id && editingFeature?.index === idx;
+
+                            return (
+                              <li
+                                key={feature.id}
+                                className={`border-l-2 border-indigo-200 dark:border-indigo-700 pl-3 ${draggedFeature?.moduleId === module.id && draggedFeature?.index === idx ? 'opacity-50' : ''}`}
+                                draggable={canManageModules()}
+                                onDragStart={() => setDraggedFeature({ moduleId: module.id, index: idx })}
+                                onDragEnd={() => setDraggedFeature(null)}
+                                onDragOver={(e) => { e.preventDefault(); }}
+                                onDrop={() => {
+                                  if (draggedFeature && draggedFeature.moduleId === module.id) {
+                                    reorderFeatures(module.id, draggedFeature.index, idx);
+                                  }
+                                  setDraggedFeature(null);
+                                }}
+                              >
+                                {/* Feature Name */}
+                                <div className="flex items-start gap-2 group">
                                   {canManageModules() && (
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="cursor-grab text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-0.5" title="Drag to reorder">
+                                      <i className="fas fa-grip-vertical text-xs"></i>
+                                    </span>
+                                  )}
+                                  <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] text-sm">{idx + 1}.</span>
+                                  {isEditingFeature ? (
+                                    <div className="flex-1 flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        value={editingFeatureText}
+                                        onChange={(e) => setEditingFeatureText(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            updateFeatureNew(feature.id, module.id, editingFeatureText);
+                                            setEditingFeature(null);
+                                            setEditingFeatureText('');
+                                          }
+                                          if (e.key === 'Escape') { setEditingFeature(null); setEditingFeatureText(''); }
+                                        }}
+                                        className="flex-1 px-2 py-1 text-sm border border-indigo-300 dark:border-indigo-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        autoFocus
+                                      />
                                       <button
-                                        onClick={(e) => { e.stopPropagation(); startEditFeature(module.id, idx, cleanLine); }}
-                                        className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
-                                        title="Edit"
+                                        onClick={() => {
+                                          updateFeatureNew(feature.id, module.id, editingFeatureText);
+                                          setEditingFeature(null);
+                                          setEditingFeatureText('');
+                                        }}
+                                        className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
                                       >
-                                        <i className="fas fa-pen text-xs"></i>
+                                        <i className="fas fa-check"></i>
                                       </button>
-                                      {isMasterAdmin() && (
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); deleteFeature(module.id, idx); }}
-                                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                                          title="Delete"
+                                      <button
+                                        onClick={() => { setEditingFeature(null); setEditingFeatureText(''); }}
+                                        className="p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                      >
+                                        <i className="fas fa-times"></i>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex-1 flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{feature.name}</span>
+                                        <select
+                                          value={feature.phase || 1}
+                                          onChange={(e) => { e.stopPropagation(); updateFeaturePhase(feature.id, module.id, parseInt(e.target.value)); }}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className={`text-xs px-1.5 py-0.5 rounded-full font-medium border-0 cursor-pointer ${
+                                            feature.phase === 1 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                            feature.phase === 2 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                                            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                          }`}
+                                          disabled={!canManageModules()}
                                         >
-                                          <i className="fas fa-trash text-xs"></i>
-                                        </button>
+                                          <option value={1}>Phase 1</option>
+                                          <option value={2}>Phase 2</option>
+                                          <option value={3}>Phase 3</option>
+                                        </select>
+                                      </div>
+                                      {canManageModules() && (
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); setEditingFeature({ moduleId: module.id, index: idx }); setEditingFeatureText(feature.name); }}
+                                            className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
+                                            title="Edit feature"
+                                          >
+                                            <i className="fas fa-pen text-xs"></i>
+                                          </button>
+                                          {isMasterAdmin() && (
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); deleteFeatureNew(feature.id, module.id); }}
+                                              className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                              title="Delete feature"
+                                            >
+                                              <i className="fas fa-trash text-xs"></i>
+                                            </button>
+                                          )}
+                                        </div>
                                       )}
                                     </div>
                                   )}
                                 </div>
-                              )}
+
+                                {/* Remarks */}
+                                {feature.remarks && feature.remarks.length > 0 && (
+                                  <ul className="mt-2 ml-6 space-y-2">
+                                    {feature.remarks.map((remark) => (
+                                      <li key={remark.id} className="group/remark">
+                                        {editingRemark?.id === remark.id ? (
+                                          // Edit remark form
+                                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2">
+                                            <textarea
+                                              value={editingRemark.content || ''}
+                                              onChange={(e) => setEditingRemark({ ...editingRemark, content: e.target.value })}
+                                              className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                              rows={2}
+                                              placeholder="Remark content (supports links)..."
+                                            />
+                                            {(editingRemark.imageUrl || editingRemark.voiceUrl) && (
+                                              <div className="flex flex-wrap items-center gap-3">
+                                                {editingRemark.imageUrl && (
+                                                  <div className="flex items-center gap-2">
+                                                    <img src={editingRemark.imageUrl} alt="Attachment" className="w-16 h-16 object-cover rounded" />
+                                                    <button
+                                                      onClick={() => setEditingRemark({ ...editingRemark, imageUrl: null })}
+                                                      className="text-xs text-red-500 hover:text-red-700"
+                                                    >
+                                                      Remove
+                                                    </button>
+                                                  </div>
+                                                )}
+                                                {editingRemark.voiceUrl && (
+                                                  <div className="flex items-center gap-2">
+                                                    <audio src={editingRemark.voiceUrl} controls className="h-8" />
+                                                    <button
+                                                      onClick={() => setEditingRemark({ ...editingRemark, voiceUrl: null })}
+                                                      className="text-xs text-red-500 hover:text-red-700"
+                                                    >
+                                                      Remove
+                                                    </button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            <div className="flex items-center gap-2">
+                                              <label className="cursor-pointer p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded" title="Upload image">
+                                                <i className="fas fa-image text-sm"></i>
+                                                <input type="file" accept="image/*" className="hidden" onChange={handleEditRemarkFileSelect} />
+                                              </label>
+                                              <button
+                                                type="button"
+                                                onClick={() => isRecording ? stopVoiceRecording() : startVoiceRecording('editRemark')}
+                                                className={`p-1.5 rounded transition-colors ${
+                                                  isRecording && recordingFor === 'inline'
+                                                    ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
+                                                    : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                                                }`}
+                                                title={isRecording ? 'Stop recording' : 'Record voice note'}
+                                              >
+                                                <i className="fas fa-microphone text-sm"></i>
+                                              </button>
+                                              <div className="flex-1"></div>
+                                              <button
+                                                onClick={() => setEditingRemark(null)}
+                                                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                                              >
+                                                Cancel
+                                              </button>
+                                              <button
+                                                onClick={() => updateRemark(remark.id, feature.id, module.id)}
+                                                disabled={savingRemark}
+                                                className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                                              >
+                                                {savingRemark ? 'Saving...' : 'Save'}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          // Display remark
+                                          <div className="flex items-start gap-2">
+                                            <span className="text-indigo-400 mt-1">&#8226;</span>
+                                            <div className="flex-1">
+                                              {remark.content && (
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-words">
+                                                  {remark.content.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                                                    part.match(/^https?:\/\//) ? (
+                                                      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                                                        {part}
+                                                      </a>
+                                                    ) : part
+                                                  )}
+                                                </p>
+                                              )}
+                                              {remark.image_url && (
+                                                <a href={remark.image_url} target="_blank" rel="noopener noreferrer">
+                                                  <img src={remark.image_url} alt="Attachment" className="mt-1 max-w-xs max-h-32 object-cover rounded border border-gray-200 dark:border-gray-600 hover:opacity-80 transition-opacity" />
+                                                </a>
+                                              )}
+                                              {remark.voice_url && (
+                                                <audio src={remark.voice_url} controls className="mt-1 h-8" />
+                                              )}
+                                            </div>
+                                            {canManageModules() && (
+                                              <div className="flex items-center gap-1 opacity-0 group-hover/remark:opacity-100 transition-opacity">
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingRemark({
+                                                      id: remark.id,
+                                                      featureId: feature.id,
+                                                      content: remark.content || '',
+                                                      imageUrl: remark.image_url,
+                                                      voiceUrl: remark.voice_url
+                                                    });
+                                                  }}
+                                                  className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
+                                                  title="Edit remark"
+                                                >
+                                                  <i className="fas fa-pen text-xs"></i>
+                                                </button>
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); deleteRemark(remark.id, feature.id, module.id); }}
+                                                  className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                                  title="Delete remark"
+                                                >
+                                                  <i className="fas fa-trash text-xs"></i>
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+
+                                {/* Add Remark Form */}
+                                {addingRemarkToFeature === feature.id ? (
+                                  <div className="mt-2 ml-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2">
+                                    <textarea
+                                      value={newRemarkContent}
+                                      onChange={(e) => setNewRemarkContent(e.target.value)}
+                                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                      rows={2}
+                                      placeholder="Add a remark (supports links)..."
+                                      autoFocus
+                                    />
+                                    {(newRemarkImage || newRemarkVoice) && (
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        {newRemarkImage && (
+                                          <div className="flex items-center gap-2">
+                                            <img src={newRemarkImage} alt="Attachment" className="w-16 h-16 object-cover rounded" />
+                                            <button
+                                              onClick={() => setNewRemarkImage(null)}
+                                              className="text-xs text-red-500 hover:text-red-700"
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                        )}
+                                        {newRemarkVoice && (
+                                          <div className="flex items-center gap-2">
+                                            <audio src={newRemarkVoice} controls className="h-8" />
+                                            <button
+                                              onClick={() => setNewRemarkVoice(null)}
+                                              className="text-xs text-red-500 hover:text-red-700"
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    {uploadingFile && (
+                                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                                        <i className="fas fa-spinner animate-spin"></i>
+                                        <span>Uploading...</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <label className="cursor-pointer p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded" title="Upload image">
+                                        <i className="fas fa-image text-sm"></i>
+                                        <input type="file" accept="image/*" className="hidden" onChange={handleNewRemarkFileSelect} disabled={uploadingFile} />
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={() => isRecording ? stopVoiceRecording() : startVoiceRecording('newRemark')}
+                                        className={`p-1.5 rounded transition-colors ${
+                                          isRecording && recordingFor === 'inline'
+                                            ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
+                                            : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                                        }`}
+                                        title={isRecording ? 'Stop recording' : 'Record voice note'}
+                                        disabled={uploadingFile}
+                                      >
+                                        <i className="fas fa-microphone text-sm"></i>
+                                      </button>
+                                      <div className="flex-1"></div>
+                                      <button
+                                        onClick={() => { setAddingRemarkToFeature(null); setNewRemarkContent(''); setNewRemarkImage(null); setNewRemarkVoice(null); }}
+                                        className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={() => addRemark(feature.id, module.id)}
+                                        disabled={savingRemark || uploadingFile || (!newRemarkContent.trim() && !newRemarkImage && !newRemarkVoice)}
+                                        className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                                      >
+                                        {savingRemark ? 'Adding...' : 'Add Remark'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  canManageModules() && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setAddingRemarkToFeature(feature.id); }}
+                                      className="mt-2 ml-6 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                                    >
+                                      <i className="fas fa-plus"></i>
+                                      <span>Add Remark</span>
+                                    </button>
+                                  )
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      )}
+
+                      {/* Fallback: Show old description-based features if new API hasn't loaded */}
+                      {!loadingFeatures.has(module.id) && !moduleFeatures.has(module.id) && descriptionLines.length > 0 && (
+                        <ol className="space-y-2 text-sm text-gray-500 dark:text-gray-400 italic">
+                          {descriptionLines.map((line, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <span className="text-indigo-400 font-medium min-w-[24px]">{idx + 1}.</span>
+                              <span>{line.replace(/^[•\-\*\d\.]+\s*/, '')}</span>
                             </li>
-                          );
-                        })}
-                      </ol>
+                          ))}
+                          <p className="text-xs text-gray-400 mt-2">
+                            (Expand to load features with remarks)
+                          </p>
+                        </ol>
+                      )}
 
                       {/* Add Feature */}
-                      {canManageModules() && (
+                      {canManageModules() && moduleFeatures.has(module.id) && (
                         <div className="mt-3">
                           {addingFeature === module.id ? (
                             <div className="flex items-center gap-2">
-                              <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] text-sm">{descriptionLines.length + 1}.</span>
+                              <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] text-sm">{(moduleFeatures.get(module.id)?.length || 0) + 1}.</span>
                               <input
                                 type="text"
                                 value={newFeatureText}
                                 onChange={(e) => setNewFeatureText(e.target.value)}
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter') { addFeature(module.id); stopInlineListening(); }
-                                  if (e.key === 'Escape') { setAddingFeature(null); setNewFeatureText(''); stopInlineListening(); }
+                                  if (e.key === 'Enter') {
+                                    addFeatureNew(module.id, newFeatureText);
+                                    setAddingFeature(null);
+                                    setNewFeatureText('');
+                                  }
+                                  if (e.key === 'Escape') { setAddingFeature(null); setNewFeatureText(''); }
                                 }}
                                 placeholder="Type feature and press Enter..."
                                 className="flex-1 px-2 py-1 text-sm border border-indigo-300 dark:border-indigo-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 autoFocus
                               />
                               <button
-                                type="button"
-                                onClick={() => inlineListening === 'add' ? stopInlineListening() : startInlineListening('add')}
-                                className={`p-1 rounded transition-colors ${
-                                  inlineListening === 'add'
-                                    ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
-                                    : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
-                                }`}
-                                title={inlineListening === 'add' ? 'Stop' : 'Voice input'}
-                              >
-                                <i className="fas fa-microphone"></i>
-                              </button>
-                              <button
-                                onClick={() => { addFeature(module.id); stopInlineListening(); }}
+                                onClick={() => {
+                                  addFeatureNew(module.id, newFeatureText);
+                                  setAddingFeature(null);
+                                  setNewFeatureText('');
+                                }}
                                 className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
                               >
                                 <i className="fas fa-check"></i>
@@ -975,53 +1904,176 @@ export default function ProjectModulesPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Features / Functions
                 </label>
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {featuresList.map((feature, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] text-sm">{idx + 1}.</span>
-                      <input
-                        type="text"
-                        value={feature}
-                        onChange={(e) => {
-                          const updated = [...featuresList];
-                          updated[idx] = e.target.value;
-                          setFeaturesList(updated);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            setFeaturesList([...featuresList, '']);
-                            // Focus on new input after React re-renders
-                            setTimeout(() => {
-                              const inputs = document.querySelectorAll('input[placeholder*="feature"], input[placeholder*="Feature"]');
-                              const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
-                              if (lastInput) lastInput.focus();
-                            }, 50);
-                          }
-                        }}
-                        className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder={idx === 0 ? "e.g., Login with email/password" : "Add another feature..."}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => listeningIndex === idx ? stopListening() : startListening(idx)}
-                        className={`p-2 rounded transition-colors ${
-                          listeningIndex === idx
-                            ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
-                            : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
-                        }`}
-                        title={listeningIndex === idx ? 'Stop listening' : 'Voice input'}
-                      >
-                        <i className={`fas fa-microphone ${listeningIndex === idx ? 'text-red-500' : ''}`}></i>
-                      </button>
-                      {featuresList.length > 1 && (
+                    <div key={idx} className="border-l-2 border-indigo-200 dark:border-indigo-700 pl-3">
+                      {/* Feature input row */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-indigo-600 dark:text-indigo-400 font-medium min-w-[24px] text-sm">{idx + 1}.</span>
+                        <input
+                          type="text"
+                          value={feature}
+                          onChange={(e) => {
+                            const updated = [...featuresList];
+                            updated[idx] = e.target.value;
+                            setFeaturesList(updated);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              setFeaturesList([...featuresList, '']);
+                              setTimeout(() => {
+                                const inputs = document.querySelectorAll('input[placeholder*="feature"], input[placeholder*="Feature"]');
+                                const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
+                                if (lastInput) lastInput.focus();
+                              }, 50);
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder={idx === 0 ? "e.g., Login with email/password" : "Add another feature..."}
+                        />
                         <button
                           type="button"
-                          onClick={() => setFeaturesList(featuresList.filter((_, i) => i !== idx))}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                          onClick={() => listeningIndex === idx ? stopListening() : startListening(idx)}
+                          className={`p-2 rounded transition-colors ${
+                            listeningIndex === idx
+                              ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
+                              : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                          }`}
+                          title={listeningIndex === idx ? 'Stop listening' : 'Voice input for feature name'}
                         >
-                          <i className="fas fa-times text-xs"></i>
+                          <i className={`fas fa-microphone ${listeningIndex === idx ? 'text-red-500' : ''}`}></i>
                         </button>
+                        {featuresList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFeaturesList(featuresList.filter((_, i) => i !== idx));
+                              // Also remove remarks for this feature
+                              setModalFeatureRemarks(prev => {
+                                const newMap = new Map();
+                                prev.forEach((remarks, key) => {
+                                  if (key < idx) newMap.set(key, remarks);
+                                  else if (key > idx) newMap.set(key - 1, remarks);
+                                });
+                                return newMap;
+                              });
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                          >
+                            <i className="fas fa-times text-xs"></i>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Remarks for this feature */}
+                      {feature.trim() && (
+                        <div className="ml-8 mt-2">
+                          {/* Existing remarks */}
+                          {(modalFeatureRemarks.get(idx) || []).map((remark, remarkIdx) => (
+                            <div key={remarkIdx} className="flex items-start gap-2 mb-2 group">
+                              <span className="text-indigo-400 mt-1">&#8226;</span>
+                              <div className="flex-1">
+                                {remark.content && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">{remark.content}</p>
+                                )}
+                                {remark.image_url && (
+                                  <img src={remark.image_url} alt="Attachment" className="mt-1 max-w-[100px] max-h-[60px] object-cover rounded border" />
+                                )}
+                                {remark.voice_url && (
+                                  <audio src={remark.voice_url} controls className="mt-1 h-8" />
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeModalRemark(idx, remarkIdx)}
+                                className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <i className="fas fa-times text-xs"></i>
+                              </button>
+                            </div>
+                          ))}
+
+                          {/* Add remark form */}
+                          {addingModalRemark === idx ? (
+                            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 space-y-2">
+                              <textarea
+                                value={modalRemarkContent}
+                                onChange={(e) => setModalRemarkContent(e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                rows={2}
+                                placeholder="Add a remark (supports links)..."
+                                autoFocus
+                              />
+                              {(modalRemarkImage || modalRemarkVoice) && (
+                                <div className="flex flex-wrap items-center gap-3">
+                                  {modalRemarkImage && (
+                                    <div className="flex items-center gap-2">
+                                      <img src={modalRemarkImage} alt="Attachment" className="w-12 h-12 object-cover rounded" />
+                                      <button type="button" onClick={() => setModalRemarkImage(null)} className="text-xs text-red-500">Remove</button>
+                                    </div>
+                                  )}
+                                  {modalRemarkVoice && (
+                                    <div className="flex items-center gap-2">
+                                      <audio src={modalRemarkVoice} controls className="h-8" />
+                                      <button type="button" onClick={() => setModalRemarkVoice(null)} className="text-xs text-red-500">Remove</button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {uploadingFile && (
+                                <div className="flex items-center gap-2 text-sm text-gray-500">
+                                  <i className="fas fa-spinner animate-spin"></i>
+                                  <span>Uploading...</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <label className="cursor-pointer p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded" title="Upload image">
+                                  <i className="fas fa-image text-sm"></i>
+                                  <input type="file" accept="image/*" className="hidden" onChange={handleModalRemarkFileSelect} disabled={uploadingFile} />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => isRecording ? stopVoiceRecording() : startVoiceRecording('modal')}
+                                  className={`p-1.5 rounded transition-colors ${
+                                    isRecording && recordingFor === 'modal'
+                                      ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
+                                      : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                                  }`}
+                                  title={isRecording ? 'Stop recording' : 'Record voice note'}
+                                  disabled={uploadingFile}
+                                >
+                                  <i className="fas fa-microphone text-sm"></i>
+                                </button>
+                                <div className="flex-1"></div>
+                                <button
+                                  type="button"
+                                  onClick={() => { setAddingModalRemark(null); setModalRemarkContent(''); setModalRemarkImage(null); setModalRemarkVoice(null); }}
+                                  className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => addModalRemark(idx)}
+                                  disabled={uploadingFile || (!modalRemarkContent.trim() && !modalRemarkImage && !modalRemarkVoice)}
+                                  className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setAddingModalRemark(idx)}
+                              className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                            >
+                              <i className="fas fa-plus"></i>
+                              <span>Add Remark</span>
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1029,7 +2081,7 @@ export default function ProjectModulesPage() {
                 <button
                   type="button"
                   onClick={() => setFeaturesList([...featuresList, ''])}
-                  className="mt-2 flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                  className="mt-3 flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
                 >
                   <i className="fas fa-plus text-xs"></i>
                   <span>Add Feature</span>
