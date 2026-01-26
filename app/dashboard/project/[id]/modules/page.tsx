@@ -651,7 +651,32 @@ export default function ProjectModulesPage() {
   };
 
   // Open connection modal
-  const openConnectionModal = (type: 'module' | 'function', id: string, name: string, code: string) => {
+  const openConnectionModal = async (type: 'module' | 'function', id: string, name: string, code: string) => {
+    // First, fetch features for ALL modules that haven't been loaded yet
+    // This ensures all functions appear in the connection modal
+    const modulesNeedingFeatures = modules.filter(m => !moduleFeatures.has(m.id));
+    if (modulesNeedingFeatures.length > 0) {
+      const featurePromises = modulesNeedingFeatures.map(async (m) => {
+        try {
+          const response = await fetch(`/api/projects/${projectId}/modules/${m.id}/features`);
+          if (response.ok) {
+            const data = await response.json();
+            return { moduleId: m.id, features: data.features || [] };
+          }
+        } catch (error) {
+          console.error('Error fetching features for module:', m.id, error);
+        }
+        return { moduleId: m.id, features: [] };
+      });
+
+      const results = await Promise.all(featurePromises);
+      setModuleFeatures(prev => {
+        const newMap = new Map(prev);
+        results.forEach(r => newMap.set(r.moduleId, r.features));
+        return newMap;
+      });
+    }
+
     setShowConnectionModal({ type, id, name, code });
     // Pre-select existing connections
     const existingConnections = getConnectionsFor(type, id).map(c => {
