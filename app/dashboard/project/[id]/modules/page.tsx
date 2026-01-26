@@ -45,6 +45,18 @@ interface FeatureRemark {
   created_by_user?: { id: string; full_name: string };
 }
 
+interface RemarkReply {
+  id: string;
+  remark_id: string;
+  content: string | null;
+  image_url: string | null;
+  voice_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by_user?: { id: string; full_name: string };
+}
+
 interface ModuleFeature {
   id: string;
   module_id: string;
@@ -133,6 +145,17 @@ export default function ProjectModulesPage() {
   const [editingRemark, setEditingRemark] = useState<{ id: string; featureId: string; content: string; imageUrl: string | null; voiceUrl: string | null } | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [savingRemark, setSavingRemark] = useState(false);
+
+  // Thread/Reply states
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+  const [remarkReplies, setRemarkReplies] = useState<Map<string, RemarkReply[]>>(new Map());
+  const [loadingReplies, setLoadingReplies] = useState<Set<string>>(new Set());
+  const [replyingToRemark, setReplyingToRemark] = useState<string | null>(null);
+  const [newReplyContent, setNewReplyContent] = useState('');
+  const [newReplyImage, setNewReplyImage] = useState<string | null>(null);
+  const [newReplyVoice, setNewReplyVoice] = useState<string | null>(null);
+  const [savingReply, setSavingReply] = useState(false);
+  const [replyCounts, setReplyCounts] = useState<Map<string, number>>(new Map());
 
   // Speech-to-text state
   const [listeningIndex, setListeningIndex] = useState<number | null>(null);
@@ -430,6 +453,99 @@ export default function ProjectModulesPage() {
               }
               return newMap;
             });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Supabase Realtime subscription for instant reply updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('replies-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'remark_replies' },
+        async (payload) => {
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+
+          if (eventType === 'INSERT' && newRecord) {
+            // Fetch the creator info for the new reply
+            let creatorInfo = null;
+            if (newRecord.created_by) {
+              try {
+                const res = await fetch(`/api/users/${newRecord.created_by}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  creatorInfo = { id: data.user.id, full_name: data.user.full_name };
+                }
+              } catch (e) {
+                console.error('Error fetching creator info:', e);
+              }
+            }
+
+            const newReply: RemarkReply = {
+              id: newRecord.id,
+              remark_id: newRecord.remark_id,
+              content: newRecord.content,
+              image_url: newRecord.image_url,
+              voice_url: newRecord.voice_url,
+              created_by: newRecord.created_by,
+              created_at: newRecord.created_at,
+              updated_at: newRecord.updated_at,
+              created_by_user: creatorInfo || undefined
+            };
+
+            // Update replies if this remark's thread is loaded
+            setRemarkReplies(prev => {
+              if (!prev.has(newRecord.remark_id)) return prev;
+              const newMap = new Map(prev);
+              const existing = newMap.get(newRecord.remark_id) || [];
+              // Avoid duplicates
+              if (!existing.some(r => r.id === newReply.id)) {
+                newMap.set(newRecord.remark_id, [...existing, newReply]);
+              }
+              return newMap;
+            });
+
+            // Update reply count
+            setReplyCounts(prev => new Map(prev).set(newRecord.remark_id, (prev.get(newRecord.remark_id) || 0) + 1));
+          }
+
+          if (eventType === 'UPDATE' && newRecord) {
+            setRemarkReplies(prev => {
+              if (!prev.has(newRecord.remark_id)) return prev;
+              const newMap = new Map(prev);
+              const existing = newMap.get(newRecord.remark_id) || [];
+              const replyIndex = existing.findIndex(r => r.id === newRecord.id);
+              if (replyIndex !== -1) {
+                const updatedReplies = [...existing];
+                updatedReplies[replyIndex] = {
+                  ...updatedReplies[replyIndex],
+                  content: newRecord.content,
+                  image_url: newRecord.image_url,
+                  voice_url: newRecord.voice_url,
+                  updated_at: newRecord.updated_at
+                };
+                newMap.set(newRecord.remark_id, updatedReplies);
+              }
+              return newMap;
+            });
+          }
+
+          if (eventType === 'DELETE' && oldRecord) {
+            setRemarkReplies(prev => {
+              if (!prev.has(oldRecord.remark_id)) return prev;
+              const newMap = new Map(prev);
+              const existing = newMap.get(oldRecord.remark_id) || [];
+              newMap.set(oldRecord.remark_id, existing.filter(r => r.id !== oldRecord.id));
+              return newMap;
+            });
+            setReplyCounts(prev => new Map(prev).set(oldRecord.remark_id, Math.max(0, (prev.get(oldRecord.remark_id) || 0) - 1)));
           }
         }
       )
@@ -900,6 +1016,164 @@ export default function ProjectModulesPage() {
       }
     } catch (error) {
       console.error('Error deleting remark:', error);
+    }
+  };
+
+  // Thread/Reply functions
+  const toggleThread = async (remarkId: string) => {
+    const isExpanded = expandedThreads.has(remarkId);
+
+    if (isExpanded) {
+      // Collapse thread
+      setExpandedThreads(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(remarkId);
+        return newSet;
+      });
+    } else {
+      // Expand thread and fetch replies if not already loaded
+      setExpandedThreads(prev => new Set(prev).add(remarkId));
+
+      if (!remarkReplies.has(remarkId)) {
+        await fetchReplies(remarkId);
+      }
+    }
+  };
+
+  const fetchReplies = async (remarkId: string) => {
+    setLoadingReplies(prev => new Set(prev).add(remarkId));
+    try {
+      const response = await fetch(`/api/remarks/${remarkId}/replies`);
+      if (response.ok) {
+        const data = await response.json();
+        setRemarkReplies(prev => new Map(prev).set(remarkId, data.replies || []));
+        setReplyCounts(prev => new Map(prev).set(remarkId, (data.replies || []).length));
+      }
+    } catch (error) {
+      console.error('Error fetching replies:', error);
+    } finally {
+      setLoadingReplies(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(remarkId);
+        return newSet;
+      });
+    }
+  };
+
+  const addReply = async (remarkId: string) => {
+    if (!newReplyContent.trim() && !newReplyImage && !newReplyVoice) return;
+
+    setSavingReply(true);
+    try {
+      const response = await fetch(`/api/remarks/${remarkId}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: newReplyContent.trim() || null,
+          image_url: newReplyImage,
+          voice_url: newReplyVoice
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Add to local state
+        setRemarkReplies(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(remarkId) || [];
+          newMap.set(remarkId, [...existing, data.reply]);
+          return newMap;
+        });
+        setReplyCounts(prev => new Map(prev).set(remarkId, (prev.get(remarkId) || 0) + 1));
+        // Reset form
+        setReplyingToRemark(null);
+        setNewReplyContent('');
+        setNewReplyImage(null);
+        setNewReplyVoice(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to add reply');
+      }
+    } catch (error) {
+      console.error('Error adding reply:', error);
+    } finally {
+      setSavingReply(false);
+    }
+  };
+
+  const deleteReply = async (remarkId: string, replyId: string) => {
+    if (!confirm('Delete this reply?')) return;
+
+    try {
+      const response = await fetch(`/api/remarks/${remarkId}/replies/${replyId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setRemarkReplies(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(remarkId) || [];
+          newMap.set(remarkId, existing.filter(r => r.id !== replyId));
+          return newMap;
+        });
+        setReplyCounts(prev => new Map(prev).set(remarkId, Math.max(0, (prev.get(remarkId) || 0) - 1)));
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete reply');
+      }
+    } catch (error) {
+      console.error('Error deleting reply:', error);
+    }
+  };
+
+  // Handle file upload for reply
+  const handleReplyFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadRemarkFile(file, 'image');
+    if (url) {
+      setNewReplyImage(url);
+    }
+  };
+
+  // Voice recording for reply
+  const startReplyRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+        const url = await uploadRemarkFile(audioFile, 'voice');
+        if (url) {
+          setNewReplyVoice(url);
+        }
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingFor('inline');
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Could not access microphone');
+    }
+  };
+
+  const stopReplyRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setRecordingFor(null);
     }
   };
 
@@ -1823,35 +2097,210 @@ export default function ProjectModulesPage() {
                                                 </p>
                                               )}
                                             </div>
-                                            {canManageModules() && (
-                                              <div className="flex items-center gap-1 opacity-0 group-hover/remark:opacity-100 transition-opacity">
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setEditingRemark({
-                                                      id: remark.id,
-                                                      featureId: feature.id,
-                                                      content: remark.content || '',
-                                                      imageUrl: remark.image_url,
-                                                      voiceUrl: remark.voice_url
-                                                    });
-                                                  }}
-                                                  className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
-                                                  title="Edit remark"
-                                                >
-                                                  <i className="fas fa-pen text-xs"></i>
-                                                </button>
-                                                <button
-                                                  onClick={(e) => { e.stopPropagation(); deleteRemark(remark.id, feature.id, module.id); }}
-                                                  className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                                                  title="Delete remark"
-                                                >
-                                                  <i className="fas fa-trash text-xs"></i>
-                                                </button>
-                                              </div>
-                                            )}
+                                            <div className="flex items-center gap-1 opacity-0 group-hover/remark:opacity-100 transition-opacity">
+                                              {/* Reply button */}
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  if (!expandedThreads.has(remark.id)) {
+                                                    toggleThread(remark.id);
+                                                  }
+                                                  setReplyingToRemark(remark.id);
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
+                                                title="Reply to remark"
+                                              >
+                                                <i className="fas fa-reply text-xs"></i>
+                                              </button>
+                                              {canManageModules() && (
+                                                <>
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setEditingRemark({
+                                                        id: remark.id,
+                                                        featureId: feature.id,
+                                                        content: remark.content || '',
+                                                        imageUrl: remark.image_url,
+                                                        voiceUrl: remark.voice_url
+                                                      });
+                                                    }}
+                                                    className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
+                                                    title="Edit remark"
+                                                  >
+                                                    <i className="fas fa-pen text-xs"></i>
+                                                  </button>
+                                                  <button
+                                                    onClick={(e) => { e.stopPropagation(); deleteRemark(remark.id, feature.id, module.id); }}
+                                                    className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                                    title="Delete remark"
+                                                  >
+                                                    <i className="fas fa-trash text-xs"></i>
+                                                  </button>
+                                                </>
+                                              )}
+                                            </div>
                                           </div>
                                         )}
+
+                                        {/* Thread toggle and replies */}
+                                        <div className="ml-6 mt-1">
+                                          {/* Thread toggle button */}
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); toggleThread(remark.id); }}
+                                            className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                          >
+                                            <i className={`fas ${expandedThreads.has(remark.id) ? 'fa-minus' : 'fa-plus'} text-[10px]`}></i>
+                                            <span>
+                                              {replyCounts.get(remark.id) || 0} {(replyCounts.get(remark.id) || 0) === 1 ? 'reply' : 'replies'}
+                                            </span>
+                                          </button>
+
+                                          {/* Expanded thread section */}
+                                          {expandedThreads.has(remark.id) && (
+                                            <div className="mt-2 pl-3 border-l-2 border-gray-200 dark:border-gray-600 space-y-2">
+                                              {/* Loading indicator */}
+                                              {loadingReplies.has(remark.id) && (
+                                                <div className="text-xs text-gray-400 flex items-center gap-1">
+                                                  <i className="fas fa-spinner animate-spin"></i>
+                                                  Loading replies...
+                                                </div>
+                                              )}
+
+                                              {/* Replies list */}
+                                              {(remarkReplies.get(remark.id) || []).map((reply) => (
+                                                <div key={reply.id} className="group/reply bg-gray-50 dark:bg-gray-700/30 rounded p-2">
+                                                  <div className="flex items-start gap-2">
+                                                    <i className="fas fa-reply text-gray-300 dark:text-gray-600 text-xs mt-1 rotate-180"></i>
+                                                    <div className="flex-1 min-w-0">
+                                                      {reply.content && (
+                                                        <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-words">
+                                                          {reply.content.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                                                            part.match(/^https?:\/\//) ? (
+                                                              <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                                                                {part}
+                                                              </a>
+                                                            ) : part
+                                                          )}
+                                                        </p>
+                                                      )}
+                                                      {reply.image_url && (
+                                                        <a href={reply.image_url} target="_blank" rel="noopener noreferrer">
+                                                          <img src={reply.image_url} alt="Attachment" className="mt-1 max-w-xs max-h-24 object-cover rounded border border-gray-200 dark:border-gray-600 hover:opacity-80 transition-opacity" />
+                                                        </a>
+                                                      )}
+                                                      {reply.voice_url && (
+                                                        <audio src={reply.voice_url} controls className="mt-1 h-8" />
+                                                      )}
+                                                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                                        — {reply.created_by_user?.full_name || 'Unknown'} • {new Date(reply.created_at).toLocaleString()}
+                                                      </p>
+                                                    </div>
+                                                    {(currentUser?.id === reply.created_by || currentUser?.id === MASTER_ADMIN_ID) && (
+                                                      <button
+                                                        onClick={(e) => { e.stopPropagation(); deleteReply(remark.id, reply.id); }}
+                                                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover/reply:opacity-100 transition-opacity"
+                                                        title="Delete reply"
+                                                      >
+                                                        <i className="fas fa-trash text-xs"></i>
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              ))}
+
+                                              {/* Reply form */}
+                                              {replyingToRemark === remark.id ? (
+                                                <div className="bg-white dark:bg-gray-700 rounded p-2 space-y-2 border border-gray-200 dark:border-gray-600">
+                                                  <textarea
+                                                    value={newReplyContent}
+                                                    onChange={(e) => setNewReplyContent(e.target.value)}
+                                                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                    rows={2}
+                                                    placeholder="Write a reply..."
+                                                    autoFocus
+                                                  />
+                                                  {(newReplyImage || newReplyVoice) && (
+                                                    <div className="flex flex-wrap items-center gap-3">
+                                                      {newReplyImage && (
+                                                        <div className="flex items-center gap-2">
+                                                          <img src={newReplyImage} alt="Attachment" className="w-12 h-12 object-cover rounded" />
+                                                          <button
+                                                            onClick={() => setNewReplyImage(null)}
+                                                            className="text-xs text-red-500 hover:text-red-700"
+                                                          >
+                                                            Remove
+                                                          </button>
+                                                        </div>
+                                                      )}
+                                                      {newReplyVoice && (
+                                                        <div className="flex items-center gap-2">
+                                                          <audio src={newReplyVoice} controls className="h-8" />
+                                                          <button
+                                                            onClick={() => setNewReplyVoice(null)}
+                                                            className="text-xs text-red-500 hover:text-red-700"
+                                                          >
+                                                            Remove
+                                                          </button>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                  {uploadingFile && (
+                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                      <i className="fas fa-spinner animate-spin"></i>
+                                                      <span>Uploading...</span>
+                                                    </div>
+                                                  )}
+                                                  <div className="flex items-center gap-2">
+                                                    <label className="cursor-pointer p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded" title="Upload image">
+                                                      <i className="fas fa-image text-xs"></i>
+                                                      <input type="file" accept="image/*" className="hidden" onChange={handleReplyFileSelect} disabled={uploadingFile} />
+                                                    </label>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => isRecording && recordingFor === 'inline' ? stopReplyRecording() : startReplyRecording()}
+                                                      className={`p-1 rounded transition-colors ${
+                                                        isRecording && recordingFor === 'inline'
+                                                          ? 'text-red-500 bg-red-50 dark:bg-red-900/20 animate-pulse'
+                                                          : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                                                      }`}
+                                                      title={isRecording ? 'Stop recording' : 'Record voice note'}
+                                                    >
+                                                      <i className="fas fa-microphone text-xs"></i>
+                                                    </button>
+                                                    <div className="flex-1"></div>
+                                                    <button
+                                                      onClick={() => {
+                                                        setReplyingToRemark(null);
+                                                        setNewReplyContent('');
+                                                        setNewReplyImage(null);
+                                                        setNewReplyVoice(null);
+                                                      }}
+                                                      className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                                                    >
+                                                      Cancel
+                                                    </button>
+                                                    <button
+                                                      onClick={() => addReply(remark.id)}
+                                                      disabled={savingReply || (!newReplyContent.trim() && !newReplyImage && !newReplyVoice)}
+                                                      className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                                                    >
+                                                      {savingReply ? 'Sending...' : 'Reply'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); setReplyingToRemark(remark.id); }}
+                                                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                                                >
+                                                  + Add reply
+                                                </button>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
                                       </li>
                                     ))}
                                   </ul>
