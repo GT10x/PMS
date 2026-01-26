@@ -1385,25 +1385,29 @@ export default function ProjectModulesPage() {
                   setDraggedModule(null);
                 }}
               >
-                {/* Collapsed Header */}
+                {/* Collapsed Header - Click anywhere to expand/collapse */}
                 <div
-                  className={`w-full px-4 py-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left ${
+                  onClick={() => toggleExpanded(module.id)}
+                  className={`w-full px-4 py-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left cursor-pointer ${
                     isExpanded ? 'bg-gray-50 dark:bg-gray-700/50' : ''
                   }`}
                 >
                   {/* Drag Handle */}
                   {canManageModules() && (
-                    <div className="cursor-grab text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Drag to reorder">
+                    <div
+                      className="cursor-grab text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      title="Drag to reorder"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <i className="fas fa-grip-vertical"></i>
                     </div>
                   )}
                   {/* Expand/Collapse Icon */}
-                  <button
-                    onClick={() => toggleExpanded(module.id)}
+                  <div
                     className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
                   >
                     <i className={`fas ${isExpanded ? 'fa-minus' : 'fa-plus'} text-sm`}></i>
-                  </button>
+                  </div>
 
                   {/* Module Name */}
                   <div className="flex-1 min-w-0">
@@ -1691,6 +1695,11 @@ export default function ProjectModulesPage() {
                                               )}
                                               {remark.voice_url && (
                                                 <audio src={remark.voice_url} controls className="mt-1 h-8" />
+                                              )}
+                                              {remark.created_by_user && (
+                                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                                  — {remark.created_by_user.full_name}
+                                                </p>
                                               )}
                                             </div>
                                             {canManageModules() && (
