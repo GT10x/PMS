@@ -2379,7 +2379,7 @@ export default function ProjectModulesPage() {
                                         disabled={savingRemark || uploadingFile || (!newRemarkContent.trim() && !newRemarkImage && !newRemarkVoice)}
                                         className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
                                       >
-                                        {savingRemark ? 'Adding...' : 'Add Remark'}
+                                        {savingRemark ? 'Adding...' : 'Add Function'}
                                       </button>
                                     </div>
                                   </div>
@@ -2390,7 +2390,7 @@ export default function ProjectModulesPage() {
                                       className="mt-2 ml-6 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
                                     >
                                       <i className="fas fa-plus"></i>
-                                      <span>Add Remark</span>
+                                      <span>Add Function</span>
                                     </button>
                                   )
                                 )}
@@ -2689,7 +2689,7 @@ export default function ProjectModulesPage() {
                               className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
                             >
                               <i className="fas fa-plus"></i>
-                              <span>Add Remark</span>
+                              <span>Add Function</span>
                             </button>
                           )}
                         </div>
