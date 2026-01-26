@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
+import { supabase } from '@/lib/supabase';
 
 interface Module {
   id: string;
@@ -317,6 +318,126 @@ export default function ProjectModulesPage() {
     fetchProjectStakeholders();
     fetchModules();
     fetchCurrentUser();
+  }, []);
+
+  // Supabase Realtime subscription for instant remark updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('remarks-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'feature_remarks' },
+        async (payload) => {
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+
+          if (eventType === 'INSERT' && newRecord) {
+            // Fetch the creator info for the new remark
+            let creatorInfo = null;
+            if (newRecord.created_by) {
+              try {
+                const res = await fetch(`/api/users/${newRecord.created_by}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  creatorInfo = { id: data.user.id, full_name: data.user.full_name };
+                }
+              } catch (e) {
+                console.error('Error fetching creator info:', e);
+              }
+            }
+
+            const newRemark: FeatureRemark = {
+              id: newRecord.id,
+              feature_id: newRecord.feature_id,
+              content: newRecord.content,
+              image_url: newRecord.image_url,
+              voice_url: newRecord.voice_url,
+              sort_order: newRecord.sort_order || 0,
+              created_by: newRecord.created_by,
+              created_at: newRecord.created_at,
+              updated_at: newRecord.updated_at,
+              created_by_user: creatorInfo || undefined
+            };
+
+            setModuleFeatures(prev => {
+              const newMap = new Map(prev);
+              // Find which module this feature belongs to
+              for (const [moduleId, features] of newMap) {
+                const featureIndex = features.findIndex(f => f.id === newRecord.feature_id);
+                if (featureIndex !== -1) {
+                  const updatedFeatures = [...features];
+                  // Check if remark already exists (to avoid duplicates)
+                  if (!updatedFeatures[featureIndex].remarks.some(r => r.id === newRemark.id)) {
+                    updatedFeatures[featureIndex] = {
+                      ...updatedFeatures[featureIndex],
+                      remarks: [...updatedFeatures[featureIndex].remarks, newRemark]
+                    };
+                    newMap.set(moduleId, updatedFeatures);
+                  }
+                  break;
+                }
+              }
+              return newMap;
+            });
+          }
+
+          if (eventType === 'UPDATE' && newRecord) {
+            setModuleFeatures(prev => {
+              const newMap = new Map(prev);
+              for (const [moduleId, features] of newMap) {
+                const featureIndex = features.findIndex(f => f.id === newRecord.feature_id);
+                if (featureIndex !== -1) {
+                  const updatedFeatures = [...features];
+                  const remarkIndex = updatedFeatures[featureIndex].remarks.findIndex(r => r.id === newRecord.id);
+                  if (remarkIndex !== -1) {
+                    const existingRemark = updatedFeatures[featureIndex].remarks[remarkIndex];
+                    updatedFeatures[featureIndex] = {
+                      ...updatedFeatures[featureIndex],
+                      remarks: [
+                        ...updatedFeatures[featureIndex].remarks.slice(0, remarkIndex),
+                        {
+                          ...existingRemark,
+                          content: newRecord.content,
+                          image_url: newRecord.image_url,
+                          voice_url: newRecord.voice_url,
+                          updated_at: newRecord.updated_at
+                        },
+                        ...updatedFeatures[featureIndex].remarks.slice(remarkIndex + 1)
+                      ]
+                    };
+                    newMap.set(moduleId, updatedFeatures);
+                  }
+                  break;
+                }
+              }
+              return newMap;
+            });
+          }
+
+          if (eventType === 'DELETE' && oldRecord) {
+            setModuleFeatures(prev => {
+              const newMap = new Map(prev);
+              for (const [moduleId, features] of newMap) {
+                const featureIndex = features.findIndex(f => f.remarks.some(r => r.id === oldRecord.id));
+                if (featureIndex !== -1) {
+                  const updatedFeatures = [...features];
+                  updatedFeatures[featureIndex] = {
+                    ...updatedFeatures[featureIndex],
+                    remarks: updatedFeatures[featureIndex].remarks.filter(r => r.id !== oldRecord.id)
+                  };
+                  newMap.set(moduleId, updatedFeatures);
+                  break;
+                }
+              }
+              return newMap;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchProject = async () => {
