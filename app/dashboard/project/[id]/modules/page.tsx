@@ -1909,6 +1909,9 @@ export default function ProjectModulesPage() {
                   {/* Module Name */}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                      {module.code && (
+                        <span className="text-indigo-600 dark:text-indigo-400 mr-2">{module.code}</span>
+                      )}
                       {module.name}
                       {module.created_by_user && (
                         <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">
@@ -1948,6 +1951,17 @@ export default function ProjectModulesPage() {
                         <i className="fas fa-users mr-1"></i>
                         {module.stakeholders.length}
                       </span>
+                    )}
+                    {/* Connections indicator */}
+                    {getConnectionCount('module', module.id) > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/project/${projectId}/flow?highlight=${module.id}`); }}
+                        className="px-2 py-0.5 rounded text-xs font-medium bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-200 dark:hover:bg-cyan-800/40 transition-colors"
+                        title="View connections in flow"
+                      >
+                        <i className="fas fa-project-diagram mr-1"></i>
+                        {getConnectionCount('module', module.id)}
+                      </button>
                     )}
                     {getStatusBadge(module.status)}
                     {getPriorityBadge(module.priority)}
@@ -2054,6 +2068,9 @@ export default function ProjectModulesPage() {
                                   ) : (
                                     <div className="flex-1 flex items-center justify-between">
                                       <div className="flex items-center gap-2">
+                                        {feature.code && (
+                                          <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{feature.code}</span>
+                                        )}
                                         <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{feature.name}</span>
                                         <select
                                           value={feature.phase || 1}
@@ -2070,9 +2087,30 @@ export default function ProjectModulesPage() {
                                           <option value={2}>Phase 2</option>
                                           <option value={3}>Phase 3</option>
                                         </select>
+                                        {/* Connection indicator for functions */}
+                                        {getConnectionCount('function', feature.id) > 0 && (
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/project/${projectId}/flow?highlight=${feature.id}`); }}
+                                            className="px-1.5 py-0.5 rounded text-xs font-medium bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-200 dark:hover:bg-cyan-800/40 transition-colors"
+                                            title="View connections in flow"
+                                          >
+                                            <i className="fas fa-project-diagram text-[10px]"></i>
+                                            <span className="ml-0.5">{getConnectionCount('function', feature.id)}</span>
+                                          </button>
+                                        )}
                                       </div>
-                                      {canManageModules() && (
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {/* Connect button */}
+                                        {canManageModules() && (
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); openConnectionModal('function', feature.id, feature.name, feature.code || ''); }}
+                                            className="p-1 text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded"
+                                            title="Manage connections"
+                                          >
+                                            <i className="fas fa-link text-xs"></i>
+                                          </button>
+                                        )}
+                                        {canManageModules() && (
                                           <button
                                             onClick={(e) => { e.stopPropagation(); setEditingFeature({ moduleId: module.id, index: idx }); setEditingFeatureText(feature.name); }}
                                             className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
@@ -2080,17 +2118,17 @@ export default function ProjectModulesPage() {
                                           >
                                             <i className="fas fa-pen text-xs"></i>
                                           </button>
-                                          {isMasterAdmin() && (
-                                            <button
-                                              onClick={(e) => { e.stopPropagation(); deleteFeatureNew(feature.id, module.id); }}
-                                              className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                                              title="Delete feature"
-                                            >
-                                              <i className="fas fa-trash text-xs"></i>
-                                            </button>
-                                          )}
-                                        </div>
-                                      )}
+                                        )}
+                                        {isMasterAdmin() && (
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); deleteFeatureNew(feature.id, module.id); }}
+                                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                            title="Delete feature"
+                                          >
+                                            <i className="fas fa-trash text-xs"></i>
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -3124,6 +3162,58 @@ export default function ProjectModulesPage() {
                   Add a missing stakeholder
                 </a>
               </div>
+
+              {/* Module Connections */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <i className="fas fa-project-diagram mr-1 text-cyan-500"></i>
+                  Connect to Other Modules
+                </label>
+                <div className="space-y-1 max-h-32 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                  {modules.filter(m => m.id !== selectedModule?.id).map((m) => {
+                    const isConnected = connections.some(c =>
+                      (c.source_type === 'module' && c.source_id === selectedModule?.id && c.target_type === 'module' && c.target_id === m.id) ||
+                      (c.target_type === 'module' && c.target_id === selectedModule?.id && c.source_type === 'module' && c.source_id === m.id)
+                    );
+                    return (
+                      <label key={m.id} className="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isConnected}
+                          onChange={async () => {
+                            if (!selectedModule) return;
+                            if (isConnected) {
+                              // Remove connection
+                              await fetch(`/api/projects/${projectId}/connections?source_type=module&source_id=${selectedModule.id}&target_type=module&target_id=${m.id}`, {
+                                method: 'DELETE'
+                              });
+                            } else {
+                              // Add connection
+                              await fetch(`/api/projects/${projectId}/connections`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  source_type: 'module',
+                                  source_id: selectedModule.id,
+                                  target_type: 'module',
+                                  target_id: m.id
+                                })
+                              });
+                            }
+                            await fetchConnections();
+                          }}
+                          className="w-4 h-4 text-cyan-600 rounded border-gray-300 focus:ring-cyan-500"
+                        />
+                        <span className="text-cyan-600 dark:text-cyan-400 font-medium text-sm">{m.code || 'M?'}</span>
+                        <span className="text-gray-900 dark:text-white text-sm">{m.name}</span>
+                      </label>
+                    );
+                  })}
+                  {modules.filter(m => m.id !== selectedModule?.id).length === 0 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 italic p-2">No other modules to connect to</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -3146,6 +3236,126 @@ export default function ProjectModulesPage() {
                 ) : (
                   <span className="flex items-center justify-center gap-2">
                     <i className="fas fa-save"></i> Save Changes
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connection Modal */}
+      {showConnectionModal && (
+        <div className="modal-overlay" onClick={() => { setShowConnectionModal(null); setSelectedConnections([]); }}>
+          <div className="modal-content max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                Connections for {showConnectionModal.code} - {showConnectionModal.name}
+              </h2>
+              <button onClick={() => { setShowConnectionModal(null); setSelectedConnections([]); }} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i className="fas fa-times text-lg"></i>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 space-y-4">
+              {/* Connect to Modules */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <i className="fas fa-cubes mr-2 text-indigo-500"></i>
+                  Connect to Modules
+                </h3>
+                <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                  {modules.filter(m => !(showConnectionModal.type === 'module' && m.id === showConnectionModal.id)).map((m) => (
+                    <label key={m.id} className="flex items-center gap-2 p-1.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedConnections.some(c => c.target_type === 'module' && c.target_id === m.id)}
+                        onChange={() => toggleConnection('module', m.id)}
+                        className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                      />
+                      <span className="text-indigo-600 dark:text-indigo-400 font-medium text-sm">{m.code || 'M?'}</span>
+                      <span className="text-gray-900 dark:text-white text-sm">{m.name}</span>
+                    </label>
+                  ))}
+                  {modules.length === 0 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 italic p-2">No modules available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Connect to Functions - only if current entity is a function */}
+              {showConnectionModal.type === 'function' && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <i className="fas fa-cogs mr-2 text-purple-500"></i>
+                    Connect to Functions
+                  </h3>
+                  <div className="space-y-1 max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                    {Array.from(moduleFeatures.values()).flat().filter(f => f.id !== showConnectionModal.id).map((f) => (
+                      <label key={f.id} className="flex items-center gap-2 p-1.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedConnections.some(c => c.target_type === 'function' && c.target_id === f.id)}
+                          onChange={() => toggleConnection('function', f.id)}
+                          className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                        />
+                        <span className="text-purple-600 dark:text-purple-400 font-medium text-sm">{f.code || 'F?'}</span>
+                        <span className="text-gray-900 dark:text-white text-sm truncate">{f.name}</span>
+                      </label>
+                    ))}
+                    {Array.from(moduleFeatures.values()).flat().length <= 1 && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 italic p-2">No other functions available</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Selected connections summary */}
+              {selectedConnections.length > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Selected ({selectedConnections.length}):
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedConnections.map((c, i) => {
+                      const targetName = c.target_type === 'module'
+                        ? modules.find(m => m.id === c.target_id)?.code || c.target_id
+                        : Array.from(moduleFeatures.values()).flat().find(f => f.id === c.target_id)?.code || c.target_id;
+                      return (
+                        <span key={i} className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          c.target_type === 'module'
+                            ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                            : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                        }`}>
+                          {targetName}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <button
+                onClick={() => { setShowConnectionModal(null); setSelectedConnections([]); }}
+                className="btn-secondary flex-1"
+                disabled={savingConnections}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveConnections}
+                disabled={savingConnections}
+                className="btn-primary flex-1 disabled:opacity-50"
+              >
+                {savingConnections ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <i className="fas fa-spinner animate-spin"></i> Saving...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <i className="fas fa-save"></i> Save Connections
                   </span>
                 )}
               </button>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
 import {
@@ -26,10 +26,30 @@ import { toPng } from 'html-to-image';
 interface Module {
   id: string;
   name: string;
+  code?: string;
   description: string | null;
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'planned' | 'in_progress' | 'completed' | 'on_hold';
   stakeholders: string[];
+}
+
+interface ModuleFeature {
+  id: string;
+  module_id: string;
+  name: string;
+  code?: string;
+  phase: number;
+  sort_order: number;
+}
+
+interface EntityConnection {
+  id: string;
+  project_id: string;
+  source_type: 'module' | 'function';
+  source_id: string;
+  target_type: 'module' | 'function';
+  target_id: string;
+  created_at: string;
 }
 
 interface Project {
@@ -42,6 +62,8 @@ interface ConnectionInfo {
   moduleName: string;
   sharedStakeholders: string[];
 }
+
+type ViewMode = 'stakeholders' | 'connections';
 
 // Custom node component for modules
 function ModuleNode({ data, selected }: { data: any; selected?: boolean }) {
@@ -73,6 +95,9 @@ function ModuleNode({ data, selected }: { data: any; selected?: boolean }) {
       <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 !bg-indigo-500" />
 
       <div className="flex items-center gap-2 mb-1">
+        {data.code && (
+          <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{data.code}</span>
+        )}
         <div className={`w-2 h-2 rounded-full ${priorityDots[data.priority] || priorityDots.medium}`} />
         <h3 className="font-semibold text-gray-800 dark:text-white text-sm truncate">{data.label}</h3>
       </div>
@@ -91,15 +116,49 @@ function ModuleNode({ data, selected }: { data: any; selected?: boolean }) {
   );
 }
 
-const nodeTypes = { moduleNode: ModuleNode };
+// Custom node component for functions
+function FunctionNode({ data, selected }: { data: any; selected?: boolean }) {
+  const isHighlighted = data.isHighlighted !== false;
+  const isSelected = data.isSelected;
+
+  return (
+    <div
+      className={`px-3 py-2 rounded-lg border-2 border-purple-500 bg-purple-50 dark:bg-purple-900/30 shadow-md min-w-[140px] max-w-[180px] relative transition-all duration-200 ${!isHighlighted ? 'opacity-20' : ''} ${isSelected ? 'ring-4 ring-purple-500 ring-offset-2' : ''}`}
+    >
+      {/* Handles for edge connections */}
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-purple-500" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-purple-500" />
+      <Handle type="target" position={Position.Left} id="left" className="!w-2 !h-2 !bg-purple-500" />
+      <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 !bg-purple-500" />
+
+      <div className="flex items-center gap-2">
+        {data.code && (
+          <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{data.code}</span>
+        )}
+        <h3 className="font-medium text-gray-800 dark:text-white text-xs truncate">{data.label}</h3>
+      </div>
+      {data.moduleName && (
+        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+          in {data.moduleName}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const nodeTypes = { moduleNode: ModuleNode, functionNode: FunctionNode };
 
 export default function ModuleFlowPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const projectId = params.id as string;
+  const highlightId = searchParams.get('highlight');
 
   const [project, setProject] = useState<Project | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
+  const [features, setFeatures] = useState<ModuleFeature[]>([]);
+  const [entityConnections, setEntityConnections] = useState<EntityConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -110,6 +169,7 @@ export default function ModuleFlowPage() {
   const [layoutMode, setLayoutMode] = useState<'circle' | 'status' | 'priority'>('circle');
   const [showOnlyDirect, setShowOnlyDirect] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('connections');
   const flowRef = useRef<HTMLDivElement>(null);
 
   // Toggle fullscreen
@@ -140,16 +200,44 @@ export default function ModuleFlowPage() {
     fetchData();
   }, [projectId]);
 
+  // If URL has highlight param, select that node on load
+  useEffect(() => {
+    if (highlightId && !loading) {
+      setSelectedNodeId(highlightId);
+    }
+  }, [highlightId, loading]);
+
   const fetchData = async () => {
     try {
-      const [projectRes, modulesRes] = await Promise.all([
+      const [projectRes, modulesRes, connectionsRes] = await Promise.all([
         fetch(`/api/projects/${projectId}/view`),
         fetch(`/api/projects/${projectId}/modules`),
+        fetch(`/api/projects/${projectId}/connections`),
       ]);
       if (projectRes.ok) setProject(await projectRes.json());
+
+      let modulesList: Module[] = [];
       if (modulesRes.ok) {
         const data = await modulesRes.json();
-        setModules(data.modules || []);
+        modulesList = data.modules || [];
+        setModules(modulesList);
+      }
+
+      if (connectionsRes.ok) {
+        const data = await connectionsRes.json();
+        setEntityConnections(data.connections || []);
+      }
+
+      // Fetch features for all modules
+      if (modulesList.length > 0) {
+        const featuresPromises = modulesList.map(m =>
+          fetch(`/api/projects/${projectId}/modules/${m.id}/features`)
+            .then(res => res.ok ? res.json() : { features: [] })
+            .then(data => data.features || [])
+        );
+        const allFeatures = await Promise.all(featuresPromises);
+        const flatFeatures = allFeatures.flat();
+        setFeatures(flatFeatures);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -211,13 +299,30 @@ export default function ModuleFlowPage() {
     return connections.sort((a, b) => b.sharedStakeholders.length - a.sharedStakeholders.length);
   }, [selectedNodeId, allEdgesData, modules]);
 
-  // Get connected node IDs for highlighting
-  const connectedNodeIds = useMemo(() => {
+  // Get connected node IDs for highlighting (stakeholder view)
+  const connectedNodeIdsStakeholder = useMemo(() => {
     if (!selectedNodeId) return new Set<string>();
     const ids = new Set<string>([selectedNodeId]);
     selectedNodeConnections.forEach((c) => ids.add(c.moduleId));
     return ids;
   }, [selectedNodeId, selectedNodeConnections]);
+
+  // Get connected node IDs for highlighting (entity connections view)
+  const connectedNodeIdsEntity = useMemo(() => {
+    if (!selectedNodeId) return new Set<string>();
+    const ids = new Set<string>([selectedNodeId]);
+    entityConnections.forEach((c) => {
+      if (c.source_id === selectedNodeId) {
+        ids.add(c.target_id);
+      } else if (c.target_id === selectedNodeId) {
+        ids.add(c.source_id);
+      }
+    });
+    return ids;
+  }, [selectedNodeId, entityConnections]);
+
+  // Use appropriate connected IDs based on view mode
+  const connectedNodeIds = viewMode === 'stakeholders' ? connectedNodeIdsStakeholder : connectedNodeIdsEntity;
 
   // Filter modules by search
   const filteredModuleIds = useMemo(() => {
@@ -225,10 +330,21 @@ export default function ModuleFlowPage() {
     const query = searchQuery.toLowerCase();
     return new Set(
       modules
-        .filter((m) => m.name.toLowerCase().includes(query))
+        .filter((m) => m.name.toLowerCase().includes(query) || m.code?.toLowerCase().includes(query))
         .map((m) => m.id)
     );
   }, [searchQuery, modules]);
+
+  // Filter functions by search (for connections view)
+  const filteredFunctionIds = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const query = searchQuery.toLowerCase();
+    return new Set(
+      features
+        .filter((f) => f.name.toLowerCase().includes(query) || f.code?.toLowerCase().includes(query))
+        .map((f) => f.id)
+    );
+  }, [searchQuery, features]);
 
   // Export function
   const exportToImage = useCallback(() => {
@@ -309,18 +425,112 @@ export default function ModuleFlowPage() {
     });
     const modulesByGroup = layoutMode === 'status' ? modulesByStatus : modulesByPriority;
 
-    const newNodes: Node[] = modules
-      .filter((module) => {
-        // When showOnlyDirect is on and a node is selected, hide non-connected nodes
-        if (showOnlyDirect && selectedNodeId && !connectedNodeIds.has(module.id)) {
-          return false;
-        }
-        return true;
-      })
-      .map((module, index) => {
-        const position = getNodePosition(module, index, modulesByGroup);
+    if (viewMode === 'stakeholders') {
+      // STAKEHOLDER VIEW - Original logic
+      const newNodes: Node[] = modules
+        .filter((module) => {
+          if (showOnlyDirect && selectedNodeId && !connectedNodeIds.has(module.id)) {
+            return false;
+          }
+          return true;
+        })
+        .map((module, index) => {
+          const position = getNodePosition(module, index, modulesByGroup);
 
-        // Determine if node should be highlighted
+          let isHighlighted = true;
+          if (selectedNodeId) {
+            isHighlighted = connectedNodeIds.has(module.id);
+          }
+          if (filteredModuleIds && !filteredModuleIds.has(module.id)) {
+            isHighlighted = false;
+          }
+
+          return {
+            id: module.id,
+            type: 'moduleNode',
+            position,
+            data: {
+              label: module.name,
+              code: module.code,
+              status: module.status,
+              priority: module.priority,
+              stakeholders: module.stakeholders || [],
+              isHighlighted,
+              isSelected: module.id === selectedNodeId,
+            },
+          };
+        });
+
+      const newEdges: Edge[] = [];
+
+      allEdgesData.forEach((edgeData, idx) => {
+        const shared = edgeData.shared;
+
+        const relevant = selectedStakeholder
+          ? shared.filter((s) => s === selectedStakeholder)
+          : shared;
+
+        if (relevant.length < minSharedStakeholders) return;
+        if (relevant.length === 0) return;
+
+        let isHighlighted = true;
+        if (selectedNodeId) {
+          isHighlighted = edgeData.sourceId === selectedNodeId || edgeData.targetId === selectedNodeId;
+        }
+
+        if (showOnlyDirect && selectedNodeId && !isHighlighted) {
+          return;
+        }
+
+        const colorIdx = allStakeholders.indexOf(relevant[0]) % colors.length;
+        const strokeWidth = Math.min(relevant.length, 6);
+
+        newEdges.push({
+          id: `e-${edgeData.sourceId}-${edgeData.targetId}`,
+          source: edgeData.sourceId,
+          target: edgeData.targetId,
+          label: relevant.length > 2 ? `${relevant.length} shared` : relevant.slice(0, 2).join(', '),
+          labelStyle: { fontSize: 9, fill: '#374151', fontWeight: 500 },
+          labelBgStyle: { fill: '#ffffff', fillOpacity: 0.9 },
+          labelBgPadding: [4, 2] as [number, number],
+          style: {
+            stroke: colors[colorIdx],
+            strokeWidth: isHighlighted ? strokeWidth : 1,
+            opacity: isHighlighted ? 1 : 0.15,
+          },
+          animated: isHighlighted && relevant.length >= 3,
+        });
+      });
+
+      setNodes(newNodes);
+      setEdges(newEdges);
+    } else {
+      // CONNECTIONS VIEW - Show entity connections
+      const newNodes: Node[] = [];
+      const moduleMap = new Map<string, Module>();
+      modules.forEach(m => moduleMap.set(m.id, m));
+
+      // Get features grouped by module for positioning
+      const featuresByModule = new Map<string, ModuleFeature[]>();
+      features.forEach(f => {
+        if (!featuresByModule.has(f.module_id)) featuresByModule.set(f.module_id, []);
+        featuresByModule.get(f.module_id)!.push(f);
+      });
+
+      // Calculate positions - modules in a circle, functions around their module
+      const moduleCount = modules.length;
+      const radius = Math.max(400, moduleCount * 60);
+      const centerX = 600;
+      const centerY = 500;
+
+      modules.forEach((module, moduleIndex) => {
+        const shouldShow = !showOnlyDirect || !selectedNodeId || connectedNodeIds.has(module.id);
+        if (!shouldShow) return;
+
+        const angle = (2 * Math.PI * moduleIndex) / moduleCount - Math.PI / 2;
+        const moduleX = centerX + radius * Math.cos(angle);
+        const moduleY = centerY + radius * Math.sin(angle);
+
         let isHighlighted = true;
         if (selectedNodeId) {
           isHighlighted = connectedNodeIds.has(module.id);
@@ -329,68 +539,98 @@ export default function ModuleFlowPage() {
           isHighlighted = false;
         }
 
-        return {
+        newNodes.push({
           id: module.id,
           type: 'moduleNode',
-          position,
+          position: { x: moduleX, y: moduleY },
           data: {
             label: module.name,
+            code: module.code,
             status: module.status,
             priority: module.priority,
             stakeholders: module.stakeholders || [],
             isHighlighted,
             isSelected: module.id === selectedNodeId,
           },
-        };
+        });
+
+        // Add function nodes around the module
+        const moduleFeatures = featuresByModule.get(module.id) || [];
+        const featureRadius = 100;
+        moduleFeatures.forEach((feature, featureIndex) => {
+          const shouldShowFeature = !showOnlyDirect || !selectedNodeId || connectedNodeIds.has(feature.id);
+          if (!shouldShowFeature) return;
+
+          const featureAngle = (2 * Math.PI * featureIndex) / Math.max(moduleFeatures.length, 1);
+          const featureX = moduleX + featureRadius * Math.cos(featureAngle);
+          const featureY = moduleY + featureRadius * Math.sin(featureAngle);
+
+          let isFeatureHighlighted = true;
+          if (selectedNodeId) {
+            isFeatureHighlighted = connectedNodeIds.has(feature.id);
+          }
+          if (filteredFunctionIds && !filteredFunctionIds.has(feature.id)) {
+            isFeatureHighlighted = false;
+          }
+
+          newNodes.push({
+            id: feature.id,
+            type: 'functionNode',
+            position: { x: featureX, y: featureY },
+            data: {
+              label: feature.name,
+              code: feature.code,
+              moduleName: module.code || module.name,
+              isHighlighted: isFeatureHighlighted,
+              isSelected: feature.id === selectedNodeId,
+            },
+          });
+        });
       });
 
-    const newEdges: Edge[] = [];
+      // Create edges from entity connections
+      const newEdges: Edge[] = [];
+      entityConnections.forEach((conn, idx) => {
+        const sourceExists = newNodes.some(n => n.id === conn.source_id);
+        const targetExists = newNodes.some(n => n.id === conn.target_id);
+        if (!sourceExists || !targetExists) return;
 
-    allEdgesData.forEach((edgeData, idx) => {
-      const shared = edgeData.shared;
+        let isHighlighted = true;
+        if (selectedNodeId) {
+          isHighlighted = conn.source_id === selectedNodeId || conn.target_id === selectedNodeId;
+        }
 
-      // Apply stakeholder filter
-      const relevant = selectedStakeholder
-        ? shared.filter((s) => s === selectedStakeholder)
-        : shared;
+        if (showOnlyDirect && selectedNodeId && !isHighlighted) {
+          return;
+        }
 
-      if (relevant.length < minSharedStakeholders) return;
-      if (relevant.length === 0) return;
+        // Different colors based on connection type
+        let strokeColor = '#6366f1'; // Default indigo
+        if (conn.source_type === 'module' && conn.target_type === 'module') {
+          strokeColor = '#3b82f6'; // Blue for M->M
+        } else if (conn.source_type === 'function' && conn.target_type === 'function') {
+          strokeColor = '#8b5cf6'; // Purple for F->F
+        } else {
+          strokeColor = '#ec4899'; // Pink for F->M
+        }
 
-      // Determine if edge should be highlighted
-      let isHighlighted = true;
-      if (selectedNodeId) {
-        isHighlighted = edgeData.sourceId === selectedNodeId || edgeData.targetId === selectedNodeId;
-      }
-
-      // When showOnlyDirect is on, skip non-connected edges entirely
-      if (showOnlyDirect && selectedNodeId && !isHighlighted) {
-        return;
-      }
-
-      const colorIdx = allStakeholders.indexOf(relevant[0]) % colors.length;
-      const strokeWidth = Math.min(relevant.length, 6);
-
-      newEdges.push({
-        id: `e-${edgeData.sourceId}-${edgeData.targetId}`,
-        source: edgeData.sourceId,
-        target: edgeData.targetId,
-        label: relevant.length > 2 ? `${relevant.length} shared` : relevant.slice(0, 2).join(', '),
-        labelStyle: { fontSize: 9, fill: '#374151', fontWeight: 500 },
-        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.9 },
-        labelBgPadding: [4, 2] as [number, number],
-        style: {
-          stroke: colors[colorIdx],
-          strokeWidth: isHighlighted ? strokeWidth : 1,
-          opacity: isHighlighted ? 1 : 0.15,
-        },
-        animated: isHighlighted && relevant.length >= 3,
+        newEdges.push({
+          id: `e-${conn.id}`,
+          source: conn.source_id,
+          target: conn.target_id,
+          style: {
+            stroke: strokeColor,
+            strokeWidth: isHighlighted ? 2 : 1,
+            opacity: isHighlighted ? 1 : 0.3,
+          },
+          animated: isHighlighted,
+        });
       });
-    });
 
-    setNodes(newNodes);
-    setEdges(newEdges);
-  }, [modules, selectedStakeholder, allStakeholders, selectedNodeId, connectedNodeIds, filteredModuleIds, minSharedStakeholders, allEdgesData, layoutMode, getNodePosition, showOnlyDirect]);
+      setNodes(newNodes);
+      setEdges(newEdges);
+    }
+  }, [modules, features, entityConnections, selectedStakeholder, allStakeholders, selectedNodeId, connectedNodeIds, filteredModuleIds, filteredFunctionIds, minSharedStakeholders, allEdgesData, layoutMode, getNodePosition, showOnlyDirect, viewMode]);
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
@@ -419,8 +659,37 @@ export default function ModuleFlowPage() {
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Module Connectivity Flow</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Click a module to see only its connections • Click empty space to reset</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {viewMode === 'connections' ? 'Entity Connections Flow' : 'Module Connectivity Flow'}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            {viewMode === 'connections'
+              ? 'Shows direct connections between modules and functions • Click a node to highlight'
+              : 'Shows modules with shared stakeholders • Click a module to see connections'}
+          </p>
+        </div>
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('connections')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'connections'
+                ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <i className="fas fa-project-diagram mr-2"></i>Connections
+          </button>
+          <button
+            onClick={() => setViewMode('stakeholders')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'stakeholders'
+                ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <i className="fas fa-users mr-2"></i>Stakeholders
+          </button>
         </div>
       </div>
 
@@ -442,42 +711,46 @@ export default function ModuleFlowPage() {
           <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
           <input
             type="text"
-            placeholder="Search modules..."
+            placeholder={viewMode === 'connections' ? 'Search modules/functions...' : 'Search modules...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
 
-        {/* Min Shared Stakeholders */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Min shared:</span>
-          <select
-            value={minSharedStakeholders}
-            onChange={(e) => setMinSharedStakeholders(Number(e.target.value))}
-            className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value={1}>1+ stakeholder</option>
-            <option value={2}>2+ stakeholders</option>
-            <option value={3}>3+ stakeholders</option>
-            <option value={5}>5+ stakeholders</option>
-            <option value={10}>10+ stakeholders</option>
-          </select>
-        </div>
+        {/* Min Shared Stakeholders - Only in stakeholders view */}
+        {viewMode === 'stakeholders' && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Min shared:</span>
+            <select
+              value={minSharedStakeholders}
+              onChange={(e) => setMinSharedStakeholders(Number(e.target.value))}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value={1}>1+ stakeholder</option>
+              <option value={2}>2+ stakeholders</option>
+              <option value={3}>3+ stakeholders</option>
+              <option value={5}>5+ stakeholders</option>
+              <option value={10}>10+ stakeholders</option>
+            </select>
+          </div>
+        )}
 
-        {/* Layout Mode */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Layout:</span>
-          <select
-            value={layoutMode}
-            onChange={(e) => setLayoutMode(e.target.value as 'circle' | 'status' | 'priority')}
-            className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="circle">Circle</option>
-            <option value="status">Group by Status</option>
-            <option value="priority">Group by Priority</option>
-          </select>
-        </div>
+        {/* Layout Mode - Only in stakeholders view */}
+        {viewMode === 'stakeholders' && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Layout:</span>
+            <select
+              value={layoutMode}
+              onChange={(e) => setLayoutMode(e.target.value as 'circle' | 'status' | 'priority')}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="circle">Circle</option>
+              <option value="status">Group by Status</option>
+              <option value="priority">Group by Priority</option>
+            </select>
+          </div>
+        )}
 
         {/* Direct Connections Toggle */}
         <label className="flex items-center gap-2 cursor-pointer">
@@ -507,7 +780,7 @@ export default function ModuleFlowPage() {
         </button>
 
         {/* Reset button */}
-        {(selectedNodeId || searchQuery || minSharedStakeholders > 1 || selectedStakeholder) && (
+        {(selectedNodeId || searchQuery || (viewMode === 'stakeholders' && minSharedStakeholders > 1) || selectedStakeholder) && (
           <button
             onClick={() => {
               setSelectedNodeId(null);
@@ -522,8 +795,8 @@ export default function ModuleFlowPage() {
         )}
       </div>
 
-      {/* Stakeholder Filter */}
-      {allStakeholders.length > 0 && (
+      {/* Stakeholder Filter - Only in stakeholders view */}
+      {viewMode === 'stakeholders' && allStakeholders.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Stakeholder:</span>
           <button onClick={() => setSelectedStakeholder(null)} className={`px-3 py-1 text-sm rounded-full transition-colors ${selectedStakeholder === null ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300'}`}>All</button>
@@ -575,90 +848,172 @@ export default function ModuleFlowPage() {
         </div>
 
         {/* Selected Node Info Panel */}
-        {selectedNodeId && selectedModule && (
+        {selectedNodeId && (selectedModule || (viewMode === 'connections' && (features.find(f => f.id === selectedNodeId) || modules.find(m => m.id === selectedNodeId)))) && (
           <div className="w-80 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 h-[600px] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900 dark:text-white">Selected Module</h3>
-              <button onClick={() => setSelectedNodeId(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
+            {(() => {
+              const selectedFunction = features.find(f => f.id === selectedNodeId);
+              const parentModule = selectedFunction ? modules.find(m => m.id === selectedFunction.module_id) : null;
+              const isFunction = !!selectedFunction;
 
-            {/* Module Info */}
-            <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-              <h4 className="font-semibold text-indigo-900 dark:text-indigo-100">{selectedModule.name}</h4>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <span className={`px-2 py-0.5 text-xs rounded-full ${
-                  selectedModule.status === 'completed' ? 'bg-green-100 text-green-700' :
-                  selectedModule.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
-                  selectedModule.status === 'on_hold' ? 'bg-gray-100 text-gray-700' :
-                  'bg-blue-100 text-blue-700'
-                }`}>
-                  {selectedModule.status.replace('_', ' ')}
-                </span>
-                <span className={`px-2 py-0.5 text-xs rounded-full ${
-                  selectedModule.priority === 'critical' ? 'bg-red-100 text-red-700' :
-                  selectedModule.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                  selectedModule.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-green-100 text-green-700'
-                }`}>
-                  {selectedModule.priority} priority
-                </span>
-              </div>
-            </div>
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-900 dark:text-white">
+                      Selected {isFunction ? 'Function' : 'Module'}
+                    </h3>
+                    <button onClick={() => setSelectedNodeId(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
 
-            {/* Stakeholders */}
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Stakeholders ({selectedModule.stakeholders?.length || 0})
-              </h4>
-              <div className="flex flex-wrap gap-1">
-                {selectedModule.stakeholders?.map((s, i) => (
-                  <span key={i} className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">{s}</span>
-                ))}
-              </div>
-            </div>
+                  {/* Node Info */}
+                  <div className={`mb-4 p-3 rounded-lg ${isFunction ? 'bg-purple-50 dark:bg-purple-900/30' : 'bg-indigo-50 dark:bg-indigo-900/30'}`}>
+                    <div className="flex items-center gap-2">
+                      {isFunction && selectedFunction?.code && (
+                        <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{selectedFunction.code}</span>
+                      )}
+                      {!isFunction && selectedModule?.code && (
+                        <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{selectedModule.code}</span>
+                      )}
+                      <h4 className={`font-semibold ${isFunction ? 'text-purple-900 dark:text-purple-100' : 'text-indigo-900 dark:text-indigo-100'}`}>
+                        {isFunction ? selectedFunction?.name : selectedModule?.name}
+                      </h4>
+                    </div>
+                    {isFunction && parentModule && (
+                      <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                        In module: <span className="font-medium">{parentModule.code || ''} {parentModule.name}</span>
+                      </div>
+                    )}
+                    {!isFunction && selectedModule && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          selectedModule.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          selectedModule.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
+                          selectedModule.status === 'on_hold' ? 'bg-gray-100 text-gray-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {selectedModule.status.replace('_', ' ')}
+                        </span>
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          selectedModule.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                          selectedModule.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                          selectedModule.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {selectedModule.priority} priority
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-            {/* Connections */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Connections ({selectedNodeConnections.length})
-              </h4>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {selectedNodeConnections.map((conn) => (
-                  <div
-                    key={conn.moduleId}
-                    className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => setSelectedNodeId(conn.moduleId)}
-                  >
-                    <div className="font-medium text-sm text-gray-900 dark:text-white">{conn.moduleName}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      <span className="font-medium text-indigo-600 dark:text-indigo-400">{conn.sharedStakeholders.length}</span> shared: {conn.sharedStakeholders.slice(0, 3).join(', ')}
-                      {conn.sharedStakeholders.length > 3 && ` +${conn.sharedStakeholders.length - 3} more`}
+                  {/* Stakeholders - Only for modules */}
+                  {!isFunction && selectedModule && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Stakeholders ({selectedModule.stakeholders?.length || 0})
+                      </h4>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedModule.stakeholders?.map((s, i) => (
+                          <span key={i} className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Connections */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {viewMode === 'connections' ? 'Direct Connections' : 'Connections'} ({viewMode === 'connections' ? entityConnections.filter(c => c.source_id === selectedNodeId || c.target_id === selectedNodeId).length : selectedNodeConnections.length})
+                    </h4>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {viewMode === 'connections' ? (
+                        entityConnections
+                          .filter(c => c.source_id === selectedNodeId || c.target_id === selectedNodeId)
+                          .map((conn) => {
+                            const isSource = conn.source_id === selectedNodeId;
+                            const otherEntityId = isSource ? conn.target_id : conn.source_id;
+                            const otherType = isSource ? conn.target_type : conn.source_type;
+                            const otherEntity = otherType === 'module'
+                              ? modules.find(m => m.id === otherEntityId)
+                              : features.find(f => f.id === otherEntityId);
+                            if (!otherEntity) return null;
+
+                            return (
+                              <div
+                                key={conn.id}
+                                className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                onClick={() => setSelectedNodeId(otherEntityId)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-1.5 py-0.5 text-xs rounded ${otherType === 'module' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                    {otherType === 'module' ? 'M' : 'F'}
+                                  </span>
+                                  <span className="text-xs font-medium text-gray-500">
+                                    {'code' in otherEntity && otherEntity.code}
+                                  </span>
+                                  <span className="font-medium text-sm text-gray-900 dark:text-white truncate">{otherEntity.name}</span>
+                                </div>
+                              </div>
+                            );
+                          })
+                      ) : (
+                        selectedNodeConnections.map((conn) => (
+                          <div
+                            key={conn.moduleId}
+                            className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                            onClick={() => setSelectedNodeId(conn.moduleId)}
+                          >
+                            <div className="font-medium text-sm text-gray-900 dark:text-white">{conn.moduleName}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              <span className="font-medium text-indigo-600 dark:text-indigo-400">{conn.sharedStakeholders.length}</span> shared: {conn.sharedStakeholders.slice(0, 3).join(', ')}
+                              {conn.sharedStakeholders.length > 3 && ` +${conn.sharedStakeholders.length - 3} more`}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      {((viewMode === 'connections' && entityConnections.filter(c => c.source_id === selectedNodeId || c.target_id === selectedNodeId).length === 0) ||
+                        (viewMode !== 'connections' && selectedNodeConnections.length === 0)) && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">No connections</p>
+                      )}
                     </div>
                   </div>
-                ))}
-                {selectedNodeConnections.length === 0 && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">No connections with current filters</p>
-                )}
-              </div>
-            </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
 
       {/* Legend */}
       <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-gray-600 dark:text-gray-400">Status:</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-blue-500 bg-blue-50"></span> Planned</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-yellow-500 bg-yellow-50"></span> In Progress</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-green-500 bg-green-50"></span> Completed</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-gray-500 bg-gray-50"></span> On Hold</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-gray-600 dark:text-gray-400">Line thickness = more shared stakeholders</span>
-        </div>
+        {viewMode === 'connections' ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 dark:text-gray-400">Nodes:</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-blue-500 bg-blue-50"></span> Module</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-purple-500 bg-purple-50"></span> Function</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 dark:text-gray-400">Lines:</span>
+              <span className="flex items-center gap-1"><span className="w-6 h-0.5 bg-blue-500"></span> M→M</span>
+              <span className="flex items-center gap-1"><span className="w-6 h-0.5 bg-purple-500"></span> F→F</span>
+              <span className="flex items-center gap-1"><span className="w-6 h-0.5 bg-pink-500"></span> F→M</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 dark:text-gray-400">Status:</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-blue-500 bg-blue-50"></span> Planned</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-yellow-500 bg-yellow-50"></span> In Progress</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-green-500 bg-green-50"></span> Completed</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-gray-500 bg-gray-50"></span> On Hold</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 dark:text-gray-400">Line thickness = more shared stakeholders</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Stats */}
@@ -669,12 +1024,20 @@ export default function ModuleFlowPage() {
             <div className="text-sm text-gray-600 dark:text-gray-400">Total Modules</div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{allStakeholders.length}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Unique Stakeholders</div>
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {viewMode === 'connections' ? features.length : allStakeholders.length}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {viewMode === 'connections' ? 'Total Functions' : 'Unique Stakeholders'}
+            </div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{edges.length}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Visible Connections</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {viewMode === 'connections' ? entityConnections.length : edges.length}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {viewMode === 'connections' ? 'Entity Connections' : 'Visible Connections'}
+            </div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{modules.filter((m) => m.status === 'in_progress').length}</div>
