@@ -106,6 +106,25 @@ export async function POST(
 
     const nextOrder = (maxOrderResult?.sort_order ?? -1) + 1;
 
+    // Generate auto code for the module (M1, M2, etc.)
+    const { data: maxCodeResult } = await supabaseAdmin
+      .from('project_modules')
+      .select('code')
+      .eq('project_id', projectId)
+      .not('code', 'is', null)
+      .order('code', { ascending: false })
+      .limit(1)
+      .single();
+
+    let nextCodeNum = 1;
+    if (maxCodeResult?.code) {
+      const match = maxCodeResult.code.match(/M(\d+)/);
+      if (match) {
+        nextCodeNum = parseInt(match[1], 10) + 1;
+      }
+    }
+    const moduleCode = `M${nextCodeNum}`;
+
     const { data: module, error } = await supabaseAdmin
       .from('project_modules')
       .insert({
@@ -118,6 +137,7 @@ export async function POST(
         stakeholders: stakeholders || [],
         sort_order: nextOrder,
         phase: phase || 1,
+        code: moduleCode,
         created_by: currentUser.id
       })
       .select(`

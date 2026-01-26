@@ -15,9 +15,20 @@ interface Module {
   eta: string | null;
   stakeholders: string[];
   phase: number;
+  code?: string;
   created_at: string;
   updated_at: string;
   created_by_user?: { id: string; full_name: string };
+}
+
+interface EntityConnection {
+  id: string;
+  project_id: string;
+  source_type: 'module' | 'function';
+  source_id: string;
+  target_type: 'module' | 'function';
+  target_id: string;
+  created_at: string;
 }
 
 interface User {
@@ -63,6 +74,7 @@ interface ModuleFeature {
   name: string;
   phase: number;
   sort_order: number;
+  code?: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -156,6 +168,12 @@ export default function ProjectModulesPage() {
   const [newReplyVoice, setNewReplyVoice] = useState<string | null>(null);
   const [savingReply, setSavingReply] = useState(false);
   const [replyCounts, setReplyCounts] = useState<Map<string, number>>(new Map());
+
+  // Connections state
+  const [connections, setConnections] = useState<EntityConnection[]>([]);
+  const [showConnectionModal, setShowConnectionModal] = useState<{ type: 'module' | 'function'; id: string; name: string; code: string } | null>(null);
+  const [selectedConnections, setSelectedConnections] = useState<{ target_type: 'module' | 'function'; target_id: string }[]>([]);
+  const [savingConnections, setSavingConnections] = useState(false);
 
   // Speech-to-text state
   const [listeningIndex, setListeningIndex] = useState<number | null>(null);
@@ -341,6 +359,7 @@ export default function ProjectModulesPage() {
     fetchProjectStakeholders();
     fetchModules();
     fetchCurrentUser();
+    fetchConnections();
   }, []);
 
   // Supabase Realtime subscription for instant remark updates
@@ -604,6 +623,89 @@ export default function ProjectModulesPage() {
     } catch (error) {
       console.error('Error fetching user:', error);
     }
+  };
+
+  const fetchConnections = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/connections`);
+      if (response.ok) {
+        const data = await response.json();
+        setConnections(data.connections || []);
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error);
+    }
+  };
+
+  // Get connections for an entity
+  const getConnectionsFor = (type: 'module' | 'function', id: string) => {
+    return connections.filter(
+      c => (c.source_type === type && c.source_id === id) ||
+           (c.target_type === type && c.target_id === id)
+    );
+  };
+
+  // Get connection count for an entity
+  const getConnectionCount = (type: 'module' | 'function', id: string) => {
+    return getConnectionsFor(type, id).length;
+  };
+
+  // Open connection modal
+  const openConnectionModal = (type: 'module' | 'function', id: string, name: string, code: string) => {
+    setShowConnectionModal({ type, id, name, code });
+    // Pre-select existing connections
+    const existingConnections = getConnectionsFor(type, id).map(c => {
+      if (c.source_type === type && c.source_id === id) {
+        return { target_type: c.target_type, target_id: c.target_id };
+      } else {
+        return { target_type: c.source_type, target_id: c.source_id };
+      }
+    });
+    setSelectedConnections(existingConnections);
+  };
+
+  // Save connections
+  const saveConnections = async () => {
+    if (!showConnectionModal) return;
+    setSavingConnections(true);
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/connections`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_type: showConnectionModal.type,
+          source_id: showConnectionModal.id,
+          connections: selectedConnections
+        })
+      });
+
+      if (response.ok) {
+        await fetchConnections();
+        setShowConnectionModal(null);
+        setSelectedConnections([]);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to save connections');
+      }
+    } catch (error) {
+      console.error('Error saving connections:', error);
+      alert('Failed to save connections');
+    } finally {
+      setSavingConnections(false);
+    }
+  };
+
+  // Toggle connection selection
+  const toggleConnection = (targetType: 'module' | 'function', targetId: string) => {
+    setSelectedConnections(prev => {
+      const exists = prev.some(c => c.target_type === targetType && c.target_id === targetId);
+      if (exists) {
+        return prev.filter(c => !(c.target_type === targetType && c.target_id === targetId));
+      } else {
+        return [...prev, { target_type: targetType, target_id: targetId }];
+      }
+    });
   };
 
   // Inline feature editing

@@ -82,7 +82,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string; moduleId: string }> }
 ) {
   try {
-    const { moduleId } = await params;
+    const { id: projectId, moduleId } = await params;
     const currentUser = await getCurrentUser();
 
     if (!currentUser) {
@@ -111,6 +111,37 @@ export async function POST(
 
     const nextOrder = (maxOrderResult?.sort_order ?? -1) + 1;
 
+    // Generate auto code for the function (F1, F2, etc.) - global across all modules in project
+    // First get all module IDs in this project
+    const { data: projectModules } = await supabaseAdmin
+      .from('project_modules')
+      .select('id')
+      .eq('project_id', projectId);
+
+    const moduleIds = (projectModules || []).map((m: any) => m.id);
+
+    // Get max code from all features in this project
+    let nextCodeNum = 1;
+    if (moduleIds.length > 0) {
+      const { data: allFeatures } = await supabaseAdmin
+        .from('module_features')
+        .select('code')
+        .in('module_id', moduleIds)
+        .not('code', 'is', null);
+
+      if (allFeatures && allFeatures.length > 0) {
+        const maxNum = allFeatures.reduce((max: number, f: any) => {
+          const match = f.code?.match(/F(\d+)/);
+          if (match) {
+            return Math.max(max, parseInt(match[1], 10));
+          }
+          return max;
+        }, 0);
+        nextCodeNum = maxNum + 1;
+      }
+    }
+    const featureCode = `F${nextCodeNum}`;
+
     const { data: feature, error } = await supabaseAdmin
       .from('module_features')
       .insert({
@@ -118,6 +149,7 @@ export async function POST(
         name: name.trim(),
         phase: phase || 1,
         sort_order: nextOrder,
+        code: featureCode,
         created_by: currentUser.id
       })
       .select(`
