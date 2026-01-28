@@ -616,10 +616,14 @@ export default function ProjectModulesPage() {
 
             setModuleFeatures(prev => {
               const newMap = new Map(prev);
-              const existingFeatures = newMap.get(newRecord.module_id) || [];
-              // Check if feature already exists (to avoid duplicates)
-              if (!existingFeatures.some(f => f.id === newFeature.id)) {
-                newMap.set(newRecord.module_id, [...existingFeatures, newFeature]);
+              // Only update if module's features are already loaded (module was expanded)
+              // Otherwise, the full list will be fetched when user expands the module
+              if (newMap.has(newRecord.module_id)) {
+                const existingFeatures = newMap.get(newRecord.module_id) || [];
+                // Check if feature already exists (to avoid duplicates)
+                if (!existingFeatures.some(f => f.id === newFeature.id)) {
+                  newMap.set(newRecord.module_id, [...existingFeatures, newFeature]);
+                }
               }
               return newMap;
             });
