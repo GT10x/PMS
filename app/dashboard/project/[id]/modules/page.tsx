@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
+import AccessDenied from '@/components/AccessDenied';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { supabase } from '@/lib/supabase';
 
 interface Module {
@@ -89,6 +91,9 @@ export default function ProjectModulesPage() {
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
+
+  // Check module access
+  const { hasAccess, loading: accessLoading } = useModuleAccess(projectId, 'modules');
 
   const [project, setProject] = useState<Project | null>(null);
   const [projectStakeholders, setProjectStakeholders] = useState<string[]>([]);
@@ -1964,7 +1969,16 @@ export default function ProjectModulesPage() {
     });
   };
 
-  if (loading) {
+  // Show access denied if user doesn't have permission
+  if (!accessLoading && !hasAccess) {
+    return (
+      <DashboardLayout>
+        <AccessDenied moduleName="modules" projectId={projectId} />
+      </DashboardLayout>
+    );
+  }
+
+  if (loading || accessLoading) {
     return (
       <DashboardLayout>
         <Breadcrumb items={[

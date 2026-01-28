@@ -27,7 +27,13 @@ export async function GET(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
 
-    if (!currentUser || !currentUser.is_admin) {
+    // Allow admins and project managers to view users (needed for permission management)
+    const canViewUsers = currentUser && (
+      currentUser.is_admin ||
+      currentUser.role === 'project_manager'
+    );
+
+    if (!canViewUsers) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

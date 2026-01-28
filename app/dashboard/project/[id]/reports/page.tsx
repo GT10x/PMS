@@ -8,6 +8,8 @@ import { ReportCardSkeleton } from '@/components/LoadingSkeleton';
 import { NoReportsEmptyState } from '@/components/EmptyState';
 import Tooltip from '@/components/Tooltip';
 import Button from '@/components/Button';
+import AccessDenied from '@/components/AccessDenied';
+import { useModuleAccess } from '@/hooks/useModuleAccess';
 import { uploadFileWithSignedUrl } from '@/lib/supabase';
 
 interface Report {
@@ -88,6 +90,9 @@ export default function ProjectReportsPage() {
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
+
+  // Check module access
+  const { hasAccess, loading: accessLoading } = useModuleAccess(projectId, 'reports');
 
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1097,7 +1102,16 @@ export default function ProjectReportsPage() {
     deleteVoiceNote();
   };
 
-  if (loading) {
+  // Show access denied if user doesn't have permission
+  if (!accessLoading && !hasAccess) {
+    return (
+      <DashboardLayout>
+        <AccessDenied moduleName="reports" projectId={projectId} />
+      </DashboardLayout>
+    );
+  }
+
+  if (loading || accessLoading) {
     return (
       <DashboardLayout>
         <Breadcrumb items={[
