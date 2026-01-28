@@ -583,6 +583,7 @@ export default function ProjectModulesPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'module_features' },
         async (payload) => {
+          console.log('[Realtime] Feature event received:', payload);
           const { eventType, new: newRecord, old: oldRecord } = payload;
 
           if (eventType === 'INSERT' && newRecord) {
@@ -616,14 +617,22 @@ export default function ProjectModulesPage() {
 
             setModuleFeatures(prev => {
               const newMap = new Map(prev);
+              console.log('[Realtime] Module ID from event:', newRecord.module_id);
+              console.log('[Realtime] moduleFeatures has this module:', newMap.has(newRecord.module_id));
+              console.log('[Realtime] moduleFeatures keys:', Array.from(newMap.keys()));
               // Only update if module's features are already loaded (module was expanded)
               // Otherwise, the full list will be fetched when user expands the module
               if (newMap.has(newRecord.module_id)) {
                 const existingFeatures = newMap.get(newRecord.module_id) || [];
                 // Check if feature already exists (to avoid duplicates)
                 if (!existingFeatures.some(f => f.id === newFeature.id)) {
+                  console.log('[Realtime] Adding new feature to module');
                   newMap.set(newRecord.module_id, [...existingFeatures, newFeature]);
+                } else {
+                  console.log('[Realtime] Feature already exists, skipping');
                 }
+              } else {
+                console.log('[Realtime] Module not expanded, skipping update');
               }
               return newMap;
             });
@@ -664,7 +673,9 @@ export default function ProjectModulesPage() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Features channel status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
