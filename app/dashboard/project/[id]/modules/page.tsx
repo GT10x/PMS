@@ -575,6 +575,182 @@ export default function ProjectModulesPage() {
     };
   }, []);
 
+  // Supabase Realtime subscription for instant feature (function) updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('features-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'module_features' },
+        async (payload) => {
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+
+          if (eventType === 'INSERT' && newRecord) {
+            // Fetch the creator info for the new feature
+            let creatorInfo = null;
+            if (newRecord.created_by) {
+              try {
+                const res = await fetch(`/api/users/${newRecord.created_by}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  creatorInfo = { id: data.user.id, full_name: data.user.full_name };
+                }
+              } catch (e) {
+                console.error('Error fetching creator info:', e);
+              }
+            }
+
+            const newFeature: ModuleFeature = {
+              id: newRecord.id,
+              module_id: newRecord.module_id,
+              name: newRecord.name,
+              phase: newRecord.phase || 1,
+              sort_order: newRecord.sort_order || 0,
+              code: newRecord.code,
+              created_by: newRecord.created_by,
+              created_at: newRecord.created_at,
+              updated_at: newRecord.updated_at,
+              remarks: [],
+              created_by_user: creatorInfo || undefined
+            };
+
+            setModuleFeatures(prev => {
+              const newMap = new Map(prev);
+              const existingFeatures = newMap.get(newRecord.module_id) || [];
+              // Check if feature already exists (to avoid duplicates)
+              if (!existingFeatures.some(f => f.id === newFeature.id)) {
+                newMap.set(newRecord.module_id, [...existingFeatures, newFeature]);
+              }
+              return newMap;
+            });
+          }
+
+          if (eventType === 'UPDATE' && newRecord) {
+            setModuleFeatures(prev => {
+              const newMap = new Map(prev);
+              const features = newMap.get(newRecord.module_id);
+              if (features) {
+                const featureIndex = features.findIndex(f => f.id === newRecord.id);
+                if (featureIndex !== -1) {
+                  const updatedFeatures = [...features];
+                  updatedFeatures[featureIndex] = {
+                    ...updatedFeatures[featureIndex],
+                    name: newRecord.name,
+                    phase: newRecord.phase,
+                    sort_order: newRecord.sort_order,
+                    code: newRecord.code,
+                    updated_at: newRecord.updated_at
+                  };
+                  newMap.set(newRecord.module_id, updatedFeatures);
+                }
+              }
+              return newMap;
+            });
+          }
+
+          if (eventType === 'DELETE' && oldRecord) {
+            setModuleFeatures(prev => {
+              const newMap = new Map(prev);
+              const features = newMap.get(oldRecord.module_id);
+              if (features) {
+                newMap.set(oldRecord.module_id, features.filter(f => f.id !== oldRecord.id));
+              }
+              return newMap;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Supabase Realtime subscription for instant module updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('modules-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'project_modules', filter: `project_id=eq.${projectId}` },
+        async (payload) => {
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+
+          if (eventType === 'INSERT' && newRecord) {
+            // Fetch the creator info for the new module
+            let creatorInfo = null;
+            if (newRecord.created_by) {
+              try {
+                const res = await fetch(`/api/users/${newRecord.created_by}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  creatorInfo = { id: data.user.id, full_name: data.user.full_name };
+                }
+              } catch (e) {
+                console.error('Error fetching creator info:', e);
+              }
+            }
+
+            const newModule: Module = {
+              id: newRecord.id,
+              name: newRecord.name,
+              description: newRecord.description,
+              priority: newRecord.priority || 'medium',
+              status: newRecord.status || 'planned',
+              eta: newRecord.eta,
+              stakeholders: newRecord.stakeholders || [],
+              phase: newRecord.phase || 1,
+              code: newRecord.code,
+              created_at: newRecord.created_at,
+              updated_at: newRecord.updated_at,
+              created_by_user: creatorInfo || undefined
+            };
+
+            setModules(prev => {
+              // Check if module already exists (to avoid duplicates)
+              if (prev.some(m => m.id === newModule.id)) return prev;
+              return [...prev, newModule];
+            });
+          }
+
+          if (eventType === 'UPDATE' && newRecord) {
+            setModules(prev => prev.map(m =>
+              m.id === newRecord.id
+                ? {
+                    ...m,
+                    name: newRecord.name,
+                    description: newRecord.description,
+                    priority: newRecord.priority,
+                    status: newRecord.status,
+                    eta: newRecord.eta,
+                    stakeholders: newRecord.stakeholders || [],
+                    phase: newRecord.phase,
+                    code: newRecord.code,
+                    updated_at: newRecord.updated_at
+                  }
+                : m
+            ));
+          }
+
+          if (eventType === 'DELETE' && oldRecord) {
+            setModules(prev => prev.filter(m => m.id !== oldRecord.id));
+            // Also remove features for deleted module
+            setModuleFeatures(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(oldRecord.id);
+              return newMap;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [projectId]);
+
   const fetchProject = async () => {
     try {
       const response = await fetch(`/api/projects/${projectId}/view`);
