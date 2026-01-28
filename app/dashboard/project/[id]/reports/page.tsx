@@ -63,6 +63,27 @@ interface StatusLog {
   };
 }
 
+// Helper function to render text with clickable links
+function renderTextWithLinks(text: string) {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) =>
+    part.match(urlRegex) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-indigo-600 dark:text-indigo-400 hover:underline break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : part
+  );
+}
+
 export default function ProjectReportsPage() {
   const router = useRouter();
   const params = useParams();
@@ -1272,7 +1293,7 @@ export default function ProjectReportsPage() {
                     )}
                   </div>
 
-                  <p className="text-gray-700 dark:text-gray-300 mb-3 line-clamp-2">{report.description}</p>
+                  <p className="text-gray-700 dark:text-gray-300 mb-3 line-clamp-2 whitespace-pre-wrap">{renderTextWithLinks(report.description)}</p>
 
                   <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
                     {report.version && (
@@ -1894,7 +1915,7 @@ export default function ProjectReportsPage() {
                                 {/* Preview when collapsed */}
                                 {!isExpanded && (
                                   <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                    {selectedReport.description.substring(0, 80)}{selectedReport.description.length > 80 ? '...' : ''}
+                                    {renderTextWithLinks(selectedReport.description.substring(0, 80))}{selectedReport.description.length > 80 ? '...' : ''}
                                   </p>
                                 )}
                               </div>
@@ -1913,7 +1934,7 @@ export default function ProjectReportsPage() {
                                 {/* Description */}
                                 <div className="mt-3">
                                   <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                                    {selectedReport.description}
+                                    {renderTextWithLinks(selectedReport.description)}
                                   </p>
                                 </div>
 
@@ -2076,7 +2097,7 @@ export default function ProjectReportsPage() {
                             {/* Preview of content when collapsed */}
                             {!isExpanded && hasContent && (
                               <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                {reply.content.substring(0, 60)}{reply.content.length > 60 ? '...' : ''}
+                                {renderTextWithLinks(reply.content.substring(0, 60))}{reply.content.length > 60 ? '...' : ''}
                               </p>
                             )}
                           </div>
@@ -2096,7 +2117,7 @@ export default function ProjectReportsPage() {
                             {hasContent && (
                               <div className="mt-3">
                                 <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                                  {reply.content}
+                                  {renderTextWithLinks(reply.content)}
                                 </p>
                               </div>
                             )}
