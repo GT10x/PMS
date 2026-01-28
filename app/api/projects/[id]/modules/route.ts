@@ -107,20 +107,23 @@ export async function POST(
     const nextOrder = (maxOrderResult?.sort_order ?? -1) + 1;
 
     // Generate auto code for the module (M1, M2, etc.)
-    const { data: maxCodeResult } = await supabaseAdmin
+    // Fetch all codes and find max numerically (string sort breaks after M9)
+    const { data: allModuleCodes } = await supabaseAdmin
       .from('project_modules')
       .select('code')
       .eq('project_id', projectId)
-      .not('code', 'is', null)
-      .order('code', { ascending: false })
-      .limit(1)
-      .single();
+      .not('code', 'is', null);
 
     let nextCodeNum = 1;
-    if (maxCodeResult?.code) {
-      const match = maxCodeResult.code.match(/M(\d+)/);
-      if (match) {
-        nextCodeNum = parseInt(match[1], 10) + 1;
+    if (allModuleCodes && allModuleCodes.length > 0) {
+      const numbers = allModuleCodes
+        .map((m: any) => {
+          const match = m.code?.match(/M(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n: number) => n > 0);
+      if (numbers.length > 0) {
+        nextCodeNum = Math.max(...numbers) + 1;
       }
     }
     const moduleCode = `M${nextCodeNum}`;
