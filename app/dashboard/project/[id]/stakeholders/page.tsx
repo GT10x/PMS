@@ -401,8 +401,8 @@ export default function StakeholdersPage() {
         </div>
       </div>
 
-      {/* Module Access Control Card */}
-      <div className="card p-4 sm:p-6 mt-6">
+      {/* Module Access Control Card - Only visible to PM and Admin */}
+      {canManagePermissions && <div className="card p-4 sm:p-6 mt-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">
             <i className="fas fa-shield-alt mr-2 text-indigo-500"></i>
@@ -417,12 +417,6 @@ export default function StakeholdersPage() {
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Control which modules each user can access in this project. By default, all users have full access.
-          {!canManagePermissions && (
-            <span className="text-amber-500 ml-2">
-              <i className="fas fa-lock mr-1"></i>
-              Only PM and Admin can manage permissions.
-            </span>
-          )}
         </p>
 
         {showAccessControl && (
@@ -659,7 +653,7 @@ export default function StakeholdersPage() {
             )}
           </>
         )}
-      </div>
+      </div>}
     </DashboardLayout>
   );
 }
