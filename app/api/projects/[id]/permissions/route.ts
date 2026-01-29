@@ -57,6 +57,24 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get project members (only users assigned to this project)
+    const { data: members, error: membersError } = await supabaseAdmin
+      .from('project_members')
+      .select('user_id, role, user_profiles(id, full_name, email, role, is_admin)')
+      .eq('project_id', projectId);
+
+    if (membersError) {
+      console.error('Error fetching project members:', membersError);
+    }
+
+    const projectUsers = (members || []).map((m: any) => ({
+      id: m.user_profiles?.id || m.user_id,
+      full_name: m.user_profiles?.full_name || 'Unknown',
+      email: m.user_profiles?.email || '',
+      role: m.user_profiles?.role || m.role || '',
+      is_admin: m.user_profiles?.is_admin || false,
+    }));
+
     // Get all permissions for this project
     const { data: permissions, error } = await (supabaseAdmin as any)
       .from('stakeholder_module_permissions')
@@ -78,6 +96,7 @@ export async function GET(
     });
 
     return NextResponse.json({
+      projectUsers,
       permissions: permissionsByUser,
       availableModules: AVAILABLE_MODULES
     });

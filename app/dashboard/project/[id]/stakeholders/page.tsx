@@ -45,16 +45,17 @@ export default function StakeholdersPage() {
   // Permissions management state
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [permissions, setPermissions] = useState<Record<string, string[]>>({});
+  const [pendingPermissions, setPendingPermissions] = useState<Record<string, string[]>>({});
   const [loadingPermissions, setLoadingPermissions] = useState(true);
-  const [savingPermissions, setSavingPermissions] = useState<string | null>(null);
+  const [savingPermissions, setSavingPermissions] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [canManagePermissions, setCanManagePermissions] = useState(false);
   const [showAccessControl, setShowAccessControl] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     fetchProject();
     fetchCurrentUser();
-    fetchUsers();
     fetchPermissions();
   }, []);
 
@@ -92,24 +93,15 @@ export default function StakeholdersPage() {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('/api/users');
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users || []);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
   const fetchPermissions = async () => {
     try {
       const response = await fetch(`/api/projects/${projectId}/permissions`);
       if (response.ok) {
         const data = await response.json();
-        setPermissions(data.permissions || {});
+        setUsers(data.projectUsers || []);
+        const perms = data.permissions || {};
+        setPermissions(perms);
+        setPendingPermissions(JSON.parse(JSON.stringify(perms)));
       }
     } catch (error) {
       console.error('Error fetching permissions:', error);
@@ -118,96 +110,106 @@ export default function StakeholdersPage() {
     }
   };
 
-  const toggleModuleAccess = async (userId: string, moduleName: string) => {
+  const toggleModuleAccess = (userId: string, moduleName: string) => {
     if (!canManagePermissions) return;
 
-    setSavingPermissions(userId);
+    setPendingPermissions(prev => {
+      const currentModules = prev[userId] || [];
+      let newModules: string[];
 
-    const currentModules = permissions[userId] || [];
-    let newModules: string[];
+      if (currentModules.length === 0) {
+        // User currently has full access (no restrictions)
+        // Toggling means restrict to all modules EXCEPT the one clicked
+        newModules = AVAILABLE_MODULES.map(m => m.name).filter(m => m !== moduleName);
+      } else if (currentModules.includes(moduleName)) {
+        // Remove module access
+        newModules = currentModules.filter(m => m !== moduleName);
+      } else {
+        // Add module access
+        newModules = [...currentModules, moduleName];
+      }
 
-    if (currentModules.length === 0) {
-      // User currently has full access (no restrictions)
-      // Setting a permission means restricting to ONLY that module
-      newModules = [moduleName];
-    } else if (currentModules.includes(moduleName)) {
-      // Remove module access
-      newModules = currentModules.filter(m => m !== moduleName);
-    } else {
-      // Add module access
-      newModules = [...currentModules, moduleName];
-    }
+      const updated = { ...prev, [userId]: newModules };
+      setHasUnsavedChanges(JSON.stringify(updated) !== JSON.stringify(permissions));
+      return updated;
+    });
+  };
+
+  const giveFullAccess = (userId: string) => {
+    if (!canManagePermissions) return;
+
+    setPendingPermissions(prev => {
+      const updated = { ...prev };
+      delete updated[userId];
+      setHasUnsavedChanges(JSON.stringify(updated) !== JSON.stringify(permissions));
+      return updated;
+    });
+  };
+
+  const restrictAllModules = (userId: string) => {
+    if (!canManagePermissions) return;
+
+    setPendingPermissions(prev => {
+      const updated = { ...prev, [userId]: ['overview'] };
+      setHasUnsavedChanges(JSON.stringify(updated) !== JSON.stringify(permissions));
+      return updated;
+    });
+  };
+
+  const saveAllPermissions = async () => {
+    if (!canManagePermissions) return;
+
+    setSavingPermissions(true);
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/permissions`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, modules: newModules })
-      });
+      // Find all users whose permissions changed
+      const allUserIds = new Set([
+        ...Object.keys(permissions),
+        ...Object.keys(pendingPermissions)
+      ]);
 
-      if (response.ok) {
-        setPermissions(prev => ({
-          ...prev,
-          [userId]: newModules
-        }));
+      for (const userId of allUserIds) {
+        const oldModules = permissions[userId] || [];
+        const newModules = pendingPermissions[userId];
+
+        // If user was removed from pending (full access)
+        if (newModules === undefined && oldModules.length > 0) {
+          await fetch(`/api/projects/${projectId}/permissions?user_id=${userId}`, {
+            method: 'DELETE'
+          });
+          continue;
+        }
+
+        // If modules changed
+        if (newModules && JSON.stringify(oldModules.sort()) !== JSON.stringify([...newModules].sort())) {
+          // If empty array, give full access
+          if (newModules.length === 0) {
+            await fetch(`/api/projects/${projectId}/permissions?user_id=${userId}`, {
+              method: 'DELETE'
+            });
+          } else {
+            await fetch(`/api/projects/${projectId}/permissions`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user_id: userId, modules: newModules })
+            });
+          }
+        }
       }
+
+      // Refresh from server
+      await fetchPermissions();
+      setHasUnsavedChanges(false);
     } catch (error) {
-      console.error('Error updating permissions:', error);
+      console.error('Error saving permissions:', error);
     } finally {
-      setSavingPermissions(null);
+      setSavingPermissions(false);
     }
   };
 
-  const giveFullAccess = async (userId: string) => {
-    if (!canManagePermissions) return;
-
-    setSavingPermissions(userId);
-
-    try {
-      const response = await fetch(`/api/projects/${projectId}/permissions?user_id=${userId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        setPermissions(prev => {
-          const newPerms = { ...prev };
-          delete newPerms[userId];
-          return newPerms;
-        });
-      }
-    } catch (error) {
-      console.error('Error removing permissions:', error);
-    } finally {
-      setSavingPermissions(null);
-    }
-  };
-
-  const restrictAllModules = async (userId: string) => {
-    if (!canManagePermissions) return;
-
-    setSavingPermissions(userId);
-
-    // Give access to only overview (minimal access)
-    const newModules = ['overview'];
-
-    try {
-      const response = await fetch(`/api/projects/${projectId}/permissions`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, modules: newModules })
-      });
-
-      if (response.ok) {
-        setPermissions(prev => ({
-          ...prev,
-          [userId]: newModules
-        }));
-      }
-    } catch (error) {
-      console.error('Error updating permissions:', error);
-    } finally {
-      setSavingPermissions(null);
-    }
+  const discardChanges = () => {
+    setPendingPermissions(JSON.parse(JSON.stringify(permissions)));
+    setHasUnsavedChanges(false);
   };
 
   const saveStakeholders = async (newList: string[]) => {
@@ -462,7 +464,7 @@ export default function StakeholdersPage() {
             ) : users.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
                 <i className="fas fa-users-slash text-4xl mb-3"></i>
-                <p>No users found</p>
+                <p>No team members assigned to this project</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -482,14 +484,13 @@ export default function StakeholdersPage() {
 
                 {/* User rows */}
                 {users.map(user => {
-                  const userModules = permissions[user.id] || [];
-                  const hasFullAccess = userModules.length === 0;
-                  const isCurrentlyEditing = savingPermissions === user.id;
+                  const userModules = pendingPermissions[user.id] || [];
+                  const hasFullAccess = !pendingPermissions[user.id] || userModules.length === 0;
 
                   return (
                     <div
                       key={user.id}
-                      className={`bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 ${isCurrentlyEditing ? 'opacity-60' : ''}`}
+                      className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4"
                     >
                       {/* Mobile: Stack layout */}
                       <div className="sm:hidden space-y-3">
@@ -520,15 +521,15 @@ export default function StakeholdersPage() {
                                 return (
                                   <button
                                     key={mod.name}
-                                    onClick={() => canManagePermissions && toggleModuleAccess(user.id, mod.name)}
-                                    disabled={!canManagePermissions || isCurrentlyEditing}
+                                    onClick={() => toggleModuleAccess(user.id, mod.name)}
+                                    disabled={!canManagePermissions || savingPermissions}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                       hasAccess
                                         ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
-                                        : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                                        : 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'
                                     } ${canManagePermissions ? 'hover:opacity-80 cursor-pointer' : 'cursor-not-allowed'}`}
                                   >
-                                    <i className={`fas ${mod.icon} mr-1`}></i>
+                                    <i className={`fas ${hasAccess ? 'fa-check' : 'fa-times'} mr-1`}></i>
                                     {mod.label}
                                   </button>
                                 );
@@ -538,7 +539,7 @@ export default function StakeholdersPage() {
                               <div className="flex gap-2 mt-2">
                                 <button
                                   onClick={() => giveFullAccess(user.id)}
-                                  disabled={isCurrentlyEditing || hasFullAccess}
+                                  disabled={savingPermissions || hasFullAccess}
                                   className="text-xs px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition"
                                 >
                                   <i className="fas fa-unlock mr-1"></i>
@@ -546,7 +547,7 @@ export default function StakeholdersPage() {
                                 </button>
                                 <button
                                   onClick={() => restrictAllModules(user.id)}
-                                  disabled={isCurrentlyEditing}
+                                  disabled={savingPermissions}
                                   className="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg transition"
                                 >
                                   <i className="fas fa-lock mr-1"></i>
@@ -586,13 +587,13 @@ export default function StakeholdersPage() {
                                 return (
                                   <button
                                     key={mod.name}
-                                    onClick={() => canManagePermissions && toggleModuleAccess(user.id, mod.name)}
-                                    disabled={!canManagePermissions || isCurrentlyEditing}
+                                    onClick={() => toggleModuleAccess(user.id, mod.name)}
+                                    disabled={!canManagePermissions || savingPermissions}
                                     title={`${hasAccess ? 'Has' : 'No'} access to ${mod.label}`}
                                     className={`w-20 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                       hasAccess
                                         ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
-                                        : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                                        : 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'
                                     } ${canManagePermissions ? 'hover:opacity-80 cursor-pointer' : 'cursor-not-allowed'}`}
                                   >
                                     <i className={`fas ${hasAccess ? 'fa-check' : 'fa-times'}`}></i>
@@ -605,7 +606,7 @@ export default function StakeholdersPage() {
                                 <>
                                   <button
                                     onClick={() => giveFullAccess(user.id)}
-                                    disabled={isCurrentlyEditing || hasFullAccess}
+                                    disabled={savingPermissions || hasFullAccess}
                                     title="Give full access to all modules"
                                     className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50"
                                   >
@@ -613,7 +614,7 @@ export default function StakeholdersPage() {
                                   </button>
                                   <button
                                     onClick={() => restrictAllModules(user.id)}
-                                    disabled={isCurrentlyEditing}
+                                    disabled={savingPermissions}
                                     title="Restrict to Overview only"
                                     className="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors disabled:opacity-50"
                                   >
@@ -645,6 +646,43 @@ export default function StakeholdersPage() {
                     </div>
                   );
                 })}
+
+                {/* Save / Discard buttons */}
+                {canManagePermissions && (
+                  <div className={`flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-600 ${hasUnsavedChanges ? '' : 'opacity-50'}`}>
+                    <button
+                      onClick={saveAllPermissions}
+                      disabled={!hasUnsavedChanges || savingPermissions}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition flex items-center gap-2"
+                    >
+                      {savingPermissions ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin"></i>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-save"></i>
+                          Save Changes
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={discardChanges}
+                      disabled={!hasUnsavedChanges || savingPermissions}
+                      className="px-6 py-2.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-200 rounded-xl font-medium transition flex items-center gap-2"
+                    >
+                      <i className="fas fa-undo"></i>
+                      Discard
+                    </button>
+                    {hasUnsavedChanges && (
+                      <span className="text-sm text-amber-600 dark:text-amber-400">
+                        <i className="fas fa-exclamation-circle mr-1"></i>
+                        You have unsaved changes
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </>
