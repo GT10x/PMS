@@ -22,6 +22,8 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { toPng } from 'html-to-image';
+import ProjectNavTabs from '@/components/ProjectNavTabs';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 
 interface Module {
   id: string;
@@ -153,6 +155,7 @@ export default function ModuleFlowPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const projectId = params.id as string;
+  const { hasAccess, loading: permLoading } = useProjectPermissions(projectId);
   const highlightId = searchParams.get('highlight');
 
   const [project, setProject] = useState<Project | null>(null);
@@ -642,6 +645,11 @@ export default function ModuleFlowPage() {
 
   const selectedModule = modules.find((m) => m.id === selectedNodeId);
 
+  if (!permLoading && !hasAccess('flow')) {
+    router.push(`/dashboard/project/${projectId}`);
+    return null;
+  }
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -693,16 +701,7 @@ export default function ModuleFlowPage() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex gap-2 mb-6 border-b dark:border-gray-700 pb-4 overflow-x-auto">
-        <button onClick={() => router.push(`/dashboard/project/${projectId}`)} className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 whitespace-nowrap">Overview</button>
-        <button onClick={() => router.push(`/dashboard/project/${projectId}/reports`)} className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 whitespace-nowrap">Reports</button>
-        <button onClick={() => router.push(`/dashboard/project/${projectId}/versions`)} className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 whitespace-nowrap">Versions</button>
-        <button onClick={() => router.push(`/dashboard/project/${projectId}/modules`)} className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 whitespace-nowrap">Modules</button>
-        <button className="px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 whitespace-nowrap">Flow</button>
-        <button onClick={() => router.push(`/dashboard/project/${projectId}/chat`)} className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 whitespace-nowrap">Chat</button>
-        <button onClick={() => router.push(`/dashboard/project/${projectId}/settings`)} className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 whitespace-nowrap">Settings</button>
-      </div>
+      <ProjectNavTabs projectId={projectId} activeTab="flow" hasAccess={hasAccess} />
 
       {/* Filters Row */}
       <div className="mb-4 flex flex-wrap items-center gap-4">

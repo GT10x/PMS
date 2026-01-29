@@ -4,8 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
-import AccessDenied from '@/components/AccessDenied';
-import { useModuleAccess } from '@/hooks/useModuleAccess';
+import ProjectNavTabs from '@/components/ProjectNavTabs';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 import { supabase } from '@/lib/supabase';
 
 interface Module {
@@ -93,7 +93,7 @@ export default function ProjectModulesPage() {
   const projectId = params.id as string;
 
   // Check module access
-  const { hasAccess, loading: accessLoading } = useModuleAccess(projectId, 'modules');
+  const { hasAccess, loading: permLoading } = useProjectPermissions(projectId);
 
   const [project, setProject] = useState<Project | null>(null);
   const [projectStakeholders, setProjectStakeholders] = useState<string[]>([]);
@@ -1969,16 +1969,13 @@ export default function ProjectModulesPage() {
     });
   };
 
-  // Show access denied if user doesn't have permission
-  if (!accessLoading && !hasAccess) {
-    return (
-      <DashboardLayout>
-        <AccessDenied moduleName="modules" projectId={projectId} />
-      </DashboardLayout>
-    );
+  // Redirect if user doesn't have permission
+  if (!permLoading && !hasAccess('modules')) {
+    router.push(`/dashboard/project/${projectId}`);
+    return null;
   }
 
-  if (loading || accessLoading) {
+  if (loading) {
     return (
       <DashboardLayout>
         <Breadcrumb items={[
@@ -2030,50 +2027,7 @@ export default function ProjectModulesPage() {
         </div>
       </div>
 
-      {/* Project Navigation Tabs */}
-      <div className="flex gap-2 mb-6 border-b dark:border-gray-700 pb-4 overflow-x-auto">
-        <button
-          onClick={() => router.push(`/dashboard/project/${projectId}`)}
-          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
-        >
-          Overview
-        </button>
-        <button
-          onClick={() => router.push(`/dashboard/project/${projectId}/reports`)}
-          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
-        >
-          Reports
-        </button>
-        <button
-          onClick={() => router.push(`/dashboard/project/${projectId}/versions`)}
-          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
-        >
-          Versions
-        </button>
-        <button
-          className="px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 whitespace-nowrap"
-        >
-          Modules
-        </button>
-        <button
-          onClick={() => router.push(`/dashboard/project/${projectId}/flow`)}
-          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
-        >
-          Flow
-        </button>
-        <button
-          onClick={() => router.push(`/dashboard/project/${projectId}/chat`)}
-          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
-        >
-          Chat
-        </button>
-        <button
-          onClick={() => router.push(`/dashboard/project/${projectId}/settings`)}
-          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 whitespace-nowrap"
-        >
-          Settings
-        </button>
-      </div>
+      <ProjectNavTabs projectId={projectId} activeTab="modules" hasAccess={hasAccess} />
 
       {/* Modules List */}
       <div className="space-y-3">

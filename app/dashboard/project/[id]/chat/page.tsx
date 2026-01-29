@@ -8,6 +8,8 @@ import { ChatMessageSkeleton } from '@/components/LoadingSkeleton';
 import { NoMessagesEmptyState } from '@/components/EmptyState';
 import Tooltip from '@/components/Tooltip';
 import { notify, preloadNotificationSound, requestNotificationPermission } from '@/lib/notifications';
+import ProjectNavTabs from '@/components/ProjectNavTabs';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 
 interface User {
   id: string;
@@ -44,6 +46,7 @@ export default function ProjectChatPage() {
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
+  const { hasAccess, loading: permLoading } = useProjectPermissions(projectId);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<User[]>([]);
@@ -417,6 +420,12 @@ export default function ProjectChatPage() {
     }
   };
 
+  // Redirect if no access to this module
+  if (!permLoading && !hasAccess('chat')) {
+    router.push(`/dashboard/project/${projectId}`);
+    return null;
+  }
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -458,62 +467,7 @@ export default function ProjectChatPage() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="card mb-4 p-1">
-        <div className="flex gap-1">
-          <a
-            href={`/dashboard/project/${projectId}`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-home"></i>
-            Overview
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/reports`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-bug"></i>
-            Reports
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/versions`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-code-branch"></i>
-            Versions
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/modules`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-cubes"></i>
-            Modules
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/stakeholders`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-users"></i>
-            Stakeholders
-          </a>
-
-          <a
-            href={`/dashboard/project/${projectId}/flow`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-project-diagram"></i>
-            Flow
-          </a>
-
-          <a
-            href={`/dashboard/project/${projectId}/chat`}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm"
-          >
-            <i className="fas fa-comments"></i>
-            Chat
-          </a>
-        </div>
-      </div>
+      <ProjectNavTabs projectId={projectId} activeTab="chat" hasAccess={hasAccess} />
 
       {/* Chat Container */}
       <div className="card flex flex-col" style={{ height: 'calc(100vh - 280px)' }}>

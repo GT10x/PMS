@@ -8,6 +8,8 @@ import { CardSkeleton } from '@/components/LoadingSkeleton';
 import { NoVersionsEmptyState } from '@/components/EmptyState';
 import Tooltip from '@/components/Tooltip';
 import Button from '@/components/Button';
+import ProjectNavTabs from '@/components/ProjectNavTabs';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 
 interface TestCase {
   id: string;
@@ -40,6 +42,7 @@ export default function ProjectVersionsPage() {
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
+  const { hasAccess, loading: permLoading } = useProjectPermissions(projectId);
 
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,6 +181,11 @@ export default function ProjectVersionsPage() {
     );
   };
 
+  if (!permLoading && !hasAccess('versions')) {
+    router.push(`/dashboard/project/${projectId}`);
+    return null;
+  }
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -221,69 +229,7 @@ export default function ProjectVersionsPage() {
         </Button>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="card mb-6 p-1 overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="flex gap-1 min-w-max">
-          <a
-            href={`/dashboard/project/${projectId}`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-home"></i>
-            Overview
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/reports`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-bug"></i>
-            Reports
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/versions`}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-medium text-sm"
-          >
-            <i className="fas fa-code-branch"></i>
-            Versions
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/modules`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-cubes"></i>
-            Modules
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/stakeholders`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-users"></i>
-            Stakeholders
-          </a>
-
-          <a
-            href={`/dashboard/project/${projectId}/flow`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-project-diagram"></i>
-            Flow
-          </a>
-
-          <a
-            href={`/dashboard/project/${projectId}/chat`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-comments"></i>
-            Chat
-          </a>
-          <a
-            href={`/dashboard/project/${projectId}/settings`}
-            className="flex items-center gap-2 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition-colors"
-          >
-            <i className="fas fa-cog"></i>
-            Settings
-          </a>
-        </div>
-      </div>
+      <ProjectNavTabs projectId={projectId} activeTab="versions" hasAccess={hasAccess} />
 
       {/* Versions List */}
       <div className="space-y-4">
