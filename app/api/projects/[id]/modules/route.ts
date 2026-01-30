@@ -173,12 +173,32 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!canManageModules(currentUser)) {
-      return NextResponse.json({ error: 'Only Project Managers and Admins can update modules' }, { status: 403 });
-    }
-
     const body = await req.json();
     const { module_id, name, description, priority, status, eta, stakeholders, phase } = body;
+
+    // Testers can only update phase on modules they created
+    if (!canManageModules(currentUser)) {
+      if (currentUser.role === 'tester') {
+        // Only allow phase updates on own modules
+        const isPhaseOnly = phase !== undefined &&
+          name === undefined && description === undefined &&
+          priority === undefined && status === undefined &&
+          eta === undefined && stakeholders === undefined;
+        if (!isPhaseOnly) {
+          return NextResponse.json({ error: 'You can only update the phase of modules you created' }, { status: 403 });
+        }
+        const { data: existing } = await supabaseAdmin
+          .from('project_modules')
+          .select('created_by')
+          .eq('id', module_id)
+          .single();
+        if (existing?.created_by !== currentUser.id) {
+          return NextResponse.json({ error: 'You can only update modules you created' }, { status: 403 });
+        }
+      } else {
+        return NextResponse.json({ error: 'You do not have permission to update modules' }, { status: 403 });
+      }
+    }
 
     if (!module_id) {
       return NextResponse.json({ error: 'module_id is required' }, { status: 400 });
