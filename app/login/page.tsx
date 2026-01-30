@@ -73,15 +73,12 @@ export default function LoginPage() {
 
         {/* Center - Company Name */}
         <div className="relative z-10 -mt-8">
-          <h1 className="text-7xl font-extralight tracking-[0.25em] text-white/90 uppercase mb-3">
+          <h1 className="text-5xl font-extralight tracking-[0.25em] text-white/90 uppercase mb-3">
             Global Techtrums
           </h1>
           <div className="w-24 h-[2px] bg-gradient-to-r from-indigo-400 to-purple-400 mb-6"></div>
           <p className="text-lg text-indigo-200/70 font-light tracking-wide">
             Project Management System
-          </p>
-          <p className="text-sm text-indigo-300/40 font-light mt-2 tracking-widest uppercase">
-            Powered by Sublime
           </p>
 
           <div className="flex gap-8 mt-12">
