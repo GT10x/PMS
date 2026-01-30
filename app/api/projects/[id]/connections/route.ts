@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 
+// Get current user from cookie
+async function getCurrentUser() {
+  const cookieStore = await cookies();
+  const userId = cookieStore.get('user_id')?.value;
+  if (!userId) return null;
+  const { data } = await supabaseAdmin
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  return data as any;
+}
+
+// Check if user can delete connections (not testers)
+function canDeleteConnections(user: any) {
+  if (!user) return false;
+  return user.is_admin ||
+         user.role === 'project_manager' ||
+         user.role === 'cto' ||
+         user.role === 'consultant';
+}
+
 // GET /api/projects/[id]/connections - Get all connections for a project
 export async function GET(
   request: NextRequest,
@@ -113,13 +135,19 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('user_id')?.value;
+    const currentUser = await getCurrentUser();
 
-    if (!userId) {
+    if (!currentUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    if (!canDeleteConnections(currentUser)) {
+      return NextResponse.json(
+        { error: 'You do not have permission to delete connections' },
+        { status: 403 }
       );
     }
 
@@ -187,15 +215,16 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('user_id')?.value;
+    const currentUser = await getCurrentUser();
 
-    if (!userId) {
+    if (!currentUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+
+    const userId = currentUser.id;
 
     const { id: projectId } = await params;
     const body = await request.json();

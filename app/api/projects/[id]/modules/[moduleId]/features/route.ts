@@ -31,6 +31,12 @@ function canManageModules(user: any) {
          user.role === 'consultant';
 }
 
+// Check if user can add features (includes testers)
+function canAddFeatures(user: any) {
+  if (!user) return false;
+  return canManageModules(user) || user.role === 'tester';
+}
+
 // GET /api/projects/[id]/modules/[moduleId]/features - Get all features for a module with remarks
 export async function GET(
   req: NextRequest,
@@ -89,8 +95,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!canManageModules(currentUser)) {
-      return NextResponse.json({ error: 'Only Project Managers and Admins can create features' }, { status: 403 });
+    if (!canAddFeatures(currentUser)) {
+      return NextResponse.json({ error: 'You do not have permission to create features' }, { status: 403 });
     }
 
     const body = await req.json();

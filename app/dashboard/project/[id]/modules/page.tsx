@@ -1672,6 +1672,12 @@ export default function ProjectModulesPage() {
            currentUser.role === 'consultant';
   };
 
+  // Testers can add features and connections but not edit/delete/reorder
+  const canAddFeatures = () => {
+    if (!currentUser) return false;
+    return canManageModules() || currentUser.role === 'tester';
+  };
+
   // Check if current user is the master admin (only they can delete)
   const isMasterAdmin = () => {
     return currentUser?.id === MASTER_ADMIN_ID;
@@ -2285,7 +2291,7 @@ export default function ProjectModulesPage() {
                                       </div>
                                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         {/* Connect button */}
-                                        {canManageModules() && (
+                                        {canAddFeatures() && (
                                           <button
                                             onClick={(e) => { e.stopPropagation(); openConnectionModal('function', feature.id, feature.name, feature.code || ''); }}
                                             className="p-1 text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded"
@@ -2740,7 +2746,7 @@ export default function ProjectModulesPage() {
                       )}
 
                       {/* Add Feature */}
-                      {canManageModules() && moduleFeatures.has(module.id) && (
+                      {canAddFeatures() && moduleFeatures.has(module.id) && (
                         <div className="mt-3">
                           {addingFeature === module.id ? (
                             <div className="flex items-center gap-2">
