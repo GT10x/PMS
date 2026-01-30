@@ -67,7 +67,17 @@ export default function LoginPage() {
         {/* Top - Icon mark */}
         <div className="relative z-10">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <span className="text-white font-bold text-2xl tracking-tight">S</span>
+            <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Globe */}
+              <circle cx="50" cy="50" r="38" stroke="white" strokeWidth="3" strokeOpacity="0.35" fill="none" />
+              <ellipse cx="50" cy="50" rx="20" ry="38" stroke="white" strokeWidth="2.5" strokeOpacity="0.25" fill="none" />
+              <line x1="12" y1="50" x2="88" y2="50" stroke="white" strokeWidth="2" strokeOpacity="0.2" />
+              <line x1="50" y1="12" x2="50" y2="88" stroke="white" strokeWidth="2" strokeOpacity="0.15" />
+              <path d="M18 32 Q50 28, 82 32" stroke="white" strokeWidth="1.5" strokeOpacity="0.15" fill="none" />
+              <path d="M18 68 Q50 72, 82 68" stroke="white" strokeWidth="1.5" strokeOpacity="0.15" fill="none" />
+              {/* GT Text */}
+              <text x="50" y="58" textAnchor="middle" fill="white" fontWeight="bold" fontSize="32" fontFamily="Arial, sans-serif" letterSpacing="-1">GT</text>
+            </svg>
           </div>
         </div>
 
@@ -110,7 +120,15 @@ export default function LoginPage() {
           <div className="lg:hidden mb-10 text-center">
             <div className="inline-flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <span className="text-white font-bold text-2xl">S</span>
+                <svg width="30" height="30" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="50" cy="50" r="38" stroke="white" strokeWidth="3" strokeOpacity="0.35" fill="none" />
+                  <ellipse cx="50" cy="50" rx="20" ry="38" stroke="white" strokeWidth="2.5" strokeOpacity="0.25" fill="none" />
+                  <line x1="12" y1="50" x2="88" y2="50" stroke="white" strokeWidth="2" strokeOpacity="0.2" />
+                  <line x1="50" y1="12" x2="50" y2="88" stroke="white" strokeWidth="2" strokeOpacity="0.15" />
+                  <path d="M18 32 Q50 28, 82 32" stroke="white" strokeWidth="1.5" strokeOpacity="0.15" fill="none" />
+                  <path d="M18 68 Q50 72, 82 68" stroke="white" strokeWidth="1.5" strokeOpacity="0.15" fill="none" />
+                  <text x="50" y="58" textAnchor="middle" fill="white" fontWeight="bold" fontSize="32" fontFamily="Arial, sans-serif" letterSpacing="-1">GT</text>
+                </svg>
               </div>
             </div>
             <h1 className="text-3xl font-extralight tracking-[0.2em] text-gray-800 uppercase">Global Techtrums</h1>
