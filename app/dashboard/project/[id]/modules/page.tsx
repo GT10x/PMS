@@ -2300,7 +2300,7 @@ export default function ProjectModulesPage() {
                                             <i className="fas fa-link text-xs"></i>
                                           </button>
                                         )}
-                                        {canManageModules() && (
+                                        {(canManageModules() || (currentUser?.role === 'tester' && feature.created_by === currentUser?.id)) && (
                                           <button
                                             onClick={(e) => { e.stopPropagation(); setEditingFeature({ moduleId: module.id, index: idx }); setEditingFeatureText(feature.name); }}
                                             className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
@@ -2442,24 +2442,26 @@ export default function ProjectModulesPage() {
                                               >
                                                 <i className="fas fa-reply text-xs"></i>
                                               </button>
+                                              {(canManageModules() || (currentUser?.role === 'tester' && remark.created_by === currentUser?.id)) && (
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingRemark({
+                                                      id: remark.id,
+                                                      featureId: feature.id,
+                                                      content: remark.content || '',
+                                                      imageUrl: remark.image_url,
+                                                      voiceUrl: remark.voice_url
+                                                    });
+                                                  }}
+                                                  className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
+                                                  title="Edit remark"
+                                                >
+                                                  <i className="fas fa-pen text-xs"></i>
+                                                </button>
+                                              )}
                                               {canManageModules() && (
                                                 <>
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setEditingRemark({
-                                                        id: remark.id,
-                                                        featureId: feature.id,
-                                                        content: remark.content || '',
-                                                        imageUrl: remark.image_url,
-                                                        voiceUrl: remark.voice_url
-                                                      });
-                                                    }}
-                                                    className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
-                                                    title="Edit remark"
-                                                  >
-                                                    <i className="fas fa-pen text-xs"></i>
-                                                  </button>
                                                   <button
                                                     onClick={(e) => { e.stopPropagation(); deleteRemark(remark.id, feature.id, module.id); }}
                                                     className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"

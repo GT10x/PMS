@@ -49,8 +49,20 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Testers can edit remarks they created; managers can edit any
     if (!canManageModules(currentUser)) {
-      return NextResponse.json({ error: 'Only Project Managers and Admins can update remarks' }, { status: 403 });
+      if (currentUser.role === 'tester') {
+        const { data: existing } = await supabaseAdmin
+          .from('feature_remarks')
+          .select('created_by')
+          .eq('id', remarkId)
+          .single();
+        if (existing?.created_by !== currentUser.id) {
+          return NextResponse.json({ error: 'You can only edit functions you created' }, { status: 403 });
+        }
+      } else {
+        return NextResponse.json({ error: 'You do not have permission to update functions' }, { status: 403 });
+      }
     }
 
     const body = await req.json();
