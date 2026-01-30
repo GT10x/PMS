@@ -132,7 +132,8 @@ export default function ProjectModulesPage() {
     status: 'planned',
     eta: '',
     stakeholders: [] as string[],
-    phase: 1
+    phase: 1,
+    overview: ''
   });
 
   // Features as array for numbered inputs
@@ -1733,7 +1734,8 @@ export default function ProjectModulesPage() {
       status: 'planned',
       eta: '',
       stakeholders: [] as string[],
-      phase: 1
+      phase: 1,
+      overview: ''
     });
     setFeaturesList(['']);
     setModalFeatureRemarks(new Map());
@@ -1760,7 +1762,8 @@ export default function ProjectModulesPage() {
       status: module.status,
       eta: module.eta || '',
       stakeholders: module.stakeholders || [],
-      phase: module.phase || 1
+      phase: module.phase || 1,
+      overview: module.overview || ''
     });
     setFeaturesList(features.length > 0 ? features : ['']);
     setShowEditModal(true);
@@ -1787,7 +1790,8 @@ export default function ProjectModulesPage() {
           status: formData.status,
           eta: formData.eta || null,
           stakeholders: formData.stakeholders,
-          phase: formData.phase
+          phase: formData.phase,
+          overview: formData.overview || null
         })
       });
 
@@ -1883,7 +1887,8 @@ export default function ProjectModulesPage() {
           status: formData.status,
           eta: formData.eta || null,
           stakeholders: formData.stakeholders,
-          phase: formData.phase
+          phase: formData.phase,
+          overview: formData.overview || null
         })
       });
 
@@ -2926,6 +2931,19 @@ export default function ProjectModulesPage() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Module Overview
+                </label>
+                <textarea
+                  value={formData.overview}
+                  onChange={(e) => setFormData({ ...formData, overview: e.target.value })}
+                  className="input-field resize-y"
+                  rows={3}
+                  placeholder="Motive, objectives, scope..."
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Features / Functions
                 </label>
@@ -3268,6 +3286,19 @@ export default function ProjectModulesPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Module Overview
+                </label>
+                <textarea
+                  value={formData.overview}
+                  onChange={(e) => setFormData({ ...formData, overview: e.target.value })}
+                  className="input-field resize-y"
+                  rows={3}
+                  placeholder="Motive, objectives, scope..."
                 />
               </div>
 

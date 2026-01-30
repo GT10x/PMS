@@ -89,7 +89,7 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { name, description, priority, status, eta, stakeholders, phase } = body;
+    const { name, description, priority, status, eta, stakeholders, phase, overview } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Module name is required' }, { status: 400 });
@@ -141,6 +141,7 @@ export async function POST(
         sort_order: nextOrder,
         phase: phase || 1,
         code: moduleCode,
+        overview: overview || null,
         created_by: currentUser.id
       })
       .select(`
