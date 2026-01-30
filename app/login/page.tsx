@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { clearAllCache } from '@/lib/cache';
 
@@ -10,6 +10,33 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(true);
+
+  // Auto-restore session from localStorage (Capacitor persistence)
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('pms_user_id');
+    if (storedUserId) {
+      fetch('/api/auth/restore-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: storedUserId }),
+      })
+        .then(res => {
+          if (res.ok) {
+            router.push('/dashboard');
+          } else {
+            // Stored ID is invalid, clear it
+            localStorage.removeItem('pms_user_id');
+            setRestoring(false);
+          }
+        })
+        .catch(() => {
+          setRestoring(false);
+        });
+    } else {
+      setRestoring(false);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +73,17 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (restoring) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-gray-500 text-sm">Restoring session...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
