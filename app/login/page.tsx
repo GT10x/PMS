@@ -46,53 +46,59 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 p-12 flex-col justify-between relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-12 flex-col justify-between relative overflow-hidden">
+        {/* Ambient glow effects */}
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/3 w-80 h-80 bg-indigo-500/15 rounded-full blur-[100px]"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px]"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-400/8 rounded-full blur-[80px]"></div>
         </div>
 
-        {/* Logo */}
+        {/* Subtle grid pattern */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
+          backgroundSize: '60px 60px'
+        }}></div>
+
+        {/* Top - Icon mark */}
         <div className="relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">P</span>
-            </div>
-            <span className="text-white font-bold text-2xl">PMS</span>
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <span className="text-white font-bold text-2xl tracking-tight">S</span>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="relative z-10">
-          <h2 className="text-2xl font-semibold text-indigo-200 mb-2">
-            Global Techtrums
-          </h2>
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Project Management System
+        {/* Center - Company Name */}
+        <div className="relative z-10 -mt-8">
+          <h1 className="text-7xl font-extralight tracking-[0.25em] text-white/90 uppercase mb-3">
+            Sublime
           </h1>
-          <p className="text-lg text-indigo-100 mb-8">
-            Streamline your workflow, track progress, and collaborate seamlessly with your team.
+          <div className="w-24 h-[2px] bg-gradient-to-r from-indigo-400 to-purple-400 mb-6"></div>
+          <p className="text-lg text-indigo-200/70 font-light tracking-wide">
+            Project Management System
           </p>
-          <div className="flex gap-6">
-            <div className="flex items-center gap-2 text-indigo-100">
-              <i className="fas fa-check-circle"></i>
-              <span>Track Projects</span>
+          <p className="text-sm text-indigo-300/40 font-light mt-2 tracking-widest uppercase">
+            by Global Techtrums
+          </p>
+
+          <div className="flex gap-8 mt-12">
+            <div className="flex items-center gap-2.5 text-indigo-300/50">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/60"></div>
+              <span className="text-sm tracking-wide">Track</span>
             </div>
-            <div className="flex items-center gap-2 text-indigo-100">
-              <i className="fas fa-check-circle"></i>
-              <span>Manage Teams</span>
+            <div className="flex items-center gap-2.5 text-indigo-300/50">
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-400/60"></div>
+              <span className="text-sm tracking-wide">Collaborate</span>
             </div>
-            <div className="flex items-center gap-2 text-indigo-100">
-              <i className="fas fa-check-circle"></i>
-              <span>Generate Reports</span>
+            <div className="flex items-center gap-2.5 text-indigo-300/50">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-400/60"></div>
+              <span className="text-sm tracking-wide">Deliver</span>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="relative z-10 text-indigo-200 text-sm">
-          &copy; 2024 PMS. All rights reserved.
+        <div className="relative z-10 text-indigo-400/30 text-xs tracking-widest uppercase">
+          &copy; {new Date().getFullYear()} Sublime. All rights reserved.
         </div>
       </div>
 
@@ -100,13 +106,14 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <div className="lg:hidden mb-8 text-center">
-            <div className="inline-flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">P</span>
+          <div className="lg:hidden mb-10 text-center">
+            <div className="inline-flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <span className="text-white font-bold text-2xl">S</span>
               </div>
-              <span className="text-gray-800 font-bold text-2xl">PMS</span>
             </div>
+            <h1 className="text-3xl font-extralight tracking-[0.2em] text-gray-800 uppercase">Sublime</h1>
+            <p className="text-xs text-gray-400 tracking-widest uppercase mt-1">Project Management System</p>
           </div>
 
           {/* Welcome */}
