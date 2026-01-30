@@ -2714,7 +2714,7 @@ export default function ProjectModulesPage() {
                                     </div>
                                   </div>
                                 ) : (
-                                  canManageModules() && (
+                                  canAddFeatures() && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setAddingRemarkToFeature(feature.id); }}
                                       className="mt-2 ml-6 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"

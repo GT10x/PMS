@@ -28,6 +28,12 @@ function canManageModules(user: any) {
          user.role === 'consultant';
 }
 
+// Testers can also add remarks/functions
+function canAddContent(user: any) {
+  if (!user) return false;
+  return canManageModules(user) || user.role === 'tester';
+}
+
 // GET /api/projects/[id]/modules/[moduleId]/features/[featureId]/remarks - Get all remarks for a feature
 export async function GET(
   req: NextRequest,
@@ -75,8 +81,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!canManageModules(currentUser)) {
-      return NextResponse.json({ error: 'Only Project Managers and Admins can add remarks' }, { status: 403 });
+    if (!canAddContent(currentUser)) {
+      return NextResponse.json({ error: 'You do not have permission to add functions' }, { status: 403 });
     }
 
     const body = await req.json();
