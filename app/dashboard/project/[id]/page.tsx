@@ -142,7 +142,7 @@ export default function ProjectDashboardPage() {
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Created</p>
             <p className="text-base font-medium text-gray-800 dark:text-white">
-              {new Date(project.created_at).toLocaleDateString()}
+              {(() => { const d = new Date(project.created_at); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`; })()}
             </p>
           </div>
         </div>

@@ -412,7 +412,7 @@ export default function ProjectsPage() {
                     </div>
                   </td>
                   <td className="text-gray-600 dark:text-gray-400">
-                    {new Date(project.created_at).toLocaleDateString()}
+                    {(() => { const d = new Date(project.created_at); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`; })()}
                   </td>
                   <td>
                     <div className="flex items-center justify-end gap-1">
