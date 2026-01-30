@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { clearAllCache } from '@/lib/cache';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,6 +32,9 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+
+      // Clear stale cache from previous sessions
+      clearAllCache();
 
       // Save user_id to localStorage for Capacitor session persistence
       if (data.user?.id) {
@@ -70,14 +74,14 @@ export default function LoginPage() {
         {/* Center - Company Name */}
         <div className="relative z-10 -mt-8">
           <h1 className="text-7xl font-extralight tracking-[0.25em] text-white/90 uppercase mb-3">
-            Sublime
+            Global Techtrums
           </h1>
           <div className="w-24 h-[2px] bg-gradient-to-r from-indigo-400 to-purple-400 mb-6"></div>
           <p className="text-lg text-indigo-200/70 font-light tracking-wide">
             Project Management System
           </p>
           <p className="text-sm text-indigo-300/40 font-light mt-2 tracking-widest uppercase">
-            by Global Techtrums
+            Powered by Sublime
           </p>
 
           <div className="flex gap-8 mt-12">
@@ -98,7 +102,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="relative z-10 text-indigo-400/30 text-xs tracking-widest uppercase">
-          &copy; {new Date().getFullYear()} Sublime. All rights reserved.
+          &copy; {new Date().getFullYear()} Global Techtrums. All rights reserved.
         </div>
       </div>
 
@@ -112,7 +116,7 @@ export default function LoginPage() {
                 <span className="text-white font-bold text-2xl">S</span>
               </div>
             </div>
-            <h1 className="text-3xl font-extralight tracking-[0.2em] text-gray-800 uppercase">Sublime</h1>
+            <h1 className="text-3xl font-extralight tracking-[0.2em] text-gray-800 uppercase">Global Techtrums</h1>
             <p className="text-xs text-gray-400 tracking-widest uppercase mt-1">Project Management System</p>
           </div>
 
