@@ -174,7 +174,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { module_id, name, description, priority, status, eta, stakeholders, phase } = body;
+    const { module_id, name, description, priority, status, eta, stakeholders, phase, overview } = body;
 
     // Testers can only update phase on modules they created
     if (!canManageModules(currentUser)) {
@@ -183,7 +183,8 @@ export async function PUT(
         const isPhaseOnly = phase !== undefined &&
           name === undefined && description === undefined &&
           priority === undefined && status === undefined &&
-          eta === undefined && stakeholders === undefined;
+          eta === undefined && stakeholders === undefined &&
+          overview === undefined;
         if (!isPhaseOnly) {
           return NextResponse.json({ error: 'You can only update the phase of modules you created' }, { status: 403 });
         }
@@ -234,6 +235,7 @@ export async function PUT(
     if (eta !== undefined) updateData.eta = eta || null; // Convert empty string to null
     if (stakeholders !== undefined) updateData.stakeholders = stakeholders;
     if (phase !== undefined) updateData.phase = phase;
+    if (overview !== undefined) updateData.overview = overview;
 
     const { data: module, error } = await supabaseAdmin
       .from('project_modules')
