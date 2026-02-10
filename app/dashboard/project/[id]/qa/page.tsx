@@ -26,17 +26,17 @@ interface Stats {
   by_priority: Record<string, { total: number; answered: number }>;
 }
 
-const PRIORITY_COLORS: Record<string, string> = {
-  must: 'bg-red-500/15 text-red-500',
-  should: 'bg-amber-500/15 text-amber-500',
-  nice: 'bg-indigo-500/15 text-indigo-500',
+const PRIORITY_BADGE: Record<string, string> = {
+  must: 'badge-danger',
+  should: 'badge-warning',
+  nice: 'badge-info',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-gray-400/15 text-gray-400',
-  answered: 'bg-emerald-500/15 text-emerald-500',
-  deferred: 'bg-orange-400/15 text-orange-400',
-  follow_up: 'bg-purple-500/15 text-purple-500',
+const STATUS_BADGE: Record<string, string> = {
+  pending: 'badge-info',
+  answered: 'badge-success',
+  deferred: 'badge-orange',
+  follow_up: 'badge-purple',
 };
 
 const STATUS_ICONS: Record<string, string> = {
@@ -250,11 +250,11 @@ export default function QAPage() {
         <div className="card mb-4 p-4">
           <div className="flex flex-wrap gap-4 items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-500">Progress</span>
-              <span className="text-lg font-bold text-white">{stats.answered}/{stats.total}</span>
-              <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Progress</span>
+              <span className="text-lg font-bold text-gray-800 dark:text-white">{stats.answered}/{stats.total}</span>
+              <div className="progress-bar w-32">
                 <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all"
+                  className="progress-bar-fill gradient-primary"
                   style={{ width: `${stats.total ? (stats.answered / stats.total * 100) : 0}%` }}
                 />
               </div>
@@ -263,12 +263,12 @@ export default function QAPage() {
               <div className="flex gap-4">
                 {stats.by_assignee.map(a => (
                   <div key={a.user_id} className="text-center">
-                    <div className="text-xs text-gray-400">{a.full_name}</div>
-                    <div className="text-sm font-semibold text-white">{a.answered}/{a.total}</div>
-                    <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden mt-1">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{a.full_name}</div>
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white">{a.answered}/{a.total}</div>
+                    <div className="progress-bar w-16 mt-1" style={{ height: '4px' }}>
                       <div
-                        className="h-full bg-emerald-500 rounded-full"
-                        style={{ width: `${a.total ? (a.answered / a.total * 100) : 0}%` }}
+                        className="progress-bar-fill"
+                        style={{ width: `${a.total ? (a.answered / a.total * 100) : 0}%`, background: '#10b981' }}
                       />
                     </div>
                   </div>
@@ -293,15 +293,12 @@ export default function QAPage() {
                 placeholder="Search questions..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                className="input-field pl-9"
               />
             </div>
             {/* Filter chips */}
             <div className="flex flex-wrap gap-1.5">
-              {(currentUser?.is_admin
-                ? ['all', 'pending', 'answered', 'deferred']
-                : ['all', 'pending', 'answered', 'deferred']
-              ).map(f => (
+              {['all', 'pending', 'answered', 'deferred'].map(f => (
                 <button
                   key={f}
                   onClick={() => {
@@ -312,12 +309,13 @@ export default function QAPage() {
                       setFilterStatus(filterStatus === f ? 'all' : f);
                     }
                   }}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     (f === 'all' && filterStatus === 'all') ||
                     (f !== 'all' && filterStatus === f)
-                      ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-                      : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600'
+                      ? 'btn-primary text-white'
+                      : 'btn-secondary'
                   }`}
+                  style={(f === 'all' && filterStatus === 'all') || (f !== 'all' && filterStatus === f) ? { padding: '0.375rem 0.75rem', boxShadow: 'none', transform: 'none' } : { padding: '0.375rem 0.75rem' }}
                 >
                   {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
@@ -327,7 +325,7 @@ export default function QAPage() {
                 <select
                   value={filterAssignee}
                   onChange={e => setFilterAssignee(e.target.value)}
-                  className="px-2 py-1 bg-gray-800 border border-gray-700 rounded-md text-xs text-gray-300 focus:outline-none focus:border-indigo-500"
+                  className="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
                 >
                   <option value="all">All Users</option>
                   {stats.by_assignee.map(a => (
@@ -341,7 +339,7 @@ export default function QAPage() {
               <select
                 value={filterTopic}
                 onChange={e => setFilterTopic(e.target.value)}
-                className="flex-1 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 focus:outline-none focus:border-indigo-500"
+                className="flex-1 px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
               >
                 <option value="all">All Topics</option>
                 {topics.map(t => <option key={t} value={t}>{t}</option>)}
@@ -349,7 +347,7 @@ export default function QAPage() {
               <select
                 value={filterPriority}
                 onChange={e => setFilterPriority(e.target.value)}
-                className="w-24 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 focus:outline-none focus:border-indigo-500"
+                className="w-24 px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
               >
                 <option value="all">Priority</option>
                 <option value="must">Must</option>
@@ -363,10 +361,10 @@ export default function QAPage() {
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <i className="fas fa-spinner fa-spin text-indigo-400 text-2xl"></i>
+                <i className="fas fa-spinner fa-spin text-indigo-500 text-2xl"></i>
               </div>
             ) : filteredQuestions.length === 0 ? (
-              <div className="text-center py-20 text-gray-500">
+              <div className="text-center py-20 text-gray-500 dark:text-gray-400">
                 <i className="fas fa-comments text-4xl mb-3 block opacity-40"></i>
                 <p>No questions match your filters</p>
               </div>
@@ -375,34 +373,34 @@ export default function QAPage() {
                 <button
                   key={q.id}
                   onClick={() => selectQuestion(q)}
-                  className={`w-full text-left p-3 rounded-lg border transition-all ${
+                  className={`w-full text-left card p-3 transition-all cursor-pointer ${
                     selectedQuestion?.id === q.id
-                      ? 'border-indigo-500 bg-indigo-500/8'
+                      ? 'ring-2 ring-indigo-500'
                       : q.answer_status === 'answered'
-                        ? 'border-transparent bg-gray-800/50 opacity-70 hover:opacity-100 hover:border-gray-600'
-                        : 'border-transparent bg-gray-800/80 hover:border-gray-600'
+                        ? 'opacity-60 hover:opacity-100'
+                        : ''
                   }`}
                 >
                   <div className="flex items-start gap-2 mb-1.5">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${PRIORITY_COLORS[q.priority] || ''}`}>
+                    <span className={`badge text-[10px] font-bold uppercase ${PRIORITY_BADGE[q.priority] || ''}`}>
                       {q.priority}
                     </span>
-                    <span className="text-xs font-mono text-indigo-400">{q.question_id}</span>
-                    <span className="text-xs text-gray-500 ml-auto">{q.topic}</span>
+                    <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400">{q.question_id}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">{q.topic}</span>
                   </div>
-                  <p className="text-sm text-gray-200 line-clamp-2 mb-2">{q.question_text}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">{q.question_text}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                     <span>{q.assigned_user?.full_name || '—'}</span>
                     <span>·</span>
-                    <span className={`inline-flex items-center gap-1 ${STATUS_COLORS[q.answer_status] || ''} px-1.5 py-0.5 rounded`}>
-                      <i className={`fas ${STATUS_ICONS[q.answer_status] || ''} text-[10px]`}></i>
+                    <span className={`badge text-[10px] ${STATUS_BADGE[q.answer_status] || ''}`}>
+                      <i className={`fas ${STATUS_ICONS[q.answer_status] || ''} mr-1`}></i>
                       {q.answer_status.replace('_', ' ')}
                     </span>
                   </div>
                 </button>
               ))
             )}
-            <div className="text-center text-xs text-gray-600 py-2">
+            <div className="text-center text-xs text-gray-400 dark:text-gray-500 py-2">
               {filteredQuestions.length} question{filteredQuestions.length !== 1 ? 's' : ''}
             </div>
           </div>
@@ -412,10 +410,10 @@ export default function QAPage() {
         <div className={`${showDetail ? 'flex' : 'hidden md:flex'} flex-col flex-1 card overflow-hidden`}>
           {detailLoading ? (
             <div className="flex items-center justify-center flex-1">
-              <i className="fas fa-spinner fa-spin text-indigo-400 text-2xl"></i>
+              <i className="fas fa-spinner fa-spin text-indigo-500 text-2xl"></i>
             </div>
           ) : !selectedQuestion ? (
-            <div className="flex items-center justify-center flex-1 text-gray-500">
+            <div className="flex items-center justify-center flex-1 text-gray-400 dark:text-gray-500">
               <div className="text-center">
                 <i className="fas fa-hand-pointer text-4xl mb-3 block opacity-40"></i>
                 <p>Select a question to view details</p>
@@ -426,7 +424,7 @@ export default function QAPage() {
               {/* Mobile back button */}
               <button
                 onClick={() => { setShowDetail(false); setSelectedQuestion(null); }}
-                className="md:hidden flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-2"
+                className="md:hidden flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white mb-2"
               >
                 <i className="fas fa-arrow-left"></i> Back to list
               </button>
@@ -434,19 +432,19 @@ export default function QAPage() {
               {/* Header */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="font-mono text-indigo-400 font-bold">{selectedQuestion.question_id}</span>
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${PRIORITY_COLORS[selectedQuestion.priority] || ''}`}>
+                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold text-lg">{selectedQuestion.question_id}</span>
+                  <span className={`badge text-xs font-bold uppercase ${PRIORITY_BADGE[selectedQuestion.priority] || ''}`}>
                     {selectedQuestion.priority}
                   </span>
-                  <span className={`px-2 py-0.5 rounded text-xs ${STATUS_COLORS[selectedQuestion.answer_status] || ''}`}>
+                  <span className={`badge text-xs ${STATUS_BADGE[selectedQuestion.answer_status] || ''}`}>
                     <i className={`fas ${STATUS_ICONS[selectedQuestion.answer_status] || ''} mr-1`}></i>
                     {selectedQuestion.answer_status.replace('_', ' ')}
                   </span>
                 </div>
-                <div className="text-xs text-gray-500 flex gap-2">
-                  <span>Topic: {selectedQuestion.topic}</span>
+                <div className="text-xs text-gray-500 dark:text-gray-400 flex gap-2 flex-wrap">
+                  <span>Topic: <strong className="text-gray-700 dark:text-gray-300">{selectedQuestion.topic}</strong></span>
                   <span>·</span>
-                  <span>Assigned: {selectedQuestion.assigned_user?.full_name || '—'}</span>
+                  <span>Assigned: <strong className="text-gray-700 dark:text-gray-300">{selectedQuestion.assigned_user?.full_name || '—'}</strong></span>
                   {selectedQuestion.round && <>
                     <span>·</span>
                     <span>{selectedQuestion.round}</span>
@@ -456,41 +454,41 @@ export default function QAPage() {
 
               {/* Question */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Question</h3>
-                <p className="text-gray-200 whitespace-pre-wrap">{selectedQuestion.question_text}</p>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Question</h3>
+                <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{selectedQuestion.question_text}</p>
               </div>
 
               {/* Context */}
               {selectedQuestion.context && (
                 <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Context / Options</h3>
-                  <p className="text-gray-300 text-sm whitespace-pre-wrap bg-gray-800/50 rounded-lg p-3">{selectedQuestion.context}</p>
+                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Context / Options</h3>
+                  <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">{selectedQuestion.context}</p>
                 </div>
               )}
 
               {/* CTO Response */}
               {selectedQuestion.cto_response && (
-                <div className="border-l-[3px] border-indigo-500 bg-indigo-500/8 rounded-r-lg p-4">
-                  <div className="text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-2">CTO Analysis</div>
-                  <div className="text-sm text-gray-200 prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedQuestion.cto_response }} />
+                <div className="border-l-[3px] border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 rounded-r-lg p-4">
+                  <div className="text-indigo-600 dark:text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-2">CTO Analysis</div>
+                  <div className="text-sm text-gray-700 dark:text-gray-200" dangerouslySetInnerHTML={{ __html: selectedQuestion.cto_response }} />
                 </div>
               )}
 
               {/* Deferred info */}
               {selectedQuestion.answer_status === 'deferred' && selectedQuestion.deferred_to && (
-                <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3">
-                  <div className="text-orange-400 text-xs font-semibold mb-1">
+                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
+                  <div className="text-orange-700 dark:text-orange-400 text-xs font-semibold mb-1">
                     <i className="fas fa-share mr-1"></i> Deferred to {selectedQuestion.deferred_to}
                   </div>
                   {selectedQuestion.deferred_note && (
-                    <p className="text-sm text-gray-300">{selectedQuestion.deferred_note}</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{selectedQuestion.deferred_note}</p>
                   )}
                 </div>
               )}
 
               {/* Answer Section */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   {selectedQuestion.answer_status === 'answered' ? 'Answer' : 'Your Answer'}
                 </h3>
                 {canAnswer(selectedQuestion) ? (
@@ -501,43 +499,43 @@ export default function QAPage() {
                       onChange={e => setAnswerText(e.target.value)}
                       rows={4}
                       placeholder="Type your answer here..."
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-y"
+                      className="input-field resize-y"
                     />
                     <div className="flex gap-2 flex-wrap">
                       <button
                         onClick={saveAnswer}
                         disabled={saving || !answerText.trim()}
-                        className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all"
+                        className="btn-primary text-sm disabled:opacity-50"
                       >
                         {saving ? <><i className="fas fa-spinner fa-spin mr-1"></i> Saving...</> : <><i className="fas fa-save mr-1"></i> Save Answer</>}
                       </button>
                       <button
                         onClick={() => setShowDeferForm(!showDeferForm)}
-                        className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-600 transition-all"
+                        className="btn-secondary text-sm"
                       >
                         <i className="fas fa-share mr-1"></i> Defer to...
                       </button>
                     </div>
                     {showDeferForm && (
-                      <div className="bg-gray-800/50 rounded-lg p-3 space-y-2 border border-gray-700">
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 space-y-2 border border-gray-200 dark:border-gray-700">
                         <input
                           type="text"
                           value={deferTo}
                           onChange={e => setDeferTo(e.target.value)}
                           placeholder="Defer to (e.g., Manishbhai)"
-                          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                          className="input-field"
                         />
                         <input
                           type="text"
                           value={deferNote}
                           onChange={e => setDeferNote(e.target.value)}
                           placeholder="Reason for deferring (optional)"
-                          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                          className="input-field"
                         />
                         <button
                           onClick={deferQuestion}
                           disabled={saving || !deferTo.trim()}
-                          className="px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg text-sm font-medium hover:bg-orange-500/30 disabled:opacity-50 transition-all"
+                          className="px-4 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-xl text-sm font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50 transition-all"
                         >
                           {saving ? 'Saving...' : 'Defer Question'}
                         </button>
@@ -545,23 +543,23 @@ export default function QAPage() {
                     )}
                   </div>
                 ) : selectedQuestion.answer_text ? (
-                  <div className="bg-emerald-500/8 border border-emerald-500/20 rounded-lg p-3">
-                    <p className="text-sm text-gray-200 whitespace-pre-wrap">{selectedQuestion.answer_text}</p>
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                    <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{selectedQuestion.answer_text}</p>
                     {selectedQuestion.answered_at && (
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                         Answered {new Date(selectedQuestion.answered_at).toLocaleDateString()}
                       </p>
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 italic">No answer yet</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 italic">No answer yet</p>
                 )}
               </div>
 
               {/* Follow-up Questions */}
               {selectedQuestion.children && selectedQuestion.children.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                     Follow-up Questions ({selectedQuestion.children.length})
                   </h3>
                   <div className="space-y-2">
@@ -569,16 +567,16 @@ export default function QAPage() {
                       <button
                         key={child.id}
                         onClick={() => selectQuestion(child)}
-                        className="w-full text-left p-3 rounded-lg bg-gray-800/50 border border-gray-700 hover:border-gray-600 transition-all"
+                        className="w-full text-left card p-3 cursor-pointer hover:shadow-lg transition-all"
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-indigo-400 text-xs">{child.question_id}</span>
-                          <span className="text-xs text-gray-500">{child.topic}</span>
-                          <span className={`ml-auto px-1.5 py-0.5 rounded text-[10px] ${STATUS_COLORS[child.answer_status] || ''}`}>
+                          <span className="font-mono text-indigo-600 dark:text-indigo-400 text-xs">{child.question_id}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{child.topic}</span>
+                          <span className={`ml-auto badge text-[10px] ${STATUS_BADGE[child.answer_status] || ''}`}>
                             {child.answer_status.replace('_', ' ')}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-300 line-clamp-1">{child.question_text}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-1">{child.question_text}</p>
                       </button>
                     ))}
                   </div>
@@ -587,19 +585,19 @@ export default function QAPage() {
 
               {/* Comments */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Discussion {selectedQuestion.comments && selectedQuestion.comments.length > 0 ? `(${selectedQuestion.comments.length})` : ''}
                 </h3>
                 {selectedQuestion.comments && selectedQuestion.comments.length > 0 && (
                   <div className="space-y-2 mb-3">
                     {selectedQuestion.comments.map(c => (
-                      <div key={c.id} className={`p-3 rounded-lg text-sm ${c.is_cto_response ? 'bg-indigo-500/8 border-l-2 border-indigo-500' : 'bg-gray-800/50'}`}>
+                      <div key={c.id} className={`p-3 rounded-lg text-sm ${c.is_cto_response ? 'bg-indigo-50 dark:bg-indigo-900/20 border-l-2 border-indigo-500' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-gray-300">{c.user?.full_name || 'Unknown'}</span>
-                          <span className="text-xs text-gray-500">{new Date(c.created_at).toLocaleDateString()}</span>
-                          {c.is_cto_response && <span className="text-[10px] text-indigo-400 font-semibold">CTO</span>}
+                          <span className="font-medium text-gray-800 dark:text-gray-200">{c.user?.full_name || 'Unknown'}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">{new Date(c.created_at).toLocaleDateString()}</span>
+                          {c.is_cto_response && <span className="badge badge-purple text-[10px]">CTO</span>}
                         </div>
-                        <p className="text-gray-300 whitespace-pre-wrap">{c.content}</p>
+                        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{c.content}</p>
                       </div>
                     ))}
                   </div>
@@ -611,12 +609,12 @@ export default function QAPage() {
                     onChange={e => setCommentText(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addComment()}
                     placeholder="Add a comment..."
-                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                    className="input-field flex-1"
                   />
                   <button
                     onClick={addComment}
                     disabled={!commentText.trim()}
-                    className="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-600 disabled:opacity-50 transition-all"
+                    className="btn-secondary disabled:opacity-50"
                   >
                     <i className="fas fa-paper-plane"></i>
                   </button>
