@@ -117,6 +117,7 @@ export async function PATCH(
     if (body.answer_text !== undefined) updateData.answer_text = body.answer_text;
     if (body.answer_status !== undefined) updateData.answer_status = body.answer_status;
     if (body.answer_status === 'answered') updateData.answered_at = new Date().toISOString();
+    if (body.attachments !== undefined) updateData.attachments = body.attachments;
 
     // Defer fields — reassign to target person
     if (body.answer_status === 'deferred' && body.deferred_to) {

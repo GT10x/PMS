@@ -351,6 +351,7 @@ export interface QAQuestion {
   cto_response: string | null;
   answer_text: string | null;
   answer_status: 'pending' | 'answered' | 'deferred' | 'follow_up';
+  attachments: string[];
   deferred_to: string | null;
   deferred_from: string | null;
   deferred_note: string | null;

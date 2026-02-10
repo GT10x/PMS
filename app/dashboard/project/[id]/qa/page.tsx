@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import Breadcrumb from '@/components/Breadcrumb';
 import ProjectNavTabs from '@/components/ProjectNavTabs';
 import { useProjectPermissions } from '@/hooks/useProjectPermissions';
+import { uploadFileWithSignedUrl } from '@/lib/supabase';
 import type { QAQuestion, QAComment } from '@/lib/types';
 
 interface User {
@@ -76,6 +77,8 @@ export default function QAPage() {
 
   // Answer form
   const [answerText, setAnswerText] = useState('');
+  const [answerFiles, setAnswerFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [deferTo, setDeferTo] = useState('');
   const [deferNote, setDeferNote] = useState('');
@@ -140,6 +143,7 @@ export default function QAPage() {
         const data = await res.json();
         setSelectedQuestion(data.question);
         setAnswerText(data.question.answer_text || '');
+        setAnswerFiles([]);
         setShowDeferForm(false);
         setDeferTo('');
         setDeferNote('');
@@ -152,27 +156,39 @@ export default function QAPage() {
   };
 
   const saveAnswer = async () => {
-    if (!selectedQuestion || !answerText.trim()) return;
+    if (!selectedQuestion || (!answerText.trim() && answerFiles.length === 0)) return;
     setSaving(true);
+    setUploading(answerFiles.length > 0);
     try {
+      // Upload files first
+      const uploadedUrls: string[] = [...(selectedQuestion.attachments || [])];
+      for (const file of answerFiles) {
+        const url = await uploadFileWithSignedUrl(file);
+        if (url) uploadedUrls.push(url);
+      }
+      setUploading(false);
+
       const res = await fetch(`/api/projects/${projectId}/qa/${selectedQuestion.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           answer_text: answerText.trim(),
           answer_status: 'answered',
+          attachments: uploadedUrls,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         setSelectedQuestion(prev => prev ? { ...prev, ...data.question } : null);
         setQuestions(prev => prev.map(q => q.id === data.question.id ? { ...q, ...data.question } : q));
+        setAnswerFiles([]);
         fetchStats();
       }
     } catch (e) {
       console.error('Error saving answer:', e);
     } finally {
       setSaving(false);
+      setUploading(false);
     }
   };
 
@@ -523,13 +539,63 @@ export default function QAPage() {
                       placeholder="Type your answer here..."
                       className="input-field resize-y"
                     />
+                    {/* File upload */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+                        onChange={e => {
+                          if (e.target.files) {
+                            const files = Array.from(e.target.files).filter(f => f.size <= 200 * 1024 * 1024);
+                            setAnswerFiles(prev => [...prev, ...files]);
+                          }
+                          e.target.value = '';
+                        }}
+                        className="hidden"
+                        id="qa-file-upload"
+                      />
+                      <label
+                        htmlFor="qa-file-upload"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg cursor-pointer transition-colors"
+                      >
+                        <i className="fas fa-paperclip"></i> Attach files
+                      </label>
+                      {answerFiles.map((f, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded text-xs">
+                          <i className="fas fa-file text-[10px]"></i>
+                          {f.name.length > 20 ? f.name.slice(0, 17) + '...' : f.name}
+                          <button onClick={() => setAnswerFiles(prev => prev.filter((_, j) => j !== i))} className="ml-1 text-indigo-400 hover:text-red-500">
+                            <i className="fas fa-times text-[10px]"></i>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    {/* Previously uploaded attachments */}
+                    {selectedQuestion.attachments && selectedQuestion.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedQuestion.attachments.map((url, i) => {
+                          const name = decodeURIComponent(url.split('/').pop() || `File ${i + 1}`);
+                          const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
+                          return isImage ? (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                              <img src={url} alt={name} className="h-12 rounded border border-gray-200 dark:border-gray-600 object-cover" />
+                            </a>
+                          ) : (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs hover:underline">
+                              <i className="fas fa-file-download"></i> {name.length > 25 ? name.slice(0, 22) + '...' : name}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="flex gap-2 flex-wrap">
                       <button
                         onClick={saveAnswer}
-                        disabled={saving || !answerText.trim()}
+                        disabled={saving || (!answerText.trim() && answerFiles.length === 0)}
                         className="btn-primary text-sm disabled:opacity-50"
                       >
-                        {saving ? <><i className="fas fa-spinner fa-spin mr-1"></i> Saving...</> : <><i className="fas fa-save mr-1"></i> Save Answer</>}
+                        {uploading ? <><i className="fas fa-spinner fa-spin mr-1"></i> Uploading...</> : saving ? <><i className="fas fa-spinner fa-spin mr-1"></i> Saving...</> : <><i className="fas fa-save mr-1"></i> Save Answer</>}
                       </button>
                       <button
                         onClick={() => setShowDeferForm(!showDeferForm)}
@@ -582,6 +648,23 @@ export default function QAPage() {
                 ) : selectedQuestion.answer_text ? (
                   <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
                     <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{selectedQuestion.answer_text}</p>
+                    {selectedQuestion.attachments && selectedQuestion.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedQuestion.attachments.map((url, i) => {
+                          const name = decodeURIComponent(url.split('/').pop() || `File ${i + 1}`);
+                          const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
+                          return isImage ? (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                              <img src={url} alt={name} className="h-16 rounded border border-green-200 dark:border-green-700 object-cover" />
+                            </a>
+                          ) : (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 rounded text-xs hover:underline">
+                              <i className="fas fa-file-download"></i> {name.length > 25 ? name.slice(0, 22) + '...' : name}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
                     {selectedQuestion.answered_at && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                         Answered {new Date(selectedQuestion.answered_at).toLocaleDateString()}
