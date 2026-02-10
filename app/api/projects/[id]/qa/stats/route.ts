@@ -27,13 +27,20 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: questions, error } = await supabaseAdmin
+    let statsQuery = supabaseAdmin
       .from('qa_questions')
       .select(`
         id, answer_status, topic, priority, assigned_to,
         assigned_user:user_profiles!qa_questions_assigned_to_fkey(id, full_name)
       `)
       .eq('project_id', projectId);
+
+    // Non-admin users only see their own stats
+    if (!currentUser.is_admin) {
+      statsQuery = statsQuery.eq('assigned_to', currentUser.id);
+    }
+
+    const { data: questions, error } = await statsQuery;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

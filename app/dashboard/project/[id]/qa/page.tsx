@@ -225,8 +225,7 @@ export default function QAPage() {
     if (filterStatus !== 'all' && q.answer_status !== filterStatus) return false;
     if (filterTopic !== 'all' && q.topic !== filterTopic) return false;
     if (filterPriority !== 'all' && q.priority !== filterPriority) return false;
-    if (filterAssignee === 'mine' && q.assigned_to !== currentUser?.id) return false;
-    if (filterAssignee !== 'all' && filterAssignee !== 'mine' && q.assigned_to !== filterAssignee) return false;
+    if (filterAssignee !== 'all' && q.assigned_to !== filterAssignee) return false;
     if (searchQuery && !q.question_text.toLowerCase().includes(searchQuery.toLowerCase()) && !q.question_id.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
@@ -260,7 +259,7 @@ export default function QAPage() {
                 />
               </div>
             </div>
-            {stats.by_assignee.length > 0 && (
+            {currentUser?.is_admin && stats.by_assignee.length > 0 && (
               <div className="flex gap-4">
                 {stats.by_assignee.map(a => (
                   <div key={a.user_id} className="text-center">
@@ -299,13 +298,14 @@ export default function QAPage() {
             </div>
             {/* Filter chips */}
             <div className="flex flex-wrap gap-1.5">
-              {['all', 'mine', 'pending', 'answered', 'deferred'].map(f => (
+              {(currentUser?.is_admin
+                ? ['all', 'pending', 'answered', 'deferred']
+                : ['all', 'pending', 'answered', 'deferred']
+              ).map(f => (
                 <button
                   key={f}
                   onClick={() => {
-                    if (f === 'mine') {
-                      setFilterAssignee(filterAssignee === 'mine' ? 'all' : 'mine');
-                    } else if (f === 'all') {
+                    if (f === 'all') {
                       setFilterStatus('all');
                       setFilterAssignee('all');
                     } else {
@@ -313,16 +313,28 @@ export default function QAPage() {
                     }
                   }}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                    (f === 'all' && filterStatus === 'all' && filterAssignee === 'all') ||
-                    (f === 'mine' && filterAssignee === 'mine') ||
-                    (f !== 'all' && f !== 'mine' && filterStatus === f)
+                    (f === 'all' && filterStatus === 'all') ||
+                    (f !== 'all' && filterStatus === f)
                       ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
                       : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600'
                   }`}
                 >
-                  {f === 'all' ? 'All' : f === 'mine' ? 'My Questions' : f.charAt(0).toUpperCase() + f.slice(1)}
+                  {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
               ))}
+              {/* Admin-only: filter by assignee */}
+              {currentUser?.is_admin && stats?.by_assignee && (
+                <select
+                  value={filterAssignee}
+                  onChange={e => setFilterAssignee(e.target.value)}
+                  className="px-2 py-1 bg-gray-800 border border-gray-700 rounded-md text-xs text-gray-300 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="all">All Users</option>
+                  {stats.by_assignee.map(a => (
+                    <option key={a.user_id} value={a.user_id}>{a.full_name}</option>
+                  ))}
+                </select>
+              )}
             </div>
             {/* Dropdowns */}
             <div className="flex gap-2">

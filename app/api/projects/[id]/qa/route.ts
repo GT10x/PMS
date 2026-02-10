@@ -44,7 +44,13 @@ export async function GET(
       .order('topic', { ascending: true })
       .order('sort_order', { ascending: true });
 
-    if (assignedTo) query = query.eq('assigned_to', assignedTo);
+    // Non-admin users can ONLY see their own assigned questions
+    if (!currentUser.is_admin) {
+      query = query.eq('assigned_to', currentUser.id);
+    } else if (assignedTo) {
+      query = query.eq('assigned_to', assignedTo);
+    }
+
     if (topic) query = query.eq('topic', topic);
     if (priority) query = query.eq('priority', priority);
     if (status) query = query.eq('answer_status', status);

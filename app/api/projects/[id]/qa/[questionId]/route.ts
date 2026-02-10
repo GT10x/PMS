@@ -41,6 +41,11 @@ export async function GET(
       return NextResponse.json({ error: 'Question not found' }, { status: 404 });
     }
 
+    // Non-admin can only view their own assigned questions
+    if (!currentUser.is_admin && question.assigned_to !== currentUser.id) {
+      return NextResponse.json({ error: 'You can only view your own questions' }, { status: 403 });
+    }
+
     // Get comments
     const { data: comments } = await supabaseAdmin
       .from('qa_comments')

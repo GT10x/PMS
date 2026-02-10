@@ -27,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: questions, error } = await supabaseAdmin
+    let exportQuery = supabaseAdmin
       .from('qa_questions')
       .select(`
         *,
@@ -37,6 +37,13 @@ export async function GET(
       .eq('answer_status', 'answered')
       .order('topic', { ascending: true })
       .order('sort_order', { ascending: true });
+
+    // Non-admin only sees their own answered questions
+    if (!currentUser.is_admin) {
+      exportQuery = exportQuery.eq('assigned_to', currentUser.id);
+    }
+
+    const { data: questions, error } = await exportQuery;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
