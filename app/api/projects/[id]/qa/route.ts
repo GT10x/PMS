@@ -38,7 +38,8 @@ export async function GET(
       .from('qa_questions')
       .select(`
         *,
-        assigned_user:user_profiles!qa_questions_assigned_to_fkey(id, full_name, role)
+        assigned_user:user_profiles!qa_questions_assigned_to_fkey(id, full_name, role),
+        deferred_from_user:user_profiles!qa_questions_deferred_from_fkey(id, full_name, role)
       `)
       .eq('project_id', projectId)
       .order('topic', { ascending: true })

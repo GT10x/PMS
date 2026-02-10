@@ -352,6 +352,7 @@ export interface QAQuestion {
   answer_text: string | null;
   answer_status: 'pending' | 'answered' | 'deferred' | 'follow_up';
   deferred_to: string | null;
+  deferred_from: string | null;
   deferred_note: string | null;
   parent_question_id: string | null;
   round: string | null;
@@ -360,6 +361,7 @@ export interface QAQuestion {
   created_at: string;
   updated_at: string;
   assigned_user?: { id: string; full_name: string; role: string };
+  deferred_from_user?: { id: string; full_name: string; role: string };
   comments?: QAComment[];
   children?: QAQuestion[];
 }

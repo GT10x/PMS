@@ -31,7 +31,8 @@ export async function GET(
       .from('qa_questions')
       .select(`
         *,
-        assigned_user:user_profiles!qa_questions_assigned_to_fkey(id, full_name, role)
+        assigned_user:user_profiles!qa_questions_assigned_to_fkey(id, full_name, role),
+        deferred_from_user:user_profiles!qa_questions_deferred_from_fkey(id, full_name, role)
       `)
       .eq('id', questionId)
       .eq('project_id', projectId)
@@ -117,9 +118,16 @@ export async function PATCH(
     if (body.answer_status !== undefined) updateData.answer_status = body.answer_status;
     if (body.answer_status === 'answered') updateData.answered_at = new Date().toISOString();
 
-    // Defer fields
-    if (body.deferred_to !== undefined) updateData.deferred_to = body.deferred_to;
-    if (body.deferred_note !== undefined) updateData.deferred_note = body.deferred_note;
+    // Defer fields — reassign to target person
+    if (body.answer_status === 'deferred' && body.deferred_to) {
+      updateData.deferred_from = existing.assigned_to; // track who deferred it
+      updateData.assigned_to = body.deferred_to; // reassign to target
+      updateData.deferred_to = body.deferred_to;
+      if (body.deferred_note !== undefined) updateData.deferred_note = body.deferred_note;
+    } else {
+      if (body.deferred_to !== undefined) updateData.deferred_to = body.deferred_to;
+      if (body.deferred_note !== undefined) updateData.deferred_note = body.deferred_note;
+    }
 
     // CTO response (admin only)
     if (body.cto_response !== undefined) {
@@ -135,7 +143,8 @@ export async function PATCH(
       .eq('id', questionId)
       .select(`
         *,
-        assigned_user:user_profiles!qa_questions_assigned_to_fkey(id, full_name, role)
+        assigned_user:user_profiles!qa_questions_assigned_to_fkey(id, full_name, role),
+        deferred_from_user:user_profiles!qa_questions_deferred_from_fkey(id, full_name, role)
       `)
       .single();
 

@@ -46,6 +46,13 @@ const STATUS_ICONS: Record<string, string> = {
   follow_up: 'fa-reply',
 };
 
+// Hardcoded team members for defer dropdown
+const DEFER_TEAM = [
+  { id: 'd60a4c5e-aa9f-4cdb-999a-41f0bd23d09e', name: 'Piush Thakker' },
+  { id: 'a3896ccb-149a-4d8c-8c89-a279320a85d2', name: 'Dhavalbhai' },
+  { id: '51688af1-b733-4d90-bf41-1d8f4547780f', name: 'Manishbhai' },
+];
+
 export default function QAPage() {
   const router = useRouter();
   const params = useParams();
@@ -170,7 +177,8 @@ export default function QAPage() {
   };
 
   const deferQuestion = async () => {
-    if (!selectedQuestion || !deferTo.trim()) return;
+    if (!selectedQuestion || !deferTo) return;
+    const targetUser = DEFER_TEAM.find(u => u.id === deferTo);
     setSaving(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/qa/${selectedQuestion.id}`, {
@@ -178,16 +186,25 @@ export default function QAPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           answer_status: 'deferred',
-          deferred_to: deferTo.trim(),
+          deferred_to: deferTo,
           deferred_note: deferNote.trim() || null,
-          answer_text: answerText.trim() || `Deferred to ${deferTo.trim()}.`,
+          answer_text: answerText.trim() || null,
         }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setSelectedQuestion(prev => prev ? { ...prev, ...data.question } : null);
-        setQuestions(prev => prev.map(q => q.id === data.question.id ? { ...q, ...data.question } : q));
+        // Question is now reassigned — remove from current list if not admin
+        if (!currentUser?.is_admin) {
+          setQuestions(prev => prev.filter(q => q.id !== selectedQuestion.id));
+          setSelectedQuestion(null);
+          setShowDetail(false);
+        } else {
+          const data = await res.json();
+          setSelectedQuestion(prev => prev ? { ...prev, ...data.question } : null);
+          setQuestions(prev => prev.map(q => q.id === data.question.id ? { ...q, ...data.question } : q));
+        }
         setShowDeferForm(false);
+        setDeferTo('');
+        setDeferNote('');
         fetchStats();
       }
     } catch (e) {
@@ -389,13 +406,18 @@ export default function QAPage() {
                     <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">{q.topic}</span>
                   </div>
                   <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 mb-2">{q.question_text}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
                     <span>{q.assigned_user?.full_name || '—'}</span>
                     <span>·</span>
                     <span className={`badge text-[10px] ${STATUS_BADGE[q.answer_status] || ''}`}>
                       <i className={`fas ${STATUS_ICONS[q.answer_status] || ''} mr-1`}></i>
                       {q.answer_status.replace('_', ' ')}
                     </span>
+                    {q.deferred_from_user && (
+                      <span className="badge badge-orange text-[10px]">
+                        <i className="fas fa-share mr-1"></i>from {q.deferred_from_user.full_name}
+                      </span>
+                    )}
                   </div>
                 </button>
               ))
@@ -475,10 +497,10 @@ export default function QAPage() {
               )}
 
               {/* Deferred info */}
-              {selectedQuestion.answer_status === 'deferred' && selectedQuestion.deferred_to && (
+              {selectedQuestion.deferred_from_user && (
                 <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
                   <div className="text-orange-700 dark:text-orange-400 text-xs font-semibold mb-1">
-                    <i className="fas fa-share mr-1"></i> Deferred to {selectedQuestion.deferred_to}
+                    <i className="fas fa-share mr-1"></i> Deferred from {selectedQuestion.deferred_from_user.full_name}
                   </div>
                   {selectedQuestion.deferred_note && (
                     <p className="text-sm text-gray-700 dark:text-gray-300">{selectedQuestion.deferred_note}</p>
@@ -518,27 +540,42 @@ export default function QAPage() {
                     </div>
                     {showDeferForm && (
                       <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 space-y-2 border border-gray-200 dark:border-gray-700">
-                        <input
-                          type="text"
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Defer to</label>
+                        <select
                           value={deferTo}
                           onChange={e => setDeferTo(e.target.value)}
-                          placeholder="Defer to (e.g., Manishbhai)"
                           className="input-field"
-                        />
+                        >
+                          <option value="">Select person...</option>
+                          {DEFER_TEAM
+                            .filter(u => u.id !== currentUser?.id)
+                            .map(u => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                            ))
+                          }
+                        </select>
                         <input
                           type="text"
                           value={deferNote}
                           onChange={e => setDeferNote(e.target.value)}
-                          placeholder="Reason for deferring (optional)"
+                          placeholder="Reason (optional)"
                           className="input-field"
                         />
-                        <button
-                          onClick={deferQuestion}
-                          disabled={saving || !deferTo.trim()}
-                          className="px-4 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-xl text-sm font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50 transition-all"
-                        >
-                          {saving ? 'Saving...' : 'Defer Question'}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={deferQuestion}
+                            disabled={saving || !deferTo}
+                            className="px-4 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-xl text-sm font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50 transition-all"
+                          >
+                            {saving ? 'Deferring...' : 'Defer'}
+                          </button>
+                          <button
+                            onClick={() => { setShowDeferForm(false); setDeferTo(''); setDeferNote(''); }}
+                            className="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-700 dark:hover:text-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
