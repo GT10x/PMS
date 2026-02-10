@@ -5,6 +5,7 @@ const ALL_TABS = [
   { key: 'reports', label: 'Reports', icon: 'fa-bug', path: '/reports' },
   { key: 'versions', label: 'Versions', icon: 'fa-code-branch', path: '/versions' },
   { key: 'modules', label: 'Modules', icon: 'fa-cubes', path: '/modules' },
+  { key: 'qa', label: 'Q&A', icon: 'fa-question-circle', path: '/qa' },
   { key: 'stakeholders', label: 'Stakeholders', icon: 'fa-users', path: '/stakeholders' },
   { key: 'flow', label: 'Flow', icon: 'fa-project-diagram', path: '/flow' },
   { key: 'chat', label: 'Chat', icon: 'fa-comments', path: '/chat' },

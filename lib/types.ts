@@ -338,6 +338,44 @@ export interface ModuleFeature {
   };
 }
 
+// Q&A Question type
+export interface QAQuestion {
+  id: string;
+  project_id: string;
+  question_id: string;
+  question_text: string;
+  topic: string;
+  priority: 'must' | 'should' | 'nice';
+  assigned_to: string | null;
+  context: string | null;
+  cto_response: string | null;
+  answer_text: string | null;
+  answer_status: 'pending' | 'answered' | 'deferred' | 'follow_up';
+  deferred_to: string | null;
+  deferred_note: string | null;
+  parent_question_id: string | null;
+  round: string | null;
+  sort_order: number;
+  answered_at: string | null;
+  created_at: string;
+  updated_at: string;
+  assigned_user?: { id: string; full_name: string; role: string };
+  comments?: QAComment[];
+  children?: QAQuestion[];
+}
+
+// Q&A Comment type
+export interface QAComment {
+  id: string;
+  question_id: string;
+  user_id: string;
+  content: string;
+  is_cto_response: boolean;
+  created_at: string;
+  updated_at: string;
+  user?: { id: string; full_name: string; role: string };
+}
+
 // Feature Remark type (remarks/notes for a feature)
 export interface FeatureRemark {
   id: string;
