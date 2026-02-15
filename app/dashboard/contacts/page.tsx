@@ -129,6 +129,13 @@ export default function ContactsPage() {
     setShowForm(true);
   };
 
+  const cleanNumber = (num: string) => {
+    let digits = num.replace(/[^\d+]/g, '');
+    if (digits.startsWith('0') && digits.length === 11) digits = '+91' + digits.substring(1);
+    if (/^\d{10}$/.test(digits)) digits = '+91' + digits;
+    return digits;
+  };
+
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
   if (loading) {
@@ -252,6 +259,30 @@ export default function ContactsPage() {
                 </button>
               </div>
 
+              {/* Quick actions: Call, WhatsApp */}
+              {contact.phones.length > 0 && (
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t dark:border-gray-700">
+                  <a href={`tel:${cleanNumber(contact.phones[0].number)}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-xs hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors">
+                    <i className="fas fa-phone text-[10px]"></i> Call
+                  </a>
+                  <a href={`https://wa.me/${cleanNumber(contact.phones[0].number).replace('+', '')}`}
+                    target="_blank"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#25D366]/10 text-[#25D366] rounded-lg text-xs hover:bg-[#25D366]/20 transition-colors">
+                    <i className="fab fa-whatsapp"></i> WhatsApp
+                  </a>
+                  {contact.emails?.[0] && (
+                    <a href={`mailto:${contact.emails[0].email}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-lg text-xs hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+                      <i className="fas fa-envelope text-[10px]"></i> Email
+                    </a>
+                  )}
+                </div>
+              )}
+
               {/* Tags */}
               {contact.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-3">
@@ -268,7 +299,7 @@ export default function ContactsPage() {
               {/* Latest remark preview */}
               {contact.latest_remark?.content && (
                 <p className="text-xs text-gray-400 mt-2 truncate italic">
-                  "{contact.latest_remark.content}"
+                  &ldquo;{contact.latest_remark.content}&rdquo;
                   <span className="ml-1 text-[10px]">{formatDate(contact.latest_remark.created_at)}</span>
                 </p>
               )}
@@ -302,6 +333,34 @@ export default function ContactsPage() {
                   ))}
                 </div>
                 <p className="text-xs text-gray-500 truncate">{contact.company || ''} {contact.phones[0]?.number ? `| ${contact.phones[0].number}` : ''}</p>
+              </div>
+              {/* Quick actions: Call, WhatsApp, Email */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {contact.phones.length > 0 && (
+                  <>
+                    <a href={`tel:${cleanNumber(contact.phones[0].number)}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-8 h-8 flex items-center justify-center bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
+                      title="Call">
+                      <i className="fas fa-phone text-xs"></i>
+                    </a>
+                    <a href={`https://wa.me/${cleanNumber(contact.phones[0].number).replace('+', '')}`}
+                      target="_blank"
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-8 h-8 flex items-center justify-center bg-[#25D366]/10 text-[#25D366] rounded-lg hover:bg-[#25D366]/20 transition-colors"
+                      title="WhatsApp">
+                      <i className="fab fa-whatsapp text-sm"></i>
+                    </a>
+                  </>
+                )}
+                {contact.emails?.[0] && (
+                  <a href={`mailto:${contact.emails[0].email}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-8 h-8 flex items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                    title="Email">
+                    <i className="fas fa-envelope text-xs"></i>
+                  </a>
+                )}
               </div>
               {contact.latest_remark?.content && (
                 <p className="text-xs text-gray-400 max-w-48 truncate hidden md:block italic">"{contact.latest_remark.content}"</p>
