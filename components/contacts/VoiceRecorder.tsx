@@ -11,6 +11,7 @@ export default function VoiceRecorder({ onRecorded }: VoiceRecorderProps) {
   const [uploading, setUploading] = useState(false);
   const [duration, setDuration] = useState(0);
   const [preview, setPreview] = useState<string | null>(null);
+  const [permError, setPermError] = useState(false);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -24,7 +25,28 @@ export default function VoiceRecorder({ onRecorded }: VoiceRecorderProps) {
     return undefined;
   };
 
+  const checkAndRequestPermission = async (): Promise<boolean> => {
+    // Check if permissions API is available
+    if (navigator.permissions) {
+      try {
+        const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (result.state === 'denied') {
+          setPermError(true);
+          return false;
+        }
+      } catch {
+        // permissions.query may not support 'microphone' on all browsers — proceed anyway
+      }
+    }
+    return true;
+  };
+
   const startRecording = async () => {
+    setPermError(false);
+
+    const hasPermission = await checkAndRequestPermission();
+    if (!hasPermission) return;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = getSupportedMimeType();
@@ -52,9 +74,13 @@ export default function VoiceRecorder({ onRecorded }: VoiceRecorderProps) {
       setDuration(0);
       setPreview(null);
       timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Mic error:', err);
-      alert('Could not access microphone. Please allow microphone permission and try again.');
+      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+        setPermError(true);
+      } else {
+        setPermError(true);
+      }
     }
   };
 
@@ -95,32 +121,55 @@ export default function VoiceRecorder({ onRecorded }: VoiceRecorderProps) {
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {recording ? (
-        <>
-          <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            <span className="text-sm text-red-600 dark:text-red-400 font-mono">{formatTime(duration)}</span>
-          </div>
-          <button onClick={stopRecording} className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
-            <i className="fas fa-stop mr-1"></i> Stop
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        {recording ? (
+          <>
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+              <span className="text-sm text-red-600 dark:text-red-400 font-mono">{formatTime(duration)}</span>
+            </div>
+            <button onClick={stopRecording} className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
+              <i className="fas fa-stop mr-1"></i> Stop
+            </button>
+          </>
+        ) : preview ? (
+          <>
+            <audio controls src={preview} className="h-8 max-w-[180px]" />
+            <button onClick={uploadAndSave} disabled={uploading}
+              className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm disabled:opacity-50">
+              {uploading ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-1" /> Saving...</> : <><i className="fas fa-check mr-1"></i> Save</>}
+            </button>
+            <button onClick={cancelPreview} className="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm">
+              <i className="fas fa-times"></i>
+            </button>
+          </>
+        ) : (
+          <button onClick={startRecording} className="px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm">
+            <i className="fas fa-microphone mr-1"></i> Voice Note
           </button>
-        </>
-      ) : preview ? (
-        <>
-          <audio controls src={preview} className="h-8 max-w-[180px]" />
-          <button onClick={uploadAndSave} disabled={uploading}
-            className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm disabled:opacity-50">
-            {uploading ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-1" /> Saving...</> : <><i className="fas fa-check mr-1"></i> Save</>}
+        )}
+      </div>
+
+      {/* Permission denied guidance */}
+      {permError && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+          <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+            <i className="fas fa-microphone-slash mr-1"></i> Microphone Permission Required
+          </p>
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+            Voice recording needs microphone access. Please enable it:
+          </p>
+          <ul className="text-xs text-gray-600 dark:text-gray-400 mt-2 space-y-1 ml-3 list-disc">
+            <li><strong>Android App:</strong> Settings &rarr; Apps &rarr; PMS &rarr; Permissions &rarr; Microphone &rarr; Allow</li>
+            <li><strong>Chrome:</strong> Tap the lock icon in address bar &rarr; Site settings &rarr; Microphone &rarr; Allow</li>
+            <li><strong>Safari:</strong> Settings &rarr; Safari &rarr; Microphone &rarr; Allow</li>
+          </ul>
+          <button onClick={() => { setPermError(false); startRecording(); }}
+            className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 underline font-medium">
+            Try Again
           </button>
-          <button onClick={cancelPreview} className="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm">
-            <i className="fas fa-times"></i>
-          </button>
-        </>
-      ) : (
-        <button onClick={startRecording} className="px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm">
-          <i className="fas fa-microphone mr-1"></i> Voice Note
-        </button>
+        </div>
       )}
     </div>
   );

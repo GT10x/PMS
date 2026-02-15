@@ -23,8 +23,7 @@ export default function BusinessCardScanner({ onResult, onClose }: BusinessCardS
   const [progress, setProgress] = useState(0);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [rawText, setRawText] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const [permError, setPermError] = useState<string | null>(null);
 
   const processFile = async (file: File) => {
     const url = URL.createObjectURL(file);
@@ -49,10 +48,15 @@ export default function BusinessCardScanner({ onResult, onClose }: BusinessCardS
       setRawText(text);
       const parsed = parseBusinessCard(text);
       onResult(parsed);
-    } catch (err) {
+    } catch (err: any) {
       console.error('OCR error:', err);
-      alert('Failed to scan card. Please try with a clearer, well-lit image.');
+      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+        setPermError('Camera permission was denied. Please enable camera access to scan visiting cards.');
+      } else {
+        setPermError('Failed to scan card. Please try with a clearer, well-lit image.');
+      }
       setScanning(false);
+      setImageUrl(null);
     }
   };
 
@@ -280,27 +284,35 @@ export default function BusinessCardScanner({ onResult, onClose }: BusinessCardS
 
         {!imageUrl && !scanning && (
           <div className="space-y-3">
-            {/* Camera option */}
-            <button
-              onClick={() => cameraRef.current?.click()}
-              className="w-full border-2 border-dashed border-green-300 dark:border-green-600 rounded-xl p-8 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors"
-            >
+            {permError && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-700 dark:text-red-400 font-medium mb-2">
+                  <i className="fas fa-exclamation-triangle mr-1"></i>Permission Required
+                </p>
+                <p className="text-xs text-red-600 dark:text-red-400">{permError}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  <strong>To fix:</strong> Open your device Settings &rarr; Apps &rarr; PMS &rarr; Permissions &rarr; Enable Camera.
+                  On browser, tap the lock icon in the address bar &rarr; Site settings &rarr; Allow Camera.
+                </p>
+                <button onClick={() => setPermError(null)} className="mt-2 text-xs text-red-500 underline">Dismiss</button>
+              </div>
+            )}
+
+            {/* Camera option — using <label> for reliable WebView/mobile triggering */}
+            <label className="w-full border-2 border-dashed border-green-300 dark:border-green-600 rounded-xl p-8 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors block">
               <i className="fas fa-camera text-4xl text-green-500 mb-2"></i>
               <p className="text-green-700 dark:text-green-400 font-medium">Take Photo</p>
               <p className="text-xs text-gray-400 mt-1">Open camera to capture card</p>
-              <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
-            </button>
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+            </label>
 
             {/* Gallery option */}
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors"
-            >
+            <label className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors block">
               <i className="fas fa-image text-4xl text-indigo-400 mb-2"></i>
               <p className="text-indigo-700 dark:text-indigo-400 font-medium">Choose from Gallery</p>
               <p className="text-xs text-gray-400 mt-1">Select an existing photo</p>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-            </button>
+              <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+            </label>
           </div>
         )}
 
