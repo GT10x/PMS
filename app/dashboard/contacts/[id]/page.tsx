@@ -27,6 +27,9 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showWhatsAppPicker, setShowWhatsAppPicker] = useState(false);
+  const [attachLabelInput, setAttachLabelInput] = useState('');
+  const [pendingAttachUrl, setPendingAttachUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchContact();
@@ -103,7 +106,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     fetchContact();
   };
 
-  const addAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingAttachment(true);
@@ -113,19 +116,25 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
       const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
       if (!uploadRes.ok) throw new Error();
       const { url } = await uploadRes.json();
-
-      const label = prompt('Label for this attachment (e.g. "Visiting Card", "Event Photo"):') || file.name;
-      await fetch(`/api/contacts/${id}/attachments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_url: url, label }),
-      });
-      fetchContact();
+      // Show label input instead of browser prompt
+      setPendingAttachUrl(url);
+      setAttachLabelInput('');
     } catch {
       alert('Failed to upload');
-    } finally {
       setUploadingAttachment(false);
     }
+  };
+
+  const saveAttachmentWithLabel = async () => {
+    if (!pendingAttachUrl) return;
+    await fetch(`/api/contacts/${id}/attachments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_url: pendingAttachUrl, label: attachLabelInput || 'Photo' }),
+    });
+    setPendingAttachUrl(null);
+    setUploadingAttachment(false);
+    fetchContact();
   };
 
   const deleteAttachment = async (attId: string) => {
@@ -173,6 +182,49 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
       body: JSON.stringify({ tagIds }),
     });
     fetchContact();
+  };
+
+  // Clean phone number for dialing/WhatsApp
+  const cleanNumber = (num: string) => {
+    let digits = num.replace(/[^\d+]/g, '');
+    // If starts with 0, replace with +91
+    if (digits.startsWith('0') && digits.length === 11) digits = '+91' + digits.substring(1);
+    // If just 10 digits, add +91
+    if (/^\d{10}$/.test(digits)) digits = '+91' + digits;
+    return digits;
+  };
+
+  // Get all callable numbers (phones + whatsapp field)
+  const getWhatsAppNumbers = () => {
+    const numbers: { label: string; number: string }[] = [];
+    for (const p of contact.phones || []) {
+      if (p.number) numbers.push({ label: `${p.type}: ${p.number}`, number: cleanNumber(p.number) });
+    }
+    if (contact.whatsapp) {
+      const waNum = cleanNumber(contact.whatsapp);
+      if (!numbers.some(n => n.number === waNum)) {
+        numbers.push({ label: `WhatsApp: ${contact.whatsapp}`, number: waNum });
+      }
+    }
+    return numbers;
+  };
+
+  const openWhatsApp = (number?: string) => {
+    const nums = getWhatsAppNumbers();
+    if (!number && nums.length === 0) {
+      alert('No phone number available for WhatsApp');
+      return;
+    }
+    if (!number && nums.length === 1) {
+      window.open(`https://wa.me/${nums[0].number.replace('+', '')}`, '_blank');
+      return;
+    }
+    if (!number && nums.length > 1) {
+      setShowWhatsAppPicker(true);
+      return;
+    }
+    window.open(`https://wa.me/${number!.replace('+', '')}`, '_blank');
+    setShowWhatsAppPicker(false);
   };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -235,7 +287,29 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
           </div>
           {contact.title && <p className="text-gray-600 dark:text-gray-400">{contact.title}</p>}
           {contact.company && <p className="text-gray-500 dark:text-gray-500 text-sm"><i className="fas fa-building mr-1"></i>{contact.company}</p>}
-          {contact.nickname && <p className="text-gray-400 text-sm italic">aka "{contact.nickname}"</p>}
+          {contact.nickname && <p className="text-gray-400 text-sm italic">aka &ldquo;{contact.nickname}&rdquo;</p>}
+
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-2 mt-3">
+            {contact.phones?.[0] && (
+              <a href={`tel:${cleanNumber(contact.phones[0].number)}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600">
+                <i className="fas fa-phone"></i> Call
+              </a>
+            )}
+            {(contact.phones?.length > 0 || contact.whatsapp) && (
+              <button onClick={() => openWhatsApp()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] text-white rounded-lg text-sm hover:bg-[#1da851]">
+                <i className="fab fa-whatsapp"></i> WhatsApp
+              </button>
+            )}
+            {contact.emails?.[0] && (
+              <a href={`mailto:${contact.emails[0].email}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600">
+                <i className="fas fa-envelope"></i> Email
+              </a>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setEditing(true)} className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm">
@@ -257,10 +331,18 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
             {contact.phones?.length > 0 && (
               <div>
                 {contact.phones.map((p: any, i: number) => (
-                  <div key={i} className="flex items-center gap-2 py-1">
-                    <i className="fas fa-phone text-green-500 w-5 text-center text-sm"></i>
-                    <a href={`tel:${p.number}`} className="text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-500">{p.number}</a>
-                    <span className="text-[10px] text-gray-400 uppercase">{p.type}</span>
+                  <div key={i} className="flex items-center gap-2 py-1.5">
+                    <a href={`tel:${cleanNumber(p.number)}`} className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors">
+                      <i className="fas fa-phone text-green-600 dark:text-green-400 text-xs"></i>
+                    </a>
+                    <div className="flex-1 min-w-0">
+                      <a href={`tel:${cleanNumber(p.number)}`} className="text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-500">{p.number}</a>
+                      <span className="text-[10px] text-gray-400 uppercase ml-2">{p.type}</span>
+                    </div>
+                    <button onClick={() => openWhatsApp(cleanNumber(p.number))} title="WhatsApp"
+                      className="w-7 h-7 bg-[#25D366]/10 rounded-full flex items-center justify-center hover:bg-[#25D366]/20 transition-colors">
+                      <i className="fab fa-whatsapp text-[#25D366] text-sm"></i>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -270,8 +352,10 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
               <div>
                 {contact.emails.map((e: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 py-1">
-                    <i className="fas fa-envelope text-blue-500 w-5 text-center text-sm"></i>
-                    <a href={`mailto:${e.email}`} className="text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-500 truncate">{e.email}</a>
+                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                      <i className="fas fa-envelope text-blue-500 text-xs"></i>
+                    </div>
+                    <a href={`mailto:${e.email}`} className="text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-500 truncate flex-1">{e.email}</a>
                     <span className="text-[10px] text-gray-400 uppercase">{e.type}</span>
                   </div>
                 ))}
@@ -280,17 +364,23 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
 
             {contact.address && (
               <div className="flex items-start gap-2 py-1">
-                <i className="fas fa-map-marker-alt text-red-500 w-5 text-center text-sm mt-0.5"></i>
+                <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i className="fas fa-map-marker-alt text-red-500 text-xs"></i>
+                </div>
                 <p className="text-sm text-gray-700 dark:text-gray-300">{contact.address}</p>
               </div>
             )}
 
             {/* Social Links */}
             <div className="flex gap-3 pt-2">
-              {contact.linkedin && <a href={contact.linkedin} target="_blank" className="text-blue-600 hover:text-blue-800"><i className="fab fa-linkedin text-lg"></i></a>}
-              {contact.whatsapp && <a href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`} target="_blank" className="text-green-500 hover:text-green-700"><i className="fab fa-whatsapp text-lg"></i></a>}
-              {contact.instagram && <a href={`https://instagram.com/${contact.instagram.replace('@', '')}`} target="_blank" className="text-pink-500 hover:text-pink-700"><i className="fab fa-instagram text-lg"></i></a>}
-              {contact.website && <a href={contact.website} target="_blank" className="text-gray-500 hover:text-gray-700"><i className="fas fa-globe text-lg"></i></a>}
+              {contact.linkedin && <a href={contact.linkedin} target="_blank" className="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors"><i className="fab fa-linkedin text-blue-600"></i></a>}
+              {contact.whatsapp && (
+                <button onClick={() => openWhatsApp(cleanNumber(contact.whatsapp))} className="w-9 h-9 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center hover:bg-green-200 transition-colors">
+                  <i className="fab fa-whatsapp text-[#25D366]"></i>
+                </button>
+              )}
+              {contact.instagram && <a href={`https://instagram.com/${contact.instagram.replace('@', '')}`} target="_blank" className="w-9 h-9 bg-pink-100 dark:bg-pink-900/30 rounded-full flex items-center justify-center hover:bg-pink-200 transition-colors"><i className="fab fa-instagram text-pink-500"></i></a>}
+              {contact.website && <a href={contact.website} target="_blank" className="w-9 h-9 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"><i className="fas fa-globe text-gray-500"></i></a>}
             </div>
           </div>
 
@@ -342,7 +432,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
               <textarea value={newRemark} onChange={e => setNewRemark(e.target.value)}
                 placeholder="Add a note about this contact..."
                 rows={2} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white text-sm" />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button onClick={() => addRemark()} disabled={addingRemark || !newRemark.trim()}
                   className="px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-sm hover:bg-indigo-600 disabled:opacity-50">
                   {addingRemark ? '...' : 'Add Note'}
@@ -385,11 +475,41 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
               <h3 className="font-semibold text-gray-800 dark:text-white text-sm uppercase tracking-wide">
                 <i className="fas fa-paperclip mr-1 text-indigo-500"></i>Attachments
               </h3>
-              <label className="cursor-pointer px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                {uploadingAttachment ? 'Uploading...' : <><i className="fas fa-plus mr-1"></i>Add</>}
-                <input type="file" accept="image/*,.pdf" className="hidden" onChange={addAttachment} disabled={uploadingAttachment} />
-              </label>
+              <div className="flex gap-1">
+                {/* Camera button */}
+                <label className="cursor-pointer w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors" title="Take Photo">
+                  <i className="fas fa-camera text-green-600 text-xs"></i>
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAttachFile} disabled={uploadingAttachment} />
+                </label>
+                {/* Gallery button */}
+                <label className="cursor-pointer w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors" title="Choose Photo">
+                  <i className="fas fa-image text-indigo-600 text-xs"></i>
+                  <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleAttachFile} disabled={uploadingAttachment} />
+                </label>
+              </div>
             </div>
+
+            {/* Uploading / Label Input */}
+            {uploadingAttachment && !pendingAttachUrl && (
+              <div className="flex items-center gap-2 mb-3 text-sm text-gray-500">
+                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                Uploading...
+              </div>
+            )}
+            {pendingAttachUrl && (
+              <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-2">
+                <img src={pendingAttachUrl} alt="" className="w-full max-h-32 object-contain rounded" />
+                <input type="text" value={attachLabelInput} onChange={e => setAttachLabelInput(e.target.value)}
+                  placeholder="Label (e.g. Visiting Card, Event Photo)"
+                  className="w-full px-3 py-1.5 border rounded-lg text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white" />
+                <div className="flex gap-2">
+                  <button onClick={saveAttachmentWithLabel} className="px-3 py-1.5 bg-indigo-500 text-white rounded-lg text-sm hover:bg-indigo-600">Save</button>
+                  <button onClick={() => { setPendingAttachUrl(null); setUploadingAttachment(false); }}
+                    className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm">Cancel</button>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               {(contact.attachments || []).map((att: Attachment) => (
                 <div key={att.id} className="relative group">
@@ -405,7 +525,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               ))}
             </div>
-            {(!contact.attachments || contact.attachments.length === 0) && (
+            {(!contact.attachments || contact.attachments.length === 0) && !pendingAttachUrl && (
               <p className="text-sm text-gray-400 text-center py-4">No attachments</p>
             )}
           </div>
@@ -466,6 +586,36 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
+
+      {/* WhatsApp Number Picker */}
+      {showWhatsAppPicker && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowWhatsAppPicker(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-sm w-full p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
+              <i className="fab fa-whatsapp text-[#25D366] mr-2"></i>Select Number
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">Choose which number to message on WhatsApp</p>
+            <div className="space-y-2">
+              {getWhatsAppNumbers().map((n, i) => (
+                <button key={i} onClick={() => openWhatsApp(n.number)}
+                  className="w-full flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-300 border-2 border-transparent transition-all text-left">
+                  <div className="w-10 h-10 bg-[#25D366]/10 rounded-full flex items-center justify-center">
+                    <i className="fab fa-whatsapp text-[#25D366] text-lg"></i>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 dark:text-white">{n.number}</p>
+                    <p className="text-[10px] text-gray-400 uppercase">{n.label}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowWhatsAppPicker(false)}
+              className="w-full mt-3 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg text-sm">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightboxUrl && (
