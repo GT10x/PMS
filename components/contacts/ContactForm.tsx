@@ -86,7 +86,15 @@ export default function ContactForm({ contact, allTags, onSave, onCancel, onCrea
     // Clean empty phones/emails
     const cleanPhones = form.phones.filter((p: any) => p.number.trim());
     const cleanEmails = form.emails.filter((e: any) => e.email.trim());
-    await onSave({ ...form, phones: cleanPhones, emails: cleanEmails, tagIds });
+    // Convert empty strings to null for date/optional fields (PostgreSQL rejects '' for DATE)
+    const cleaned: Record<string, any> = { ...form, phones: cleanPhones, emails: cleanEmails, tagIds };
+    const nullIfEmpty = ['birthday', 'anniversary', 'met_at_date', 'nickname', 'company', 'title',
+      'met_at_event', 'met_at_location', 'introduced_by', 'linkedin', 'twitter', 'instagram',
+      'whatsapp', 'website', 'address', 'profile_photo_url'];
+    for (const key of nullIfEmpty) {
+      if (cleaned[key] === '') cleaned[key] = null;
+    }
+    await onSave(cleaned);
     setSaving(false);
   };
 

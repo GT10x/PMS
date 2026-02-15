@@ -69,6 +69,11 @@ export async function PUT(
     const body = await req.json();
     const { tagIds, ...contactData } = body;
 
+    // Convert empty strings to null for date and optional fields
+    for (const key of Object.keys(contactData)) {
+      if (contactData[key] === '') contactData[key] = null;
+    }
+
     const { data: contact, error } = await supabaseAdmin
       .from('contacts')
       .update({ ...contactData, updated_at: new Date().toISOString() })

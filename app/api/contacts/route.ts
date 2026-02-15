@@ -133,6 +133,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { tagIds, ...contactData } = body;
 
+    // Convert empty strings to null for date and optional fields
+    const dateFields = ['birthday', 'anniversary', 'met_at_date'];
+    for (const key of Object.keys(contactData)) {
+      if (contactData[key] === '') contactData[key] = null;
+      if (dateFields.includes(key) && contactData[key] === '') contactData[key] = null;
+    }
+
     const { data: contact, error } = await supabaseAdmin
       .from('contacts')
       .insert({ ...contactData, created_by: MASTER_ADMIN_ID })
