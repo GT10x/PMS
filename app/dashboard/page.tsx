@@ -269,6 +269,24 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Contact Manager - Master Admin Only */}
+      {user.id === 'd60a4c5e-aa9f-4cdb-999a-41f0bd23d09e' && (
+        <div className="mb-8">
+          <a href="/dashboard/contacts"
+            className="card p-6 hover:border-teal-500 border-2 border-transparent cursor-pointer group block">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <i className="fas fa-address-book text-white text-xl"></i>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 dark:text-white">Contact Manager</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Personal contacts, visiting cards, reminders</p>
+              </div>
+            </div>
+          </a>
+        </div>
+      )}
+
       {/* Quick Actions for Admin/PM */}
       {isAdminOrPM && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">

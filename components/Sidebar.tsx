@@ -63,6 +63,12 @@ export default function Sidebar({
       icon: 'fas fa-bug',
       show: user.role === 'tester' || isAdminOrPM,
     },
+    {
+      name: 'Contacts',
+      path: '/dashboard/contacts',
+      icon: 'fas fa-address-book',
+      show: user.id === 'd60a4c5e-aa9f-4cdb-999a-41f0bd23d09e',
+    },
   ];
 
   const isActive = (path: string) => {
